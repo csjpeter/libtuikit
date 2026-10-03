@@ -1,0 +1,226 @@
+.TH LIBTUIKIT 7 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+libtuikit \- terminal user interface toolkit for full-screen C programs:
+architecture
+.SH DESCRIPTION
+libtuikit is a C11 library for full-screen terminal programs, written so
+that the programs of one workspace stop rewriting the same terminal code.
+It depends on the C library only \(em no ncurses, no terminfo \(em and
+targets xterm-compatible terminals
+.RB ( TERM=xterm-256color ).
+.PP
+It is a toolkit, not a framework: it forces no main loop and no
+application object on the program.
+The program owns its loop, its model and its view; the library gives it
+events, state machines and drawing.
+.SH ARCHITECTURE
+.nf
+  program
+    |  events                               drawing
+    v                                          |
+  tui_term --> tui_decoder --> tui_event     tui_canvas --> tui_screen --> tui_buf --> fd
+  (fds, termios,  (bytes -> keys)            (clipped)     (cells, diff)  (bytes)
+   signals, size)
+          widgets: tui_listview  tui_textview  tui_lineedit  tui_dialog
+          helpers: tui_text (UTF-8, width, sanitising)  tui_rect (layout)
+          no session: tui_tty (size, raw mode, one key, password), tui_readline
+.fi
+.PP
+.TP
+.B tuikit/term.h
+the full-screen session; the only module with signal handlers
+.TP
+.B tuikit/tty.h
+descriptor-level helpers that need no session
+.TP
+.B tuikit/event.h
+events and the input decoder (pure)
+.TP
+.B tuikit/text.h
+UTF-8 and display width (pure)
+.TP
+.B tuikit/buf.h
+the output buffer; only tui_buf_write_fd writes
+.TP
+.B tuikit/screen.h
+cells, styles and the renderer (pure)
+.TP
+.B tuikit/canvas.h
+rectangles, layout and clipped drawing (pure)
+.TP
+.BR tuikit/listview.h ", " tuikit/textview.h ", " tuikit/dialog.h
+widgets (pure)
+.TP
+.B tuikit/lineedit.h
+the line editor (pure), tui_lineedit_run and tui_readline (read and write)
+.TP
+.B tuikit/tuikit.h
+all of the above
+.PP
+Everything that needs no descriptor is a pure function over plain data,
+so the interesting behaviour \(em decoding, editing, navigation, layout,
+rendering \(em is testable without a terminal.
+The renderer writes into a
+.BR tui_buf ;
+the program writes the buffer to the terminal, and a test feeds the same
+bytes to a terminal emulator.
+.SH THE LOOP
+.nf
+tui_term *t = tui_term_open(NULL);          /* NULL, ENOTTY: plain output */
+int rows, cols;
+tui_term_size(t, &rows, &cols);
+tui_screen *scr = tui_screen_new(rows, cols);
+tui_buf out;
+tui_buf_init(&out);
+for (int quit = 0; !quit; ) {
+    draw(&model, tui_canvas_of(scr));       /* the program's view */
+    tui_screen_render(scr, &out);
+    tui_term_flush_buf(t, &out);
+    tui_event ev;
+    if (tui_term_wait(t, \-1, NULL, 0, &ev) < 0) break;
+    switch (ev.type) {
+    case TUI_EV_RESIZE: tui_screen_resize(scr, ev.rows, ev.cols); break;
+    case TUI_EV_HANGUP: quit = 1; break;
+    case TUI_EV_KEY:    quit = handle_key(&model, &ev); break;
+    default: break;
+    }
+}
+tui_buf_free(&out);
+tui_screen_free(scr);
+tui_term_close(t);
+.fi
+.PP
+A program with a network connection or a worker passes those descriptors
+to
+.BR tui_term_wait (3)
+and gets
+.B TUI_EV_FD
+for them: one loop, no polling interval.
+The complete example is
+.BR tuikit-demo ,
+in the source tree under
+.IR examples/ .
+.SH THE TERMINAL IS ALWAYS GIVEN BACK
+.BR tui_term_open (3)
+enters raw mode with every change read back, clears flow control (so
+Ctrl-S and Ctrl-Q are keys rather than a frozen screen), and switches to
+the alternate screen.
+The terminal is restored by
+.BR tui_term_close (3),
+by
+.BR exit (3),
+by SIGTERM, SIGHUP, SIGINT and SIGQUIT (re-raised, so the exit status is
+the signal's), and around a stop by SIGTSTP or SIGSTOP and the SIGCONT
+that follows (then a resize is reported so the program repaints).
+A signal the program catches or ignores itself is left alone.
+.PP
+A resize is never lost: the SIGWINCH handler writes to a pipe that the
+wait polls together with the terminal.
+.SH TEXT
+Widths come from a table built into the library, generated from glibc's
+C.UTF-8 locale, so the program's locale does not matter: in the C locale
+glibc's own
+.BR wcwidth (3)
+reports \-1 for every non-ASCII character, and code relying on it drops
+accented and CJK text.
+A printable character the table does not know is one column wide.
+Every drawing function replaces control characters with U+00B7, so text
+from the network cannot carry an escape sequence onto the screen.
+.SH EMAIL-CLI EQUIVALENTS
+email-cli is the reference implementation the library follows, and the
+library may only add to its capabilities.
+.TP
+.B terminal_is_tty
+tui_tty_is
+.TP
+.B terminal_cols (80 when unknown)
+tui_tty_cols (80 when unknown)
+.TP
+.B terminal_rows (0 when unknown)
+tui_tty_rows (0 when unknown)
+.TP
+.B terminal_raw_enter / _exit
+tui_tty_raw_enter / _exit
+.TP
+.B RAII_TERM_RAW
+TUI_RAII_RAW
+.TP
+.B terminal_read_key
+tui_tty_read_key
+.TP
+.B TERM_KEY_* (TAB, SHIFT_TAB, ...)
+TUI_KEY_* with TUI_MOD_* (a superset)
+.TP
+.B terminal_last_printable / _utf8
+ev.cp / ev.utf8
+.TP
+.B ESC delay 100 ms
+TUI_ESC_DELAY_DEFAULT (100 ms)
+.TP
+.B terminal_wcwidth (unknown: 1)
+tui_cp_width (unknown: 1)
+.TP
+.B terminal_read_password
+tui_tty_read_password
+.TP
+.B input_line_init / input_line_run
+tui_lineedit_init / tui_lineedit_run
+.TP
+.B tab_fn, shift_tab_fn, render_below
+the same hooks on tui_lineedit
+.TP
+.B Windows stub (not a TTY)
+the same stub behaviour
+.SH TESTING A PROGRAM THAT USES IT
+The library's own tests use
+.BR libptytest (7):
+unit tests render into a buffer and compare the emulated screen with
+.BR pty_feed (3)
+and
+.BR pty_region_compare (3);
+the PTY tests run real programs through a real pseudo-terminal.
+A program built on libtuikit can be tested the same way.
+libptytest is a test dependency only; the library shares no code with it.
+.SH NAMES
+Functions and types are
+.BR tui_ module_ verb ;
+macros
+.BR TUI_ *.
+Some programs that will use the library already have symbols with the
+.B tui_
+prefix of their own; the library never defines
+.BR tui_app_* ,
+.BR tui_model_* ,
+.BR tui_input_* ,
+.BR tui_form_* ,
+.BR tui_api_* ,
+.BR tui_run ,
+.BR tui_view_t ,
+.BR tui_modal_t ,
+or the macro families
+.BR TUI_EVENT_* ,
+.BR TUI_FOCUS_* ,
+.BR TUI_VIEW_* ,
+.BR TUI_MODAL_* ,
+.BR TUI_FORM_* ,
+.BR TUI_SUB_* ,
+.BR TUI_MIN_* ,
+.BR TUI_MAX_* ,
+.B TUI_KEY_MAX
+and
+.BR TUI_INPUT_MAX .
+.SH THREADS
+One thread drives the terminal.
+Other threads wake the loop through a descriptor passed to
+.BR tui_term_wait (3).
+Signal dispositions are per process, so one session with signal handling
+can be open at a time.
+.SH SEE ALSO
+.BR libtuikit (3),
+.BR tui_term_open (3),
+.BR tui_term_wait (3),
+.BR tui_screen_new (3),
+.BR tui_canvas_of (3),
+.BR tui_lineedit_init (3),
+.BR tui_dialog_message (3),
+.BR libptytest (7)

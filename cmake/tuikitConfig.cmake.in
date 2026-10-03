@@ -1,0 +1,12 @@
+# CMake package file for libtuikit.
+#
+#   find_package(tuikit 0.1 REQUIRED)
+#   target_link_libraries(my-program PRIVATE tuikit::tuikit)         # shared
+#   target_link_libraries(my-program PRIVATE tuikit::tuikit_static)  # static
+#
+# See libtuikit(7).
+
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/tuikitTargets.cmake")
+check_required_components(tuikit)

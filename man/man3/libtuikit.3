@@ -1,0 +1,113 @@
+.TH LIBTUIKIT 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+libtuikit, tui_version \- terminal user interface toolkit, function overview
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/tuikit.h>
+.PP
+.B const char *tui_version(void);
+.PP
+Compile and link with
+.B pkg-config --cflags --libs libtuikit
+or, in CMake,
+.B find_package(tuikit)
+and the target
+.BR tuikit::tuikit .
+.fi
+.SH DESCRIPTION
+.BR tui_version ()
+returns the library's version, e.g. "0.1.0", or "0.1.0.12" for a build
+twelve commits past the release.
+.PP
+The functions, by header; each name links to its page.
+.SS tuikit/term.h \(em a full-screen session
+.BR tui_term_open (3),
+.BR tui_term_opts_init (3),
+.BR tui_term_close (3),
+.BR tui_term_size (3),
+.BR tui_term_write (3),
+.BR tui_term_flush_buf (3),
+.BR tui_term_suspend (3),
+.BR tui_term_resume (3),
+.BR tui_term_wait (3),
+.BR tui_term_fd (3).
+.SS tuikit/tty.h \(em descriptor-level helpers, no session
+.BR tui_tty_is (3),
+.BR tui_tty_cols (3),
+.BR tui_tty_rows (3),
+.BR tui_tty_raw_enter (3),
+.BR tui_tty_raw_exit (3),
+.BR tui_tty_read_key (3),
+.BR tui_tty_read_password (3).
+.SS tuikit/event.h \(em input decoding
+.BR tui_decoder_init (3),
+.BR tui_decoder_free (3),
+.BR tui_decoder_feed (3),
+.BR tui_decoder_next (3),
+.BR tui_decoder_pending (3),
+.BR tui_decoder_timeout (3),
+.BR tui_event_name (3).
+.SS tuikit/text.h \(em UTF-8 and width
+.BR tui_utf8_decode (3),
+.BR tui_utf8_encode (3),
+.BR tui_utf8_seq_len (3),
+.BR tui_cp_width (3),
+.BR tui_cp_sanitize (3),
+.BR tui_str_width (3),
+.BR tui_strn_width (3),
+.BR tui_str_fit (3),
+.BR tui_str_fit_ellipsis (3).
+.SS tuikit/buf.h \(em the output buffer
+.BR tui_buf_init (3)
+and the functions on its page.
+.SS tuikit/screen.h \(em cells, styles, rendering
+.BR tui_screen_new (3),
+.BR tui_screen_free (3),
+.BR tui_screen_resize (3),
+.BR tui_screen_rows (3),
+.BR tui_screen_cols (3),
+.BR tui_screen_clear (3),
+.BR tui_screen_put (3),
+.BR tui_screen_fill (3),
+.BR tui_screen_set_cursor (3),
+.BR tui_screen_invalidate (3),
+.BR tui_screen_set_sync (3),
+.BR tui_screen_render (3).
+.SS tuikit/canvas.h \(em layout and clipped drawing
+.BR tui_canvas_of (3),
+.BR tui_canvas_sub (3),
+.BR tui_canvas_put (3),
+.BR tui_canvas_put_aligned (3),
+.BR tui_canvas_fill (3),
+.BR tui_canvas_clear (3),
+.BR tui_canvas_hline (3),
+.BR tui_canvas_vline (3),
+.BR tui_canvas_box (3),
+.BR tui_canvas_set_cursor (3),
+.BR tui_rect_split_h (3),
+.BR tui_rect_split_v (3),
+.BR tui_rect_inset (3),
+.BR tui_rect_center (3),
+.BR tui_rect_intersect (3).
+.SS tuikit/listview.h \(em list scrolling and selection
+.BR tui_listview_init (3)
+and the functions on its page.
+.SS tuikit/textview.h \(em wrapped, scrollable text
+.BR tui_textview_init (3)
+and the functions on its page.
+.SS tuikit/lineedit.h \(em line editing
+.BR tui_lineedit_init (3),
+.BR tui_lineedit_run (3),
+.BR tui_history_init (3),
+.BR tui_readline (3)
+and the functions on their pages.
+.SS tuikit/dialog.h \(em modal dialogs
+.BR tui_dialog_message (3),
+.BR tui_dialog_confirm (3),
+.BR tui_dialog_prompt (3),
+.BR tui_dialog_menu (3),
+.BR tui_dialog_handle (3),
+.BR tui_dialog_render (3),
+.BR tui_dialog_free (3).
+.SH SEE ALSO
+.BR libtuikit (7)

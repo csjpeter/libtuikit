@@ -1,0 +1,51 @@
+# CLAUDE.md
+
+Guidance for Claude Code working in this repository.
+
+## Policies first
+
+This project follows the workspace policies in `../policies/` — read them
+before changing build, test or packaging behaviour, and re-read them
+regularly: they change. They are never edited from here (see
+`policies/project-boundaries-model.md`); a disagreement is reported to the
+human.
+
+`requirements/`, if it exists, is human-authored and never edited by an agent.
+The other projects (tg-cli, email-cli, issue-manager, mamind, libptytest) are
+read, never changed; a fault found in them is reported to the human.
+
+## Commands
+
+```bash
+./manage.sh test       # unit tests (ASAN + UBSan) — run most often
+./manage.sh pty        # PTY tests (ASAN + UBSan)
+./manage.sh check      # every gate: unit, pty, valgrind, coverage, package, lintian, consumer
+build/_test/tests/test-decoder <substring>   # one test
+```
+
+## Architecture
+
+`docs/specification.md` is the design; `man/man7/libtuikit.7` the user-facing
+architecture. In short: `tui_term` is the only module with signal handlers,
+`tui_tty` and the two line-editing loops the only others that touch
+descriptors; everything else is pure and renders into a `tui_buf`.
+
+## Rules specific to this project
+
+- **email-cli is the reference.** Where tg-cli and email-cli differ, email-cli
+  wins, and the library may only add to email-cli's terminal capabilities,
+  never remove one. Each one has a row in `libtuikit(7)`, "EMAIL-CLI
+  EQUIVALENTS", and a test.
+- **Independent of the test instrument.** No code or logic is shared with
+  libptytest (widths, colours, cell model). Renderer tests check the exact
+  bytes *and* the emulated screen.
+- **Prefix `tui_`**, and never the names listed in `docs/specification.md`
+  section 3 — tg-cli and issue-manager use them. `tests/unit/check_api.sh`
+  enforces it.
+- **Every exported function has a man page** (its own or an alias in
+  `CMakeLists.txt`); `check_api.sh` fails otherwise, and on any groff warning.
+- **The width table is generated**, never edited: `cmake --build <dir>
+  --target regen-width`. `test-text` compares it with the running glibc.
+- The library never prints. Errors are return values with `errno`.
+- Source, comments and documentation are in English. C11, libc only.
+- The ABI is versioned by `SOVERSION` (= major version).

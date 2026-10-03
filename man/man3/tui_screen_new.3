@@ -1,0 +1,142 @@
+.TH TUI_SCREEN_NEW 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_screen_new, tui_screen_free, tui_screen_resize, tui_screen_rows,
+tui_screen_cols, tui_screen_clear, tui_screen_put, tui_screen_fill,
+tui_screen_set_cursor, tui_screen_invalidate, tui_screen_set_sync,
+tui_screen_render \- a grid of styled cells and its diffing renderer
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/screen.h>
+.PP
+.B typedef struct tui_style { tui_color fg, bg; uint16_t attrs; } tui_style;
+.B TUI_STYLE_DEFAULT
+.BI "tui_style tui_style_make(tui_color " fg ", tui_color " bg ", uint16_t " attrs );
+.BI "tui_style tui_style_attrs(uint16_t " attrs );
+.BI "int       tui_style_eq(tui_style " a ", tui_style " b );
+.PP
+.BI "tui_screen *tui_screen_new(int " rows ", int " cols );
+.BI "void tui_screen_free(tui_screen *" s );
+.BI "int  tui_screen_resize(tui_screen *" s ", int " rows ", int " cols );
+.BI "int  tui_screen_rows(const tui_screen *" s );
+.BI "int  tui_screen_cols(const tui_screen *" s );
+.BI "void tui_screen_clear(tui_screen *" s ", tui_style " style );
+.BI "int  tui_screen_put(tui_screen *" s ", int " row ", int " col ", int " max_cols ,
+.BI "                    const char *" utf8 ", tui_style " style );
+.BI "void tui_screen_fill(tui_screen *" s ", int " row ", int " col ", int " n ,
+.BI "                     uint32_t " cp ", tui_style " style );
+.BI "void tui_screen_set_cursor(tui_screen *" s ", int " row ", int " col ", int " visible );
+.BI "void tui_screen_invalidate(tui_screen *" s );
+.BI "void tui_screen_set_sync(tui_screen *" s ", int " on );
+.BI "long tui_screen_render(tui_screen *" s ", tui_buf *" out );
+.fi
+.SH DESCRIPTION
+A screen holds two grids of cells: the back grid, which drawing changes,
+and the front grid, what the terminal is known to show.
+.BR tui_screen_render ()
+appends to
+.I out
+the bytes that bring the terminal from the front grid to the back grid,
+and then records the back grid as shown.
+The screen writes to no descriptor: the program writes the buffer (see
+.BR tui_term_flush_buf (3)),
+and a test can feed the same bytes to a terminal emulator.
+.SS Styles
+A colour is
+.BR TUI_COLOR_DEFAULT ,
+one of 16
+.RB ( TUI_COLOR_16 (n),
+.BR TUI_RED ,
+.BR TUI_BRIGHT_BLUE ,
+\&...), one of 256
+.RB ( TUI_COLOR_256 (n)),
+or direct
+.RB ( TUI_COLOR_RGB (r,g,b)).
+The attributes are
+.BR TUI_ATTR_BOLD ,
+.BR TUI_ATTR_DIM ,
+.BR TUI_ATTR_ITALIC ,
+.B TUI_ATTR_UNDERLINE
+and
+.BR TUI_ATTR_REVERSE .
+.SS Drawing
+.BR tui_screen_put ()
+writes UTF-8 text from (\fIrow\fR, \fIcol\fR), at most
+.I max_cols
+columns (0 or less: to the right edge), clipped to the screen, and
+returns the columns written.
+Every character is passed through
+.BR tui_cp_sanitize (3),
+so a control or an escape sequence in the text is drawn as U+00B7 and
+never reaches the terminal.
+A wide character takes two cells and is never drawn by halves; writing
+over half of one blanks its other half.
+A combining mark joins the character before it in the same text (a cell
+keeps up to two marks; more are not drawn); a mark with no character
+before it is not drawn.
+.PP
+.BR tui_screen_fill ()
+fills
+.I n
+cells with
+.I cp
+(a space if
+.I cp
+is not one column wide);
+.BR tui_screen_clear ()
+fills the whole screen with blanks in a style.
+.PP
+.BR tui_screen_set_cursor ()
+says where the terminal cursor is left after a render, and whether it is
+shown; it is hidden by default.
+.SS Rendering
+The output uses only sequences xterm-compatible terminals have had for
+decades: CUP to position, SGR for styles (always starting from a reset, so
+no attribute leaks from one cell into the next), ED 2 to clear, DECTCEM
+for the cursor.
+Every changed cell is written; no relative movement, no erase-to-end of
+line, no scrolling, so the result does not depend on how a terminal treats
+the cells around it.
+A full frame \(em the first one, and the next one after
+.BR tui_screen_invalidate ()
+or
+.BR tui_screen_resize ()
+\(em clears the screen and writes only the cells that are not default
+blanks.
+Each frame with any output is wrapped in synchronized-update mode
+.RB ( "CSI ? 2026 h" " .. " "CSI ? 2026 l" ),
+which terminals that do not know it ignore;
+.BR tui_screen_set_sync ()
+turns it off.
+.PP
+Call
+.BR tui_screen_invalidate ()
+when something else wrote to the terminal (a log line, a child process):
+the screen no longer knows what the terminal shows.
+Call
+.BR tui_screen_resize ()
+on every
+.BR TUI_EV_RESIZE ,
+even with an unchanged size: the content is cleared and the next render
+draws everything.
+.SH RETURN VALUE
+.BR tui_screen_new ()
+returns the screen, or NULL with
+.I errno
+.B EINVAL
+(a size of 0 or less, or too large) or
+.BR ENOMEM .
+.BR tui_screen_resize ()
+returns 0, or \-1 with
+.I errno
+and the screen unchanged.
+.BR tui_screen_render ()
+returns the number of bytes appended (0 when nothing changed), or \-1 with
+.I errno
+.B ENOMEM
+when the buffer failed; the frame is then not recorded as shown and the
+next render is a full one.
+.SH SEE ALSO
+.BR tui_canvas_of (3),
+.BR tui_buf_init (3),
+.BR tui_cp_width (3),
+.BR libtuikit (7)

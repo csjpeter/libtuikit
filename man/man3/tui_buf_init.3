@@ -1,0 +1,88 @@
+.TH TUI_BUF_INIT 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_buf_init, tui_buf_free, tui_buf_reset, tui_buf_append, tui_buf_puts,
+tui_buf_printf, tui_buf_write_fd \- growable byte buffer, the renderer's output
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/buf.h>
+.PP
+.B typedef struct tui_buf {
+.B "    char  *data;"
+.B "    size_t len, cap;"
+.B "    int    failed;"
+.B } tui_buf;
+.PP
+.BI "void tui_buf_init(tui_buf *" b );
+.BI "void tui_buf_free(tui_buf *" b );
+.BI "void tui_buf_reset(tui_buf *" b );
+.BI "int  tui_buf_append(tui_buf *" b ", const void *" p ", size_t " n );
+.BI "int  tui_buf_puts(tui_buf *" b ", const char *" s );
+.BI "int  tui_buf_printf(tui_buf *" b ", const char *" fmt ", ...);"
+.BI "int  tui_buf_write_fd(tui_buf *" b ", int " fd );
+.fi
+.SH DESCRIPTION
+Everything libtuikit draws is appended to a
+.BR tui_buf .
+The program, or
+.BR tui_term_flush_buf (3),
+writes it to a file descriptor; a test hands the same bytes to a terminal
+emulator instead.
+This is what makes rendering testable without a terminal.
+.PP
+.BR tui_buf_init ()
+makes an empty buffer and allocates nothing.
+.BR tui_buf_free ()
+releases the memory and re-initialises the buffer.
+.BR tui_buf_reset ()
+empties it and clears
+.IR failed ,
+keeping the memory for the next frame.
+.PP
+.BR tui_buf_append ()
+appends
+.I n
+bytes (NUL bytes included),
+.BR tui_buf_puts ()
+a NUL-terminated string, and
+.BR tui_buf_printf ()
+formatted text as
+.BR printf (3).
+The content is always followed by a NUL byte not counted in
+.IR len .
+.PP
+An allocation failure is sticky: it sets
+.IR failed ,
+later appends do nothing, and
+.BR tui_buf_write_fd ()
+refuses to write the half-built frame, which would draw garbage.
+.PP
+.BR tui_buf_write_fd ()
+writes the whole buffer to
+.IR fd ,
+retrying on
+.B EINTR
+and waiting with
+.BR poll (2)
+on
+.BR EAGAIN ,
+so a non-blocking descriptor loses nothing.
+The buffer is emptied in every case.
+.SH RETURN VALUE
+The functions returning
+.B int
+return 0 on success and \-1 with
+.I errno
+set on failure:
+.B EINVAL
+for a NULL argument,
+.B ENOMEM
+for an allocation failure (or, from
+.BR tui_buf_write_fd (),
+for a buffer whose
+.I failed
+was set; nothing is written then), or the error of
+.BR write (2).
+.SH SEE ALSO
+.BR tui_screen_render (3),
+.BR tui_term_open (3),
+.BR libtuikit (7)

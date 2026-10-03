@@ -1,0 +1,143 @@
+.TH TUI_TTY_IS 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_tty_is, tui_tty_cols, tui_tty_rows, tui_tty_raw_enter, tui_tty_raw_exit,
+tui_tty_read_key, tui_tty_read_password \- terminal helpers that need no
+session
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/tty.h>
+.PP
+.BI "int  tui_tty_is(int " fd );
+.BI "int  tui_tty_cols(int " fd );
+.BI "int  tui_tty_rows(int " fd );
+.PP
+.BI "tui_tty_raw *tui_tty_raw_enter(int " fd ", unsigned " flags );
+.BI "void         tui_tty_raw_exit(tui_tty_raw **" state );
+.B #define TUI_RAII_RAW __attribute__((cleanup(tui_tty_raw_exit)))
+.PP
+.BI "int  tui_tty_read_key(int " fd ", tui_event *" ev );
+.BI "int  tui_tty_read_password(int " in_fd ", int " out_fd ", const char *" prompt ,
+.BI "                           char *" buf ", size_t " size );
+.fi
+.SH DESCRIPTION
+For a program that is not full-screen all the time: one that sizes a
+paged listing, enters raw mode for a single keypress, or asks for a
+password.
+These are the capabilities of email-cli's terminal layer, with the same
+fallbacks, so that email-cli can move onto the library without losing any
+(see
+.BR libtuikit (7),
+"email-cli equivalents").
+.PP
+.BR tui_tty_is ()
+returns 1 when
+.I fd
+is a terminal, 0 otherwise.
+.PP
+.BR tui_tty_cols ()
+and
+.BR tui_tty_rows ()
+return the size of the terminal on
+.IR fd ,
+or 80 columns and 0 rows when it is unknown \(em email-cli's
+.BR terminal_cols ()
+and
+.BR terminal_rows ().
+.PP
+.BR tui_tty_raw_enter ()
+saves the mode of the terminal on
+.I fd
+and enters the same raw mode as
+.BR tui_term_open (3)
+(no canonical input, no echo, no signal keys, no flow control), without
+any screen sequences or signal handlers.
+In
+.IR flags ,
+.B TUI_TERM_KEEP_ISIG
+and
+.B TUI_TERM_KEEP_IXON
+keep the signal keys and flow control.
+Every change is read back; if the terminal did not take it, nothing is
+left changed.
+.BR tui_tty_raw_exit ()
+restores the saved mode, frees the state and sets
+.I *state
+to NULL; it accepts NULL.
+.B TUI_RAII_RAW
+(GCC and Clang) restores the mode when the variable leaves its scope, as
+email-cli's
+.BR RAII_TERM_RAW :
+.PP
+.nf
+    TUI_RAII_RAW tui_tty_raw *raw = tui_tty_raw_enter(0, 0);
+.fi
+.PP
+.BR tui_tty_read_key ()
+reads one key from
+.IR fd ,
+blocking until there is one.
+It reads one byte at a time, so input after the key stays for whoever
+reads next.
+A lone ESC is reported after 100 ms of silence.
+Keys are decoded as
+.BR tui_decoder_init (3)
+describes; the printable character is in
+.IR ev\->cp " and " ev\->utf8
+(email-cli's
+.BR terminal_last_printable ()
+and
+.BR terminal_last_utf8 ()).
+Bracketed paste is not enabled by this function; if the program enabled
+it, a paste is reported as
+.B TUI_EV_PASTE
+without its text \(em use
+.BR tui_term_wait (3)
+for pastes.
+.PP
+.BR tui_tty_read_password ()
+is email-cli's
+.BR terminal_read_password ().
+When
+.I in_fd
+is a terminal it writes
+.RI \(dq prompt ": \(dq"
+to
+.IR out_fd ,
+turns echo off, reads one line, restores the mode and writes a newline.
+When it is not a terminal it reads one line and writes no prompt.
+The line is read with
+.BR read (2),
+never through stdio; the trailing CR/LF is removed and at most
+.IR size "\-1"
+bytes are kept, NUL-terminated.
+.SH RETURN VALUE
+.BR tui_tty_raw_enter ()
+returns the saved state, or NULL with
+.I errno
+.RB ( ENOTTY ,
+.BR ENOMEM ,
+.B EIO
+when the terminal did not take the mode, or the error of
+.BR tcgetattr (3)).
+.PP
+.BR tui_tty_read_key ()
+returns 1 with
+.I ev
+filled, 0 at the end of the input or when the terminal hung up (then
+.I ev
+is
+.BR TUI_EV_HANGUP ),
+and \-1 on error with
+.IR errno .
+.PP
+.BR tui_tty_read_password ()
+returns the length of the password, or \-1 at the end of the input or on
+error.
+.SH NOTES
+On Windows these functions behave as email-cli's stub: not a terminal,
+80 columns, 0 rows, raw mode unavailable
+.RB ( ENOTTY ).
+.SH SEE ALSO
+.BR tui_term_open (3),
+.BR tui_decoder_init (3),
+.BR libtuikit (7)

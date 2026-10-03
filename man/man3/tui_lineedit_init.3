@@ -1,0 +1,142 @@
+'\" t
+.TH TUI_LINEEDIT_INIT 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_lineedit_init, tui_lineedit_free, tui_lineedit_set_text,
+tui_lineedit_insert, tui_lineedit_handle, tui_lineedit_render,
+tui_lineedit_cursor_col, tui_lineedit_run, tui_history_init,
+tui_history_free, tui_history_add, tui_history_count, tui_history_get \-
+single-line text editor and line history
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/lineedit.h>
+.PP
+.BI "void tui_lineedit_init(tui_lineedit *" le ", char *" buf ", size_t " size ", const char *" initial );
+.BI "void tui_lineedit_free(tui_lineedit *" le );
+.BI "void tui_lineedit_set_text(tui_lineedit *" le ", const char *" text );
+.BI "int  tui_lineedit_insert(tui_lineedit *" le ", const char *" utf8 );
+.BI "tui_edit_result tui_lineedit_handle(tui_lineedit *" le ", const tui_event *" ev );
+.BI "int  tui_lineedit_render(tui_lineedit *" le ", tui_canvas " c ", const char *" prompt ", tui_style " st );
+.BI "int  tui_lineedit_cursor_col(const tui_lineedit *" le );
+.BI "int  tui_lineedit_run(tui_lineedit *" le ", int " in_fd ", int " out_fd ", int " row ", int " col ,
+.BI "                      const char *" prompt );
+.PP
+.BI "void tui_history_init(tui_history *" h ", int " max );
+.BI "void tui_history_free(tui_history *" h );
+.BI "int  tui_history_add(tui_history *" h ", const char *" line );
+.BI "int  tui_history_count(const tui_history *" h );
+.BI "const char *tui_history_get(const tui_history *" h ", int " i );
+.fi
+.SH DESCRIPTION
+.BR tui_lineedit
+edits one line of UTF-8 text in a buffer the caller owns.
+It is a pure model: an event in, the line changed.
+The cursor moves and deletes by character \(em a multi-byte character and
+the combining marks that belong to it are one \(em and columns are display
+columns, so accented and wide text behaves.
+.PP
+.BR tui_lineedit_init ()
+starts editing in
+.I buf
+(capacity
+.IR size ,
+NUL included) with
+.I initial
+text (may be NULL) and the cursor at its end, as email-cli's
+.BR input_line_init ().
+The members
+.IR tab_fn ,
+.IR shift_tab_fn ,
+.I render_below
+(email-cli's completion hooks),
+.I history
+and
+.I user
+may be set afterwards.
+.BR tui_lineedit_free ()
+frees the editor's own memory (the kill buffer, a saved draft), not the
+buffer.
+.PP
+.BR tui_lineedit_insert ()
+inserts text at the cursor: a tab, CR or LF becomes a space, other control
+characters are dropped, and what does not fit is not inserted \(em never
+half a character.
+.BR tui_lineedit_set_text ()
+replaces the text; completion hooks use it.
+.SS Keys
+.BR tui_lineedit_handle ()
+applies one event and returns what it did:
+.B TUI_EDIT_CHANGED
+(the event was used),
+.B TUI_EDIT_ACCEPT
+(Enter),
+.B TUI_EDIT_CANCEL
+(Esc, Ctrl-C),
+.B TUI_EDIT_EOF
+(Ctrl-D on an empty line), or
+.B TUI_EDIT_IGNORED
+(not an editing event \(em the program may use it).
+.TS
+l l.
+characters, paste	insert
+Left, Right, Ctrl-B, Ctrl-F	one character
+Ctrl+Left, Ctrl+Right, Alt-B, Alt-F	one word
+Home, End, Ctrl-A, Ctrl-E	start, end
+Backspace, Ctrl-H	delete before the cursor
+Delete, Ctrl-D	delete at the cursor
+Ctrl-K, Ctrl-U	kill to the end, to the start
+Ctrl-W, Alt-Backspace	kill the word before
+Ctrl-Y	yank the last kill
+Up, Down	older, newer history line
+Tab, Shift-Tab	tab_fn, shift_tab_fn
+.TE
+.PP
+Browsing the history keeps the line being edited and brings it back after
+the newest entry; Up and Down are ignored without a history, and Tab and
+Shift-Tab without their hooks.
+.SS Drawing
+.BR tui_lineedit_render ()
+draws
+.I prompt
+and the text on the first row of a canvas, scrolled horizontally so the
+cursor is visible, places the terminal cursor there and returns its
+column.
+.PP
+.BR tui_lineedit_run ()
+is email-cli's
+.BR input_line_run ():
+a blocking loop that edits on terminal row
+.I row
+(1-based), reading keys from
+.I in_fd
+(already in raw mode) and drawing directly to
+.I out_fd
+\(em no screen needed.
+Each draw clears the row, writes
+.I prompt
+from column
+.I col
+(1-based; email-cli used 3) followed by the text, calls
+.IR render_below ,
+then puts the cursor back on the row and shows it.
+On return the row below is cleared and the cursor hidden.
+It returns 1 on Enter, 0 on Esc or Ctrl-C, and \-1 when the input ended
+or failed (which email-cli could not report).
+Unlike the original it scrolls a line longer than the terminal.
+.SS History
+.BR tui_history_init ()
+makes an empty history of at most
+.I max
+lines (256 when
+.I max
+is 0 or less).
+.BR tui_history_add ()
+adds a copy of a line, except an empty line or one equal to the most
+recent; when full, the oldest line is dropped.
+.BR tui_history_get ()
+returns line
+.IR i ,
+0 being the oldest.
+.SH SEE ALSO
+.BR tui_readline (3),
+.BR tui_dialog_prompt (3),
+.BR libtuikit (7)

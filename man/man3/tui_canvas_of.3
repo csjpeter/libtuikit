@@ -1,0 +1,117 @@
+.TH TUI_CANVAS_OF 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_canvas_of, tui_canvas_sub, tui_canvas_put, tui_canvas_put_aligned,
+tui_canvas_fill, tui_canvas_clear, tui_canvas_hline, tui_canvas_vline,
+tui_canvas_box, tui_canvas_set_cursor, tui_rect_split_h, tui_rect_split_v,
+tui_rect_inset, tui_rect_center, tui_rect_intersect \- layout, and drawing
+clipped to a rectangle
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/canvas.h>
+.PP
+.B typedef struct tui_rect { int row, col, rows, cols; } tui_rect;
+.BI "tui_rect tui_rect_make(int " row ", int " col ", int " rows ", int " cols );
+.BI "int      tui_rect_is_empty(tui_rect " r );
+.BI "void     tui_rect_split_h(tui_rect " r ", int " left_cols ", tui_rect *" left ", tui_rect *" right );
+.BI "void     tui_rect_split_v(tui_rect " r ", int " top_rows ", tui_rect *" top ", tui_rect *" bottom );
+.BI "tui_rect tui_rect_inset(tui_rect " r ", int " n );
+.BI "tui_rect tui_rect_center(tui_rect " r ", int " rows ", int " cols );
+.BI "tui_rect tui_rect_intersect(tui_rect " a ", tui_rect " b );
+.PP
+.B typedef struct tui_canvas { tui_screen *screen; tui_rect clip; } tui_canvas;
+.BI "tui_canvas tui_canvas_of(tui_screen *" s );
+.BI "tui_canvas tui_canvas_sub(tui_canvas " c ", tui_rect " r );
+.BI "int        tui_canvas_rows(tui_canvas " c );
+.BI "int        tui_canvas_cols(tui_canvas " c );
+.BI "tui_rect   tui_canvas_rect(tui_canvas " c );
+.PP
+.BI "int  tui_canvas_put(tui_canvas " c ", int " row ", int " col ", const char *" utf8 ", tui_style " st );
+.BI "int  tui_canvas_put_aligned(tui_canvas " c ", int " row ", const char *" utf8 ,
+.BI "                            tui_align " align ", tui_style " st );
+.BI "void tui_canvas_fill(tui_canvas " c ", tui_rect " r ", tui_style " st );
+.BI "void tui_canvas_clear(tui_canvas " c ", tui_style " st );
+.BI "void tui_canvas_hline(tui_canvas " c ", int " row ", int " col ", int " n ", tui_style " st );
+.BI "void tui_canvas_vline(tui_canvas " c ", int " row ", int " col ", int " n ", tui_style " st );
+.BI "void tui_canvas_box(tui_canvas " c ", tui_rect " r ", const char *" title ", tui_style " st );
+.BI "void tui_canvas_set_cursor(tui_canvas " c ", int " row ", int " col ", int " visible );
+.fi
+.SH DESCRIPTION
+A canvas is a rectangle of a screen with coordinates of its own: (0, 0)
+is its top-left cell, and nothing drawn through it lands outside it.
+A pane, a list row, a dialog are canvases; a widget given one cannot draw
+over its neighbours.
+.SS Layout
+A layout is a few cuts.
+.BR tui_rect_split_h ()
+cuts a rectangle into a left part of
+.I left_cols
+columns and the rest,
+.BR tui_rect_split_v ()
+into a top part of
+.I top_rows
+rows and the rest; a negative count is taken from the right or the
+bottom (\-1: all but the last row, e.g. for a status row).
+.BR tui_rect_inset ()
+shrinks a rectangle by
+.I n
+on every side (the inside of a box is
+.BR "tui_rect_inset(r, 1)" ),
+.BR tui_rect_center ()
+centres a rectangle of at most the given size in another, and
+.BR tui_rect_intersect ()
+gives the common part.
+tg-cli's three panes, for example:
+.PP
+.nf
+    tui_rect top, status, left, right;
+    tui_rect_split_v(tui_canvas_rect(all), \-1, &top, &status);
+    tui_rect_split_h(top, 28, &left, &right);
+.fi
+.SS Drawing
+.BR tui_canvas_of ()
+is the whole screen;
+.BR tui_canvas_sub ()
+the part
+.I r
+of a canvas, in that canvas's coordinates, clipped to it.
+When
+.I r
+reaches past the top or left edge, the sub-canvas starts at its first
+visible cell.
+.PP
+.BR tui_canvas_put ()
+writes text at a position as
+.BR tui_screen_put (3)
+does, clipped to the canvas, and returns the columns written.
+A negative
+.I col
+starts the text left of the canvas, for horizontal scrolling; a wide
+character cut by the left edge leaves a blank in its visible half.
+.BR tui_canvas_put_aligned ()
+writes a row's text left-aligned, centred or right-aligned
+.RB ( TUI_ALIGN_LEFT ", " TUI_ALIGN_CENTER ", " TUI_ALIGN_RIGHT ),
+shortened with "\[u2026]" when it is wider than the canvas, and returns the
+column it starts at.
+.PP
+.BR tui_canvas_fill ()
+and
+.BR tui_canvas_clear ()
+fill with blanks;
+.BR tui_canvas_hline ()
+and
+.BR tui_canvas_vline ()
+draw U+2500 and U+2502 lines;
+.BR tui_canvas_box ()
+draws a border with the light box-drawing characters and an optional
+title in its top edge, "\[u250C]\[u2500] title \[u2500]\[u2510]", shortened to
+fit; it does not touch the inside.
+The Unicode box characters are used rather than the DEC special graphics
+set, so the output is plain UTF-8.
+.PP
+.BR tui_canvas_set_cursor ()
+puts the terminal cursor at a cell of the canvas after the next render; a
+position outside the canvas hides the cursor.
+.SH SEE ALSO
+.BR tui_screen_new (3),
+.BR tui_listview_init (3),
+.BR libtuikit (7)

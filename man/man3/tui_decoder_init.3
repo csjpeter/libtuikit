@@ -1,0 +1,155 @@
+.TH TUI_DECODER_INIT 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_decoder_init, tui_decoder_free, tui_decoder_feed, tui_decoder_next,
+tui_decoder_pending, tui_decoder_timeout, tui_event_name \- turn terminal
+input bytes into key events
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/event.h>
+.PP
+.BI "void   tui_decoder_init(tui_decoder *" d );
+.BI "void   tui_decoder_free(tui_decoder *" d );
+.BI "size_t tui_decoder_feed(tui_decoder *" d ", const char *" bytes ", size_t " n );
+.BI "int    tui_decoder_next(tui_decoder *" d ", tui_event *" ev );
+.BI "int    tui_decoder_pending(const tui_decoder *" d );
+.BI "int    tui_decoder_timeout(tui_decoder *" d ", tui_event *" ev );
+.BI "const char *tui_event_name(const tui_event *" ev ", char *" buf ", size_t " size );
+.PP
+.BI "TUI_EV_IS_CHAR(" ev ", " c )
+.BI "TUI_EV_IS_CTRL(" ev ", " c )
+.fi
+.SH DESCRIPTION
+The decoder is a pure state machine: it reads no descriptor and keeps no
+clock, so every sequence can be tested by feeding it bytes.
+.BR tui_term_wait (3)
+and
+.BR tui_tty_read_key (3)
+use it.
+.PP
+.BR tui_decoder_init ()
+makes an empty decoder in caller-provided memory;
+.BR tui_decoder_free ()
+releases its paste buffer.
+.BR tui_decoder_feed ()
+queues bytes and returns how many it took: fewer than
+.I n
+when its queue (256 bytes) is full, in which case the caller takes events
+with
+.BR tui_decoder_next ()
+and feeds the rest.
+.BR tui_decoder_next ()
+returns 1 and fills
+.I ev
+when a complete event is available, 0 otherwise.
+.PP
+.BR tui_decoder_pending ()
+is non-zero when bytes are held for an incomplete sequence \(em a lone
+ESC, half a UTF-8 character, an unfinished paste.
+If no more input arrives within the caller's ESC delay, the caller calls
+.BR tui_decoder_timeout (),
+which resolves it: a lone ESC becomes
+.BR TUI_KEY_ESC ,
+"ESC [" and "ESC O" become Alt+[ and Alt+O, half a character becomes
+U+FFFD, an unfinished paste is delivered as it is, and an unfinished
+escape sequence is dropped.
+.SS Events
+.TP
+.B TUI_KEY_CHAR
+a printable character:
+.I ev\->cp
+is the code point and
+.I ev\->utf8
+its UTF-8 bytes.
+Ctrl+letter is
+.B TUI_KEY_CHAR
+with the lower-case letter in
+.I cp
+and
+.B TUI_MOD_CTRL
+(Ctrl-C:
+.BR TUI_EV_IS_CTRL(ev, \(aqc\(aq) );
+a Ctrl or Alt chord has an empty
+.IR utf8 ,
+so inserting
+.I utf8
+into text is always safe.
+.TP
+.BR TUI_KEY_ENTER ", " TUI_KEY_TAB ", " TUI_KEY_BACKSPACE ", " TUI_KEY_ESC
+CR and LF are Enter; DEL and BS are Backspace; Shift-Tab is
+.B TUI_KEY_TAB
+with
+.BR TUI_MOD_SHIFT .
+.TP
+.BR TUI_KEY_UP " .. " TUI_KEY_F12
+cursor, editing and function keys, with
+.BR TUI_MOD_SHIFT ,
+.B TUI_MOD_ALT
+and
+.B TUI_MOD_CTRL
+in
+.IR ev\->mods .
+.SS Sequences understood
+Following xterm's "Control Sequences":
+.IP \(bu 2
+CSI keys:
+.BR "CSI A" \(en D ,
+.BR "CSI H" ", " "CSI F" ,
+.BR "CSI P" \(en S
+(F1\(enF4),
+.B CSI Z
+(Shift-Tab), and
+.BI "CSI " n " ~"
+for Home 1/7, Insert 2, Delete 3, End 4/8, PgUp 5, PgDn 6, F5\(enF12
+15/17\(en21/23/24.
+The modifier parameter
+.BI "CSI 1 ; " m " A"
+gives Shift (1), Alt (2), Ctrl (4) and Meta (8, reported as Alt), plus one.
+.IP \(bu
+SS3 keys, sent in application cursor mode and for F1\(enF4:
+.BR "ESC O A" \(en D ,
+.BR H ,
+.BR F ,
+.BR P \(en S ,
+and
+.B ESC O M
+(keypad Enter).
+.IP \(bu
+.BI "CSI " code " ; " m " u"
+(the fixterms form).
+.IP \(bu
+ESC followed by a key is that key with Alt; two ESCs are two ESC keys.
+.IP \(bu
+UTF-8, with U+FFFD for malformed input; encoded C1 controls are dropped.
+.IP \(bu
+Bracketed paste,
+.B CSI 200 ~
+to
+.BR "CSI 201 ~" ,
+as one
+.B TUI_EV_PASTE
+of at most 1 MiB; the text in between is not interpreted.
+.PP
+A CSI sequence is parsed by its general form (parameter bytes, then
+intermediate bytes, then one final byte), so one that is not a key \(em a
+cursor position report, device attributes, mouse or focus reports \(em is
+consumed whole and dropped, and never leaks into the input as typed
+characters.
+A sequence longer than 64 bytes is dropped the same way.
+The same bytes decode to the same events however they are split across
+reads.
+.PP
+.BR tui_event_name ()
+writes a short English name of the event into
+.I buf
+and returns it: "a", "Ctrl+C", "Alt+x", "Ctrl+Shift+Left", "F5", "Resize
+24x80", "Paste 12 bytes", "Hangup".
+A control character is shown as U+00B7.
+.SH RETURN VALUE
+See above;
+.BR tui_decoder_timeout ()
+returns 1 with an event, 0 when nothing was pending or the pending bytes
+were dropped.
+.SH SEE ALSO
+.BR tui_term_wait (3),
+.BR tui_tty_read_key (3),
+.BR libtuikit (7)

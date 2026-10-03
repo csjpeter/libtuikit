@@ -1,0 +1,215 @@
+.TH TUI_TERM_OPEN 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_term_opts_init, tui_term_open, tui_term_close, tui_term_size,
+tui_term_write, tui_term_flush_buf, tui_term_suspend, tui_term_resume \-
+take over the terminal for a full-screen program, and give it back
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/term.h>
+.PP
+.B typedef struct tui_term_opts {
+.B "    int      in_fd, out_fd;"
+.B "    unsigned flags;"
+.B "    int      esc_delay_ms;"
+.B } tui_term_opts;
+.PP
+.BI "void      tui_term_opts_init(tui_term_opts *" o );
+.BI "tui_term *tui_term_open(const tui_term_opts *" o );
+.BI "int       tui_term_close(tui_term *" t );
+.BI "int       tui_term_size(tui_term *" t ", int *" rows ", int *" cols );
+.BI "int       tui_term_write(tui_term *" t ", const void *" p ", size_t " n );
+.BI "int       tui_term_flush_buf(tui_term *" t ", tui_buf *" b );
+.BI "int       tui_term_suspend(tui_term *" t );
+.BI "int       tui_term_resume(tui_term *" t );
+.fi
+.SH DESCRIPTION
+.BR tui_term_opts_init ()
+fills
+.I o
+with the defaults: standard input and output,
+.BR TUI_TERM_ALTSCREEN " | " TUI_TERM_HIDE_CURSOR " | " TUI_TERM_NOWRAP ,
+and an ESC delay of 100 ms (email-cli's).
+.PP
+.BR tui_term_open ()
+takes over the terminal on
+.IR o\->in_fd ;
+.I o
+may be NULL for the defaults.
+It saves the terminal mode and enters raw mode: no canonical input, no
+echo, no
+.BR IEXTEN ,
+no CR/NL translation, no signal keys and no flow control (so Ctrl-C,
+Ctrl-Z, Ctrl-S and Ctrl-Q arrive as keys), 8-bit characters,
+.BR VMIN =1,
+.BR VTIME =0.
+Output processing is left alone.
+Every change is read back with
+.BR tcgetattr (3),
+because
+.BR tcsetattr (3)
+reports success when any part of a change took.
+Then it writes the sequences the flags select:
+.TP
+.B TUI_TERM_ALTSCREEN
+alternate screen,
+.B CSI ? 1049 h
+(left with
+.BR "CSI ? 1049 l" ,
+which brings the previous screen content back).
+.TP
+.B TUI_TERM_HIDE_CURSOR
+.BR "CSI ? 25 l" .
+.TP
+.B TUI_TERM_NOWRAP
+auto-wrap off,
+.BR "CSI ? 7 l" ,
+so drawing the last cell of a row cannot wrap or scroll.
+.TP
+.B TUI_TERM_PASTE
+bracketed paste,
+.BR "CSI ? 2004 h" ;
+pasted text arrives as one
+.B TUI_EV_PASTE
+event.
+.PP
+More flags:
+.TP
+.B TUI_TERM_KEEP_ISIG
+Ctrl-C, Ctrl-Z and Ctrl-\e stay signal keys (a line-oriented program with
+an interrupt flag, like mamind).
+.TP
+.B TUI_TERM_KEEP_IXON
+Ctrl-S and Ctrl-Q stay flow control.
+.TP
+.B TUI_TERM_NO_SIGNALS
+no signal handlers; then there are no resize events either, and several
+such sessions may be open at once.
+.PP
+.BR tui_term_close ()
+writes an attribute reset and the inverse of the entry sequences, restores
+the saved mode, puts the previous signal handlers back and frees the
+session.
+Closing a suspended session leaves the terminal as it is.
+.PP
+.BR tui_term_size ()
+reads the size with
+.B TIOCGWINSZ
+from the output, then the input descriptor.
+.PP
+.BR tui_term_write ()
+writes all
+.I n
+bytes, retrying on
+.B EINTR
+and
+.BR EAGAIN ;
+.BR tui_term_flush_buf ()
+writes a buffer and empties it (see
+.BR tui_buf_write_fd (3)).
+.PP
+.BR tui_term_suspend ()
+gives the terminal back for a while, e.g. to run an editor in it;
+.BR tui_term_resume ()
+takes it over again, and the next
+.BR tui_term_wait (3)
+reports
+.B TUI_EV_RESIZE
+so that the program repaints everything.
+.SS Every way out restores the terminal
+Unless
+.B TUI_TERM_NO_SIGNALS
+is given, the session also restores the terminal when the program ends
+some other way:
+.TP
+.BR exit (3)
+through an
+.BR atexit (3)
+handler.
+.TP
+.BR SIGTERM ", " SIGHUP ", " SIGINT ", " SIGQUIT
+the terminal is restored, the previous disposition put back and the
+signal raised again, so the process ends with the status the signal
+gives (a shell sees 143 for SIGTERM).
+.TP
+.B SIGTSTP
+the terminal is restored and the process stops; on
+.B SIGCONT
+the session takes the terminal over again and reports a resize.
+.TP
+.B SIGCONT
+after a stop by any signal: raw mode and the entry sequences are applied
+again (the shell may have reset the terminal meanwhile), and a resize is
+reported.
+.TP
+.B SIGWINCH
+reported as
+.BR TUI_EV_RESIZE ;
+see
+.BR tui_term_wait (3).
+.PP
+A fatal signal or
+.B SIGTSTP
+is taken over only while it has its default action.
+A signal the program ignores stays ignored (a program started by
+.BR nohup (1));
+a signal the program catches stays the program's, which then restores the
+terminal itself by calling
+.BR tui_term_close ().
+A handler for
+.B SIGWINCH
+or
+.B SIGCONT
+installed before the session is still called after the library's.
+.PP
+The handlers use only async-signal-safe calls, and the signals they
+handle are blocked while the session changes the state they read.
+Signal dispositions are per process, so only one session with signal
+handling can be open at a time.
+.SH RETURN VALUE
+.BR tui_term_open ()
+returns the session, or NULL with
+.I errno
+set:
+.B ENOTTY
+when the input is not a terminal (the program then chooses its own
+fallback),
+.B EBUSY
+when another session with signal handling is open,
+.B EIO
+when the terminal did not take the mode,
+.BR ENOMEM ,
+or the error of a system call.
+On failure the terminal is left as it was.
+.PP
+.BR tui_term_size ()
+returns 0, or \-1 with
+.I errno
+.B ENOTTY
+when neither descriptor reports a size; there is no invented 80\(mu24.
+(For output that is not full-screen,
+.BR tui_tty_cols (3)
+keeps email-cli's 80-column fallback.)
+.PP
+The other functions return 0 on success and \-1 with
+.I errno
+on failure;
+.BR tui_term_close ()
+frees the session even when restoring the mode failed.
+.SH EXAMPLE
+.nf
+tui_term_opts o;
+tui_term_opts_init(&o);
+tui_term *t = tui_term_open(&o);
+if (!t) {
+    if (errno == ENOTTY) return print_plain_output();
+    perror("terminal");
+    return 1;
+}
+/* ... draw, tui_term_wait(), ... */
+tui_term_close(t);
+.fi
+.SH SEE ALSO
+.BR tui_term_wait (3),
+.BR tui_tty_is (3),
+.BR tui_buf_init (3),
+.BR libtuikit (7)

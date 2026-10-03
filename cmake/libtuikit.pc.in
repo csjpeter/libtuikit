@@ -1,0 +1,11 @@
+prefix=@CMAKE_INSTALL_PREFIX@
+exec_prefix=${prefix}
+libdir=@CMAKE_INSTALL_FULL_LIBDIR@
+includedir=@CMAKE_INSTALL_FULL_INCLUDEDIR@
+
+Name: libtuikit
+Description: Terminal user interface toolkit for full-screen C programs
+Version: @TUIKIT_VERSION@
+URL: https://github.com/csjpeter/libtuikit
+Libs: -L${libdir} -ltuikit
+Cflags: -I${includedir}

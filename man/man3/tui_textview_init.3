@@ -1,0 +1,71 @@
+.TH TUI_TEXTVIEW_INIT 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_textview_init, tui_textview_free, tui_textview_set_text,
+tui_textview_append, tui_textview_wrap, tui_textview_lines,
+tui_textview_scroll, tui_textview_scroll_to, tui_textview_scroll_end,
+tui_textview_at_end, tui_textview_top, tui_textview_handle,
+tui_textview_render \- word-wrapped, scrollable text
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/textview.h>
+.PP
+.BI "void tui_textview_init(tui_textview *" tv );
+.BI "void tui_textview_free(tui_textview *" tv );
+.BI "int  tui_textview_set_text(tui_textview *" tv ", const char *" text );
+.BI "int  tui_textview_append(tui_textview *" tv ", const char *" text ", size_t " n );
+.BI "int  tui_textview_wrap(tui_textview *" tv ", int " cols );
+.BI "int  tui_textview_lines(const tui_textview *" tv );
+.BI "void tui_textview_scroll(tui_textview *" tv ", int " delta );
+.BI "void tui_textview_scroll_to(tui_textview *" tv ", int " line );
+.BI "void tui_textview_scroll_end(tui_textview *" tv );
+.BI "int  tui_textview_at_end(const tui_textview *" tv );
+.BI "int  tui_textview_top(const tui_textview *" tv );
+.BI "int  tui_textview_handle(tui_textview *" tv ", const tui_event *" ev );
+.BI "void tui_textview_render(tui_textview *" tv ", tui_canvas " c ", tui_style " st );
+.fi
+.SH DESCRIPTION
+A text view shows a text \(em a message, a mail body, an issue
+description, a log \(em wrapped to the width it is drawn at, and scrolls
+through it.
+It keeps its own copy of the text.
+.PP
+.BR tui_textview_set_text ()
+replaces the text and scrolls to the top.
+.BR tui_textview_append ()
+adds to it: a view that showed the end (or showed nothing yet) follows
+what is appended, and a view the user scrolled elsewhere stays where it
+is \(em a chat history or a streamed answer does not move under a reader.
+.PP
+.BR tui_textview_render ()
+wraps the text to the canvas width if it changed, clears the canvas with
+.IR st ,
+and draws the visible lines.
+Lines break at spaces and tabs where they can, inside a word where they
+must; the spaces at a break are not drawn; a wide character is never
+split; a tab advances to the next multiple of eight columns.
+A CR before LF is dropped and a text ending in a newline has no empty last
+line; other control characters are drawn as U+00B7.
+When the width changes, the line at the top stays at the top, and a view
+showing the end keeps showing the end.
+.PP
+.BR tui_textview_wrap ()
+wraps explicitly, e.g. to learn the line count before drawing.
+The scroll functions keep the view within the text: the last line can
+come to the bottom of the view, not above it.
+.BR tui_textview_handle ()
+applies Up, Down, PgUp, PgDn (one view less one line), Home and End and
+returns 1 for them, 0 for other events.
+.SH RETURN VALUE
+.BR tui_textview_set_text (),
+.BR tui_textview_append ()
+return 0, or \-1 with
+.I errno
+.RB ( EINVAL ,
+.BR ENOMEM ;
+the old text stays).
+.BR tui_textview_wrap ()
+returns the number of lines or \-1.
+.SH SEE ALSO
+.BR tui_listview_init (3),
+.BR tui_canvas_of (3),
+.BR libtuikit (7)

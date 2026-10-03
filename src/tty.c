@@ -1,0 +1,294 @@
+/* SPDX-License-Identifier: BSD-2-Clause */
+/* Copyright 2026 Péter Császár */
+
+/*
+ * File-descriptor level helpers: size, raw mode, one key, a password.
+ * The capabilities of email-cli's platform/terminal.h, as libtuikit(7)
+ * lists them under "email-cli equivalents".
+ */
+
+#if !defined(_WIN32)
+#define _POSIX_C_SOURCE 200809L
+#endif
+
+#include "tuikit/tty.h"
+#include "internal.h"
+
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
+
+#if defined(_WIN32)
+
+#include <io.h>
+#include <time.h>
+
+int tui__write_all(int fd, const void *p, size_t n) {
+    const char *s = p;
+    while (n > 0) {
+        int w = _write(fd, s, (unsigned)(n > 0x7FFFFFFF ? 0x7FFFFFFF : n));
+        if (w < 0) return -1;
+        s += w;
+        n -= (size_t)w;
+    }
+    return 0;
+}
+
+int64_t tui__now_ms(void) {
+    struct timespec ts;
+    timespec_get(&ts, TIME_UTC);
+    return (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
+
+/* email-cli's Windows stub semantics: no terminal. */
+int  tui_tty_is(int fd)   { (void)fd; return 0; }
+int  tui_tty_cols(int fd) { (void)fd; return 80; }
+int  tui_tty_rows(int fd) { (void)fd; return 0; }
+tui_tty_raw *tui_tty_raw_enter(int fd, unsigned flags) {
+    (void)fd; (void)flags;
+    errno = ENOTTY;
+    return NULL;
+}
+void tui_tty_raw_exit(tui_tty_raw **state) { if (state) *state = NULL; }
+int  tui_tty_read_key(int fd, tui_event *ev) {
+    (void)fd;
+    if (ev) { memset(ev, 0, sizeof(*ev)); ev->type = TUI_EV_HANGUP; }
+    errno = ENOTTY;
+    return -1;
+}
+int  tui_tty_read_password(int in_fd, int out_fd, const char *prompt,
+                           char *buf, size_t size) {
+    (void)in_fd; (void)out_fd; (void)prompt; (void)buf; (void)size;
+    errno = ENOTTY;
+    return -1;
+}
+
+#else
+
+#include <poll.h>
+#include <sys/ioctl.h>
+#include <termios.h>
+#include <time.h>
+#include <unistd.h>
+
+struct tui_tty_raw {
+    int            fd;
+    struct termios saved;
+};
+
+int tui__write_all(int fd, const void *p, size_t n) {
+    const char *s = p;
+    while (n > 0) {
+        ssize_t w = write(fd, s, n);
+        if (w < 0) {
+            if (errno == EINTR) continue;
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                struct pollfd pfd = { .fd = fd, .events = POLLOUT, .revents = 0 };
+                if (poll(&pfd, 1, -1) < 0 && errno != EINTR) return -1;
+                continue;
+            }
+            return -1;
+        }
+        s += w;
+        n -= (size_t)w;
+    }
+    return 0;
+}
+
+int64_t tui__now_ms(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
+}
+
+void tui__make_raw(struct termios *t, unsigned flags) {
+    t->c_lflag &= ~(tcflag_t)(ICANON | ECHO | IEXTEN);
+    if (!(flags & TUI_TERM_KEEP_ISIG)) t->c_lflag &= ~(tcflag_t)ISIG;
+    t->c_iflag &= ~(tcflag_t)(ICRNL | INLCR | IGNCR | ISTRIP | BRKINT | INPCK);
+    /* Ctrl-S and Ctrl-Q reach the program (issue-manager BUG-208). */
+    if (!(flags & TUI_TERM_KEEP_IXON)) t->c_iflag &= ~(tcflag_t)(IXON | IXOFF);
+    t->c_cflag |= CS8;
+    t->c_cc[VMIN] = 1;
+    t->c_cc[VTIME] = 0;
+}
+
+int tui__apply_mode(int fd, const struct termios *want) {
+    while (tcsetattr(fd, TCSANOW, want) != 0) {
+        if (errno != EINTR) return -1;
+    }
+    /* tcsetattr(3) succeeds if *any* of the changes took; read it back. */
+    struct termios got;
+    if (tcgetattr(fd, &got) != 0) return -1;
+    const tcflag_t lmask = ICANON | ECHO | IEXTEN | ISIG;
+    const tcflag_t imask = ICRNL | INLCR | IGNCR | IXON | IXOFF;
+    if ((got.c_lflag & lmask) != (want->c_lflag & lmask) ||
+        (got.c_iflag & imask) != (want->c_iflag & imask) ||
+        got.c_cc[VMIN] != want->c_cc[VMIN] || got.c_cc[VTIME] != want->c_cc[VTIME]) {
+        errno = EIO;
+        return -1;
+    }
+    return 0;
+}
+
+int tui_tty_is(int fd) {
+    return isatty(fd) ? 1 : 0;
+}
+
+int tui_tty_cols(int fd) {
+    struct winsize ws;
+    if (ioctl(fd, TIOCGWINSZ, &ws) == 0 && ws.ws_col > 0) return (int)ws.ws_col;
+    return 80;
+}
+
+int tui_tty_rows(int fd) {
+    struct winsize ws;
+    if (ioctl(fd, TIOCGWINSZ, &ws) == 0 && ws.ws_row > 0) return (int)ws.ws_row;
+    return 0;
+}
+
+tui_tty_raw *tui_tty_raw_enter(int fd, unsigned flags) {
+    if (!isatty(fd)) {
+        errno = ENOTTY;
+        return NULL;
+    }
+    tui_tty_raw *st = malloc(sizeof(*st));
+    if (!st) return NULL;
+    st->fd = fd;
+    if (tcgetattr(fd, &st->saved) != 0) {
+        int e = errno;
+        free(st);
+        errno = e;
+        return NULL;
+    }
+    struct termios raw = st->saved;
+    tui__make_raw(&raw, flags);
+    if (tui__apply_mode(fd, &raw) != 0) {
+        int e = errno;
+        /* Part of the change may have taken: put everything back. */
+        tcsetattr(fd, TCSANOW, &st->saved);
+        free(st);
+        errno = e;
+        return NULL;
+    }
+    return st;
+}
+
+void tui_tty_raw_exit(tui_tty_raw **state) {
+    if (!state || !*state) return;
+    int e = errno;
+    while (tcsetattr((*state)->fd, TCSANOW, &(*state)->saved) != 0 && errno == EINTR) {}
+    free(*state);
+    *state = NULL;
+    errno = e;
+}
+
+int tui_tty_read_key(int fd, tui_event *ev) {
+    if (!ev) {
+        errno = EINVAL;
+        return -1;
+    }
+    tui_decoder d;
+    tui_decoder_init(&d);
+    int rc = -1;
+    for (;;) {
+        if (tui_decoder_next(&d, ev)) { rc = 1; break; }
+        if (tui_decoder_pending(&d)) {
+            /* Something incomplete is held: wait at most the ESC delay
+             * for the rest of it. */
+            struct pollfd pfd = { .fd = fd, .events = POLLIN, .revents = 0 };
+            int pr = poll(&pfd, 1, TUI_ESC_DELAY_DEFAULT);
+            if (pr < 0) {
+                if (errno == EINTR) continue;
+                break;
+            }
+            if (pr == 0) {
+                if (tui_decoder_timeout(&d, ev)) { rc = 1; break; }
+                continue;
+            }
+        }
+        unsigned char c;
+        ssize_t n = read(fd, &c, 1);
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            if (errno == EIO) {           /* the terminal hung up */
+                memset(ev, 0, sizeof(*ev));
+                ev->type = TUI_EV_HANGUP;
+                rc = 0;
+            }
+            break;
+        }
+        if (n == 0) {
+            memset(ev, 0, sizeof(*ev));
+            ev->type = TUI_EV_HANGUP;
+            rc = 0;
+            break;
+        }
+        tui_decoder_feed(&d, (const char *)&c, 1);
+    }
+    if (rc == 1 && ev->type == TUI_EV_PASTE) {
+        /* The paste lives in the decoder, which ends here: it is not
+         * returned through this one-shot interface. */
+        memset(ev, 0, sizeof(*ev));
+        ev->type = TUI_EV_PASTE;
+        ev->paste = "";
+    }
+    int e = errno;
+    tui_decoder_free(&d);
+    errno = e;
+    return rc;
+}
+
+/* Reads one line from fd with read(2), never stdio: stdio would buffer
+ * input that belongs to whoever reads the descriptor next. */
+static int read_line(int fd, char *buf, size_t size) {
+    size_t len = 0;
+    int got_any = 0;
+    for (;;) {
+        char c;
+        ssize_t n = read(fd, &c, 1);
+        if (n < 0) {
+            if (errno == EINTR) continue;
+            return -1;
+        }
+        if (n == 0) {
+            if (!got_any) return -1;
+            break;
+        }
+        got_any = 1;
+        if (c == '\n') break;
+        if (len + 1 < size) buf[len++] = c;
+    }
+    if (len > 0 && buf[len - 1] == '\r') len--;
+    buf[len] = '\0';
+    return (int)len;
+}
+
+int tui_tty_read_password(int in_fd, int out_fd, const char *prompt,
+                          char *buf, size_t size) {
+    if (!buf || size == 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    buf[0] = '\0';
+    if (!isatty(in_fd)) return read_line(in_fd, buf, size);
+
+    if (prompt) {
+        if (tui__write_all(out_fd, prompt, strlen(prompt)) != 0 ||
+            tui__write_all(out_fd, ": ", 2) != 0)
+            return -1;
+    }
+    struct termios saved, quiet;
+    if (tcgetattr(in_fd, &saved) != 0) return -1;
+    quiet = saved;
+    quiet.c_lflag &= ~(tcflag_t)ECHO;
+    quiet.c_lflag |= ICANON;
+    if (tcsetattr(in_fd, TCSANOW, &quiet) != 0) return -1;
+    int n = read_line(in_fd, buf, size);
+    int e = errno;
+    tcsetattr(in_fd, TCSANOW, &saved);
+    if (tui__write_all(out_fd, "\n", 1) != 0 && n >= 0) return -1;
+    errno = e;
+    return n;
+}
+
+#endif /* !_WIN32 */

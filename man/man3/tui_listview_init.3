@@ -1,0 +1,88 @@
+.TH TUI_LISTVIEW_INIT 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_listview_init, tui_listview_set_count, tui_listview_set_viewport,
+tui_listview_select, tui_listview_move_up, tui_listview_move_down,
+tui_listview_page_up, tui_listview_page_down, tui_listview_home,
+tui_listview_end, tui_listview_reveal_selected, tui_listview_is_visible,
+tui_listview_handle, tui_listview_render \- scrolling and selection for a
+list of rows
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/listview.h>
+.PP
+.B typedef struct tui_listview {
+.B "    int count, selected, scroll_top, rows_visible;"
+.B } tui_listview;
+.PP
+.BI "void tui_listview_init(tui_listview *" lv );
+.BI "void tui_listview_set_count(tui_listview *" lv ", int " count );
+.BI "void tui_listview_set_viewport(tui_listview *" lv ", int " rows );
+.BI "void tui_listview_select(tui_listview *" lv ", int " index );
+.BI "void tui_listview_move_up(tui_listview *" lv );
+.BI "void tui_listview_move_down(tui_listview *" lv );
+.BI "void tui_listview_page_up(tui_listview *" lv );
+.BI "void tui_listview_page_down(tui_listview *" lv );
+.BI "void tui_listview_home(tui_listview *" lv );
+.BI "void tui_listview_end(tui_listview *" lv );
+.BI "void tui_listview_reveal_selected(tui_listview *" lv );
+.BI "int  tui_listview_is_visible(const tui_listview *" lv ", int " index );
+.BI "int  tui_listview_handle(tui_listview *" lv ", const tui_event *" ev );
+.PP
+.BI "typedef void (*tui_listview_draw_fn)(void *" ctx ", tui_canvas " row ", int " index ", int " selected );
+.BI "void tui_listview_render(tui_listview *" lv ", tui_canvas " c ", tui_style " blank ,
+.BI "                         tui_listview_draw_fn " draw ", void *" ctx );
+.fi
+.SH DESCRIPTION
+A list view knows how many items there are, which one is selected and
+which one is at the top of the viewport \(em nothing about the items.
+The program draws each visible row through a callback, so the same view
+serves a dialog list, a message list or a menu.
+These are tg-cli's ListView operations.
+.PP
+.BR tui_listview_init ()
+makes an empty list:
+.I selected
+is \-1 while the list is empty.
+.BR tui_listview_set_count ()
+sets the number of items and keeps the selection in range; when the list
+stops being empty the first item is selected.
+.BR tui_listview_set_viewport ()
+sets the height of the viewport.
+.PP
+.BR tui_listview_select ()
+selects an item (clamped) and scrolls the least needed to show it; the
+move, page, home and end functions do the same from the current
+selection, a page being one viewport.
+.BR tui_listview_reveal_selected ()
+only scrolls; it also keeps the viewport from showing empty rows below
+the last item while items above are hidden, e.g. after the list shrank.
+.PP
+.BR tui_listview_handle ()
+applies Up, Down, PgUp, PgDn, Home or End without modifiers and returns 1
+for them (also at an edge, where nothing changes), 0 for any other event.
+Other keys (j/k, g/G) are the program's to map onto the move functions.
+.PP
+.BR tui_listview_render ()
+sets the viewport to the height of
+.IR c ,
+then for every row of it clears the row with
+.I blank
+and, if an item is shown there, calls
+.IR draw ( ctx ", " row ", " index ", " selected )
+with a one-row canvas.
+The selected item is drawn by the program, usually in reverse video.
+.SH EXAMPLE
+.nf
+static void draw_row(void *ctx, tui_canvas row, int i, int selected) {
+    const char *const *names = ctx;
+    tui_style st = tui_style_attrs(selected ? TUI_ATTR_REVERSE : 0);
+    if (selected) tui_canvas_clear(row, st);
+    tui_canvas_put_aligned(row, 0, names[i], TUI_ALIGN_LEFT, st);
+}
+\&...
+tui_listview_render(&lv, pane, TUI_STYLE_DEFAULT, draw_row, names);
+.fi
+.SH SEE ALSO
+.BR tui_canvas_of (3),
+.BR tui_textview_init (3),
+.BR libtuikit (7)

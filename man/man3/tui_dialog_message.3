@@ -1,0 +1,105 @@
+.TH TUI_DIALOG_MESSAGE 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_dialog_message, tui_dialog_confirm, tui_dialog_prompt, tui_dialog_menu,
+tui_dialog_free, tui_dialog_handle, tui_dialog_render \- modal dialogs
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/dialog.h>
+.PP
+.BI "int  tui_dialog_message(tui_dialog *" d ", const char *" title ", const char *" text );
+.BI "int  tui_dialog_confirm(tui_dialog *" d ", const char *" title ", const char *" text ,
+.BI "                        int " default_yes );
+.BI "int  tui_dialog_prompt(tui_dialog *" d ", const char *" title ", const char *" text ,
+.BI "                       char *" buf ", size_t " size ", const char *" initial );
+.BI "int  tui_dialog_menu(tui_dialog *" d ", const char *" title ,
+.BI "                     const char *const *" items ", int " n ", int " selected );
+.BI "void tui_dialog_free(tui_dialog *" d );
+.BI "tui_dialog_state tui_dialog_handle(tui_dialog *" d ", const tui_event *" ev );
+.BI "void tui_dialog_render(tui_dialog *" d ", tui_canvas " c );
+.fi
+.SH DESCRIPTION
+A dialog neither blocks nor reads the terminal.
+While one is open, the program gives it the events first
+.RB ( tui_dialog_handle ())
+and draws it last
+.RB ( tui_dialog_render ()),
+and reads the outcome once
+.I d\->state
+is no longer
+.BR TUI_DIALOG_OPEN :
+.B TUI_DIALOG_OK
+or
+.BR TUI_DIALOG_CANCELLED .
+The decision stays in the program's own model, as in issue-manager.
+.TP
+.BR tui_dialog_message ()
+Text and an OK button; Enter, Space or Esc closes it with
+.BR TUI_DIALOG_OK .
+.TP
+.BR tui_dialog_confirm ()
+Text and Yes / No.
+y and n answer at once; Left, Right and Tab move between the buttons and
+Enter takes the focused one; Esc and Ctrl-C cancel.
+.I d\->answer
+is 1 for yes, 0 for no (and 0 when cancelled).
+.TP
+.BR tui_dialog_prompt ()
+Text and one line of input, edited in the caller's
+.I buf
+by a
+.BR tui_lineedit_init (3)
+with all its keys; Enter confirms, Esc and Ctrl-C cancel.
+.TP
+.BR tui_dialog_menu ()
+A list of
+.I n
+items (not copied; the caller keeps them alive) with the list keys of
+.BR tui_listview_handle (3);
+Enter chooses
+.RI ( d\->answer
+is the index), Esc cancels.
+.PP
+.BR tui_dialog_render ()
+draws a box centred in
+.IR c ,
+sized to the text, the title and the buttons or items, and to at most the
+canvas less a margin of one cell; the text is wrapped to the box.
+Short of rows, the blank line above the buttons goes first, so the text
+keeps at least one row.
+A prompt puts the terminal cursor in its input line; the other kinds hide
+it.
+The styles of the frame, the inside and the focused button or selected
+item are
+.IR d\->frame ,
+.I d\->fill
+and
+.I d\->focus
+(reverse video by default) and may be changed after the constructor.
+.PP
+.BR tui_dialog_free ()
+releases what the dialog allocated; call it when the dialog is done.
+.SH RETURN VALUE
+The constructors return 0, or \-1 with
+.I errno
+.B EINVAL
+(no buffer, items missing) or
+.BR ENOMEM .
+.BR tui_dialog_handle ()
+returns the state after the event; events after the dialog closed are
+ignored.
+.SH EXAMPLE
+.nf
+if (TUI_EV_IS_CHAR(&ev, 'q')) {
+    tui_dialog_confirm(&dlg, "Quit", "Leave the program?", 0);
+    dialog_open = 1;
+} else if (dialog_open &&
+           tui_dialog_handle(&dlg, &ev) != TUI_DIALOG_OPEN) {
+    quit = dlg.state == TUI_DIALOG_OK && dlg.answer;
+    tui_dialog_free(&dlg);
+    dialog_open = 0;
+}
+.fi
+.SH SEE ALSO
+.BR tui_lineedit_init (3),
+.BR tui_listview_init (3),
+.BR libtuikit (7)

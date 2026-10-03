@@ -1,0 +1,91 @@
+.TH TUI_READLINE 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_readline, tui_readline_opts_init \- read a line with editing, on a
+terminal that is not full-screen
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/lineedit.h>
+.PP
+.B typedef struct tui_readline_opts {
+.B "    int                    in_fd, out_fd;"
+.B "    tui_history           *history;"
+.B "    volatile sig_atomic_t *interrupt;"
+.B "    int                    timeout_sec;"
+.B "    unsigned               flags;"
+.B } tui_readline_opts;
+.PP
+.BI "void tui_readline_opts_init(tui_readline_opts *" o );
+.BI "int  tui_readline(const char *" prompt ", char *" buf ", size_t " size ,
+.BI "                  const tui_readline_opts *" o );
+.fi
+.SH DESCRIPTION
+.BR tui_readline ()
+is tg-cli's
+.BR rl_readline ()
+and mamind's
+.BR line_editor_read ()
+in one: it writes
+.IR prompt ,
+enters raw mode, lets the user edit one line on the current terminal line
+with every key of
+.BR tui_lineedit_init (3)
+(history included), and on Enter writes a newline, restores the terminal
+mode and returns the line.
+A line longer than the terminal scrolls horizontally.
+.PP
+.BR tui_readline_opts_init ()
+sets the defaults: standard input and output, no history, no interrupt
+flag, no timeout.
+.TP
+.I history
+browsed with Up and Down; an accepted, non-empty line is added to it.
+.TP
+.I interrupt
+a flag the program's own signal handler sets: checked at least every 100
+ms and whenever a signal interrupts the wait.
+With
+.B TUI_TERM_KEEP_ISIG
+in
+.I flags
+Ctrl-C stays a signal key, as mamind needs; without it Ctrl-C is a key
+that cancels.
+.TP
+.I timeout_sec
+idle timeout: the call ends after this many seconds without a key (0:
+none).
+.PP
+When the input is not a terminal \(em a pipe, a file, a test \(em the
+prompt is written and a plain line is read with
+.BR read (2),
+CR dropped, as tg-cli does.
+Esc is ignored while editing, as in tg-cli.
+.SH RETURN VALUE
+The length of the line in
+.I buf
+(NUL-terminated, truncated to
+.IR size "\-1"
+bytes), or:
+.TP
+.B TUI_READLINE_EOF
+end of input, Ctrl-D on an empty line, the terminal hung up, or an error;
+.TP
+.B TUI_READLINE_CANCEL
+Ctrl-C (signal keys off);
+.TP
+.B TUI_READLINE_INTERRUPT
+.I *interrupt
+became non-zero;
+.TP
+.B TUI_READLINE_TIMEOUT
+no key for
+.I timeout_sec
+seconds.
+.PP
+All of them are negative; on any of them
+.I buf
+is the empty string.
+The terminal mode is restored on every return.
+.SH SEE ALSO
+.BR tui_lineedit_init (3),
+.BR tui_tty_raw_enter (3),
+.BR libtuikit (7)

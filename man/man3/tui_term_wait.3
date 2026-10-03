@@ -1,0 +1,123 @@
+.TH TUI_TERM_WAIT 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_term_wait, tui_term_fd \- wait for a key, a resize, or a descriptor
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/term.h>
+.B #include <poll.h>
+.PP
+.BI "int tui_term_wait(tui_term *" t ", int " timeout_ms ,
+.BI "                  struct pollfd *" extra ", int " n_extra ", tui_event *" ev );
+.BI "int tui_term_fd(const tui_term *" t );
+.fi
+.SH DESCRIPTION
+.BR tui_term_wait ()
+waits until something happens, at most
+.I timeout_ms
+milliseconds (negative: no limit; 0: only what is already there), and
+describes it in
+.IR ev :
+.TP
+.B TUI_EV_KEY
+a key, decoded as
+.BR tui_decoder_init (3)
+describes.
+.TP
+.B TUI_EV_PASTE
+bracketed paste (with
+.BR TUI_TERM_PASTE );
+.I ev\->paste
+is valid until the next call.
+.TP
+.B TUI_EV_RESIZE
+the terminal size changed, or the session was resumed or continued and
+has to be repainted;
+.IR ev\->rows " and " ev\->cols
+hold the current size.
+Several resizes before a call collapse into one.
+.TP
+.B TUI_EV_FD
+an entry of
+.I extra
+is ready;
+.I ev\->fd_index
+is its index, and the
+.I revents
+of the entries are filled in.
+The program's own descriptors \(em a network socket, a pipe from a worker
+thread \(em are waited on together with the terminal, so the program needs
+no second loop.
+.TP
+.B TUI_EV_HANGUP
+the terminal is gone: the input reached its end, or the other side hung
+up.
+Every later call reports it again at once; the loop must end, since
+reading a gone terminal answers immediately and would otherwise spin.
+.SS A resize is never lost
+The
+.B SIGWINCH
+handler writes a byte to a pipe that
+.BR tui_term_wait ()
+polls together with the terminal.
+A resize that arrives while the program is drawing, or between any two
+calls, leaves that byte behind and wakes the next wait at once \(em there
+is no window in which a signal can be latched with nothing left to
+interrupt (issue-manager BUG-240), and no polling interval.
+.SS ESC and incomplete sequences
+A lone ESC is the prefix of every escape sequence.
+When the input stops in the middle of one, the wait gives the rest
+.I esc_delay_ms
+(see
+.BR tui_term_open (3))
+to arrive; if nothing more comes, a lone ESC is reported as
+.BR TUI_KEY_ESC .
+The delay keeps running across calls, so a short
+.I timeout_ms
+does not lose or hurry it.
+.PP
+Input is read with
+.BR read (2),
+never through stdio, and
+.B EINTR
+is retried.
+.PP
+.BR tui_term_fd ()
+returns the input descriptor, for a program that polls by itself and
+calls
+.BR tui_term_wait ()
+with a zero timeout when it is readable.
+.SH RETURN VALUE
+.BR tui_term_wait ()
+returns 1 with
+.I ev
+filled, 0 when the timeout passed, and \-1 with
+.I errno
+on error:
+.B EINVAL
+for bad arguments,
+.B ENOTTY
+when a resize was signalled but the size cannot be read, or the error of
+.BR poll (2)
+or
+.BR read (2).
+.PP
+.BR tui_term_fd ()
+returns \-1 for a NULL session.
+.SH EXAMPLE
+.nf
+for (;;) {
+    draw(&model, scr);
+    tui_screen_render(scr, &out);
+    tui_term_flush_buf(t, &out);
+
+    tui_event ev;
+    if (tui_term_wait(t, \-1, NULL, 0, &ev) < 0) break;
+    if (ev.type == TUI_EV_HANGUP) break;
+    if (ev.type == TUI_EV_RESIZE) tui_screen_resize(scr, ev.rows, ev.cols);
+    if (TUI_EV_IS_CHAR(&ev, 'q')) break;
+}
+.fi
+.SH SEE ALSO
+.BR tui_term_open (3),
+.BR tui_decoder_init (3),
+.BR libtuikit (7)

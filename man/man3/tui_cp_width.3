@@ -1,0 +1,106 @@
+.TH TUI_CP_WIDTH 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_cp_width, tui_cp_sanitize, tui_str_width, tui_strn_width, tui_str_fit,
+tui_str_fit_ellipsis, tui_utf8_decode, tui_utf8_encode, tui_utf8_seq_len \-
+UTF-8 and the display width of text
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/text.h>
+.PP
+.BI "int      tui_cp_width(uint32_t " cp );
+.BI "uint32_t tui_cp_sanitize(uint32_t " cp );
+.BI "int      tui_str_width(const char *" s );
+.BI "int      tui_strn_width(const char *" s ", size_t " n );
+.BI "size_t   tui_str_fit(const char *" s ", int " cols ", int *" used );
+.BI "int      tui_str_fit_ellipsis(const char *" s ", int " cols ", char *" out ", size_t " outsz );
+.PP
+.BI "int      tui_utf8_decode(const char *" s ", size_t " n ", uint32_t *" cp );
+.BI "int      tui_utf8_encode(uint32_t " cp ", char " out [4]);
+.BI "int      tui_utf8_seq_len(unsigned char " lead );
+.fi
+.SH DESCRIPTION
+.BR tui_cp_width ()
+returns the number of columns a terminal gives the code point
+.IR cp :
+0 for combining and zero-width characters, 2 for wide (East Asian wide
+and full-width, most emoji), 1 for the rest, and \-1 for a control
+character (C0, DEL, C1).
+.PP
+The widths come from a table built into the library, generated from
+glibc's C.UTF-8 locale, so the program's locale makes no difference: in
+the "C" locale glibc's own
+.BR wcwidth (3)
+reports \-1 for every non-ASCII character, and code relying on it drops
+accented and CJK text.
+A printable code point the table does not know is one column wide; text
+is never silently dropped.
+.PP
+.BR tui_cp_sanitize ()
+returns U+00B7 for a control character (C0, DEL, and C1 including the
+8-bit CSI U+009B) and
+.I cp
+otherwise.
+The drawing functions apply it to every character, so text from an
+untrusted source cannot carry an escape sequence onto the screen.
+.PP
+.BR tui_str_width ()
+and
+.BR tui_strn_width ()
+return the width of a UTF-8 string (or of its first
+.I n
+bytes) as drawn: a control counts as the one column of its replacement,
+a malformed byte as one U+FFFD.
+.PP
+.BR tui_str_fit ()
+returns how many bytes of
+.I s
+fit into
+.I cols
+columns without cutting a character; zero-width characters after the
+last fitting one are included.
+.I used
+(may be NULL) receives their width.
+.PP
+.BR tui_str_fit_ellipsis ()
+copies
+.I s
+into
+.IR out ,
+shortened to
+.I cols
+columns with a final "\[u2026]" (U+2026, one column) when it does not fit.
+.PP
+.BR tui_utf8_decode ()
+decodes one code point from at most
+.I n
+bytes.
+Malformed input \(em a bad lead byte, a missing continuation, an overlong
+form, a surrogate, a value above U+10FFFF \(em yields U+FFFD and consumes
+one byte; a sequence cut short by
+.I n
+yields U+FFFD and consumes the bytes present.
+.BR tui_utf8_encode ()
+encodes
+.I cp
+(an invalid one as U+FFFD), and
+.BR tui_utf8_seq_len ()
+gives the length a lead byte announces, 1 for an invalid lead.
+.SH RETURN VALUE
+.BR tui_str_fit_ellipsis ()
+returns the width of the result, or \-1 if
+.I outsz
+is too small for it; then
+.I out
+holds the longest prefix that fits, never half a character.
+.BR tui_utf8_decode ()
+returns the bytes consumed, 0 for empty input;
+.BR tui_utf8_encode ()
+the bytes written, 1 to 4.
+.SH NOTES
+The table is regenerated at development time with the
+.B regen-width
+build target, and a unit test checks it against the running glibc.
+It is not shared with any terminal emulator used to test the library.
+.SH SEE ALSO
+.BR tui_screen_put (3),
+.BR libtuikit (7)
