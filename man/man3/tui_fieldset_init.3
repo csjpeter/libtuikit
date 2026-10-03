@@ -1,0 +1,112 @@
+.TH TUI_FIELDSET_INIT 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_fieldset_init, tui_fieldset_free, tui_field_text, tui_field_choice,
+tui_fieldset_focus, tui_fieldset_set_error, tui_fieldset_update_completion,
+tui_fieldset_handle, tui_fieldset_render \- a form of several fields with
+completion and validation
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/fieldset.h>
+.PP
+.BI "void tui_field_text(tui_field *" fl ", const char *" label ,
+.BI "                         char *" buf ", size_t " size ", const char *" initial );
+.BI "void tui_field_choice(tui_field *" fl ", const char *" label ,
+.BI "                           const char *const *" choices ", int " n ", int " selected );
+.BI "void tui_fieldset_init(tui_fieldset *" f ", tui_field *" fields ", int " n );
+.BI "void tui_fieldset_free(tui_fieldset *" f );
+.BI "void tui_fieldset_focus(tui_fieldset *" f ", int " i );
+.BI "void tui_fieldset_set_error(tui_fieldset *" f ", const char *" msg );
+.BI "void tui_fieldset_update_completion(tui_fieldset *" f );
+.BI "tui_dialog_state tui_fieldset_handle(tui_fieldset *" f ", const tui_event *" ev );
+.BI "int  tui_fieldset_render(tui_fieldset *" f ", tui_canvas " c );
+.PP
+.BI "typedef int (*tui_complete_fn)(void *" user ", int " field ", const char *" token ,
+.BI "                               tui_completion *" out ", int " max );
+.BI "typedef int (*tui_fieldset_validate_fn)(void *" user ", const tui_fieldset *" f ,
+.BI "                                    char *" err ", size_t " errsz );
+.fi
+.SH DESCRIPTION
+A form edits several fields: the shape of email-cli's compose dialog
+(To, Cc, Bcc, Subject, Attach, with an address drop-down) and of
+issue-manager's new and edit form (title, description, type, priority,
+implementer).
+Like a dialog it neither blocks nor reads the terminal.
+The program sees every event first, so behaviour that belongs to it \(em
+what a separator key does, removing an attachment, checking a file \(em it
+handles before passing the event on.
+.PP
+The fields are an array the caller owns.
+.BR tui_field_text ()
+makes a text field editing
+.I buf
+with a
+.BR tui_lineedit_init (3)
+editor;
+.BR tui_field_choice ()
+a field that is one of
+.I n
+.I choices
+(not copied), changed with Left, Right and Space.
+.BR tui_fieldset_init ()
+puts them in a form, the focus on the first; the members
+.I validate
+and
+.I user
+and the styles may be set afterwards.
+.SS Completion
+A text field with
+.I complete
+set offers completions.
+After every edit the form takes the token being typed \(em the text from
+the last of the field's
+.I separators
+before the cursor (or from the start, when there are none), leading
+spaces skipped \(em and asks
+.I complete
+for candidates.
+When there are any, a drop-down lists them under the field
+.RI ( label
+shown, or
+.I text
+when there is no label).
+With the drop-down open, Up and Down choose, Tab or Enter replace the
+token with the chosen
+.IR text ,
+and Esc closes the drop-down and keeps the text; typing opens it again.
+These are email-cli's compose rules.
+.BR tui_fieldset_update_completion ()
+asks again, for a program that changed the text itself.
+.SS Keys
+Without a drop-down, Tab and Down move to the next field, Shift-Tab and Up
+to the previous one (both wrap); Enter submits; Esc and Ctrl-C cancel
+.RB ( TUI_DIALOG_CANCELLED ).
+On submit the form calls
+.IR validate :
+\-1 lets it close
+.RB ( TUI_DIALOG_OK );
+an index puts the focus on that field and shows the message written into
+.I err
+under the fields \(em email-cli's "To: is empty" check.
+Typing in a field clears the message;
+.BR tui_fieldset_set_error ()
+sets or clears it directly.
+Every other key goes to the focused text field's editor.
+.SS Drawing
+.BR tui_fieldset_render ()
+draws from the top of a canvas: a row per field with the labels in a
+column (the focused label bold, the others dim, by default), the value
+after them \(em a choice field shows "< value >" while focused \(em the
+drop-down under the focused field, then the message.
+It puts the terminal cursor in a focused text field, hides it otherwise,
+and returns the rows used, so the program can draw what it adds (a list
+of attachments) below.
+.SH RETURN VALUE
+.BR tui_fieldset_handle ()
+returns the state after the event; events after the form closed are
+ignored.
+.BR tui_fieldset_render ()
+returns the number of rows drawn.
+.SH SEE ALSO
+.BR tui_lineedit_init (3),
+.BR tui_dialog_message (3),
+.BR libtuikit (7)

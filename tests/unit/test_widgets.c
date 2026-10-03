@@ -125,11 +125,15 @@ static void test_canvas_clipping(void) {
     ASSERT_EQ_INT(tui_canvas_put(c, 3, 0, "below", TUI_STYLE_DEFAULT), 0, "row below");
     ASSERT_EQ_INT(tui_canvas_put(c, -1, 0, "above", TUI_STYLE_DEFAULT), 0, "row above");
     ASSERT_EQ_INT(tui_canvas_put(c, 0, -20, "short", TUI_STYLE_DEFAULT), 0, "all of it left");
+    /* The mark of a character left of the canvas goes with it. */
+    tui_canvas mark_row = tui_canvas_sub(all, tui_rect_make(4, 0, 1, 6));
+    ASSERT_EQ_INT(tui_canvas_put(mark_row, 0, -1, "e\xCC\x81z", TUI_STYLE_DEFAULT), 1,
+                  "only z is drawn");
     tui_canvas_fill(c, tui_rect_make(2, 4, 5, 5), tui_style_attrs(TUI_ATTR_BOLD));
     tui_canvas_hline(c, -1, 0, 6, TUI_STYLE_DEFAULT);
     tui_canvas_vline(c, 0, 7, 3, TUI_STYLE_DEFAULT);
     fx_show(&f);
-    const char *const expect[] = { "", "  abcdef", "  345678", "   xyz", "", NULL };
+    const char *const expect[] = { "", "  abcdef", "  345678", "   xyz", "z", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
     /* A sub-canvas reaching past its parent is cut to the parent. */
     tui_canvas big = tui_canvas_sub(c, tui_rect_make(-5, -5, 50, 50));
@@ -459,6 +463,9 @@ static void test_textview_append_to_empty_and_errors(void) {
     tui_textview_set_text(&tv, big);
     ASSERT_EQ_INT(tui_textview_wrap(&tv, 1), 2999, "one character per line");
     ASSERT_EQ_INT(tui_textview_wrap(&tv, 3000), 1, "one line");
+    /* Spaces at the end of a line that breaks there are eaten by the break. */
+    tui_textview_set_text(&tv, "hello        ");
+    ASSERT_EQ_INT(tui_textview_wrap(&tv, 5), 1, "trailing spaces make no extra line");
     free(big);
     fx_close(&f);
     tui_textview_free(&tv);

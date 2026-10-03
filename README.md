@@ -23,14 +23,18 @@ view, and the library gives it
 - **a diffed cell screen** (`tui_screen`) rendering into a byte buffer, so it
   is testable without a terminal;
 - **layout and clipped drawing** (`tui_canvas`, `tui_rect`), a **list view**,
-  a **text view**, a **line editor** with history, and **dialogs** —
-  message, yes/no, prompt, menu;
+  a **text view**, a **line editor** with history, **dialogs** — message,
+  yes/no, prompt, menu — and **forms** (`tui_fieldset`): text and choice
+  fields with a completion drop-down and validation;
 - **no-session helpers** in email-cli's style (`tui_tty`, `tui_readline`):
-  size with fallbacks, raw mode for one key, a password prompt, an inline
-  line editor with an interrupt flag and a timeout.
+  size with fallbacks, raw mode for one key, waiting with a timeout, a
+  password prompt, an inline line editor with an interrupt flag and a
+  timeout.
 
 email-cli's terminal code is the reference: the library has an equivalent
-for each of its capabilities (`man 7 libtuikit`, "EMAIL-CLI EQUIVALENTS").
+for each of its capabilities (`man 7 libtuikit`, "EMAIL-CLI EQUIVALENTS",
+and "TG-CLI EQUIVALENTS" for tg-cli). The tests of both projects' terminal
+code run here as regression tests.
 
 ## Using it
 
@@ -85,11 +89,13 @@ per function group. The design and the survey of the code it replaces are in
 ```
 include/tuikit/   public headers (tuikit.h includes them all)
 src/              term.c tty.c decoder.c text.c width_table.c buf.c screen.c
-                  canvas.c listview.c textview.c lineedit.c dialog.c
+                  canvas.c listview.c textview.c lineedit.c dialog.c fieldset.c
 tools/            gen-width.c: regenerates src/width_table.c from glibc
 man/              man3/*.3, man7/libtuikit.7
-tests/unit/       every module in-process; tui_term over openpty()
-tests/pty/        real programs through a real PTY (libptytest)
+tests/unit/       every module in-process; tui_term over openpty(); failure
+                  paths by fault injection; email-cli/tg-cli regression cases
+tests/pty/        real programs through a real PTY (libptytest), including
+                  the PTY scenarios of email-cli and tg-cli
 examples/         tuikit-demo, its PTY test, a consumer build
 docs/             specification.md, survey.md
 cmake/            package config, pkg-config template, .deb build metadata
@@ -102,7 +108,7 @@ cmake/            package config, pkg-config template, .deb build metadata
 ./manage.sh test        # unit tests, ASAN + UBSan
 ./manage.sh pty         # PTY tests, ASAN + UBSan
 ./manage.sh valgrind    # all tests under Valgrind, Release build
-./manage.sh coverage    # line coverage of src/, fails below 90%
+./manage.sh coverage    # line coverage of src/, fails below 100%
 ./manage.sh package     # build/libtuikit0_*.deb, build/libtuikit-dev_*.deb
 ./manage.sh consumer    # build and run the example against the .deb content
 ./manage.sh check       # all of the above, with a summary

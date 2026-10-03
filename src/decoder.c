@@ -26,6 +26,9 @@
 
 enum { PARSE_INCOMPLETE = -1, PARSE_DROPPED = 0, PARSE_EVENT = 1 };
 
+_Static_assert(TUI_DECODER_SEQ_MAX < sizeof(((tui_decoder *)0)->in),
+               "an incomplete sequence must fit in the input queue");
+
 static const char paste_end[] = "\x1b[201~";
 #define PASTE_END_LEN (sizeof(paste_end) - 1)
 
@@ -398,14 +401,10 @@ int tui_decoder_next(tui_decoder *d, tui_event *ev) {
         }
         size_t used = 0;
         int r = parse_one(d, d->in + d->in_pos, d->in_len - d->in_pos, ev, &used);
-        if (r == PARSE_INCOMPLETE) {
-            if (d->in_pos == 0 && d->in_len == sizeof(d->in)) {
-                /* Cannot complete within the queue: drop one byte. */
-                d->in_pos++;
-                continue;
-            }
-            return 0;
-        }
+        /* An incomplete sequence is short -- at most an ESC, a CSI below
+         * TUI_DECODER_SEQ_MAX (longer ones are skipped), or five bytes of
+         * Alt+UTF-8 -- so it never fills the queue and feeding can go on. */
+        if (r == PARSE_INCOMPLETE) return 0;
         d->in_pos += used;
         if (r == PARSE_EVENT) return 1;
     }

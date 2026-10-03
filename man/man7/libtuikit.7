@@ -48,7 +48,7 @@ cells, styles and the renderer (pure)
 .B tuikit/canvas.h
 rectangles, layout and clipped drawing (pure)
 .TP
-.BR tuikit/listview.h ", " tuikit/textview.h ", " tuikit/dialog.h
+.BR tuikit/listview.h ", " tuikit/textview.h ", " tuikit/dialog.h ", " tuikit/fieldset.h
 widgets (pure)
 .TP
 .B tuikit/lineedit.h
@@ -171,6 +171,34 @@ the same hooks on tui_lineedit
 .TP
 .B Windows stub (not a TTY)
 the same stub behaviour
+.TP
+.B compose dialog (fields, address drop-down)
+tui_fieldset with a completion callback and ";," separators
+.SH TG-CLI EQUIVALENTS
+.TP
+.B Screen, screen_put_str_n, screen_fill, screen_flip
+tui_screen, tui_screen_put, tui_screen_fill, tui_screen_render
+.TP
+.B Pane, pane_put_str, pane_fill, layout_compute
+tui_canvas_sub, tui_canvas_put, tui_canvas_fill, tui_rect_split_h/_v
+.TP
+.B ListView and list_view_*
+tui_listview and tui_listview_*
+.TP
+.B terminal_wait_key (timeout)
+tui_tty_wait, or tui_term_wait in a session (with the network fd)
+.TP
+.B terminal_enable_resize_notifications, terminal_consume_resize
+TUI_EV_RESIZE from tui_term_wait
+.TP
+.B terminal_install_cleanup_handlers
+tui_term_open (and tui_tty_read_password for its prompt)
+.TP
+.B TERM_KEY_CTRL_A/E/K/W/D
+TUI_KEY_CHAR with TUI_MOD_CTRL; handled by tui_lineedit
+.TP
+.B rl_readline, rl_history_init, rl_history_add
+tui_readline, tui_history_init, tui_history_add
 .SH TESTING A PROGRAM THAT USES IT
 The library's own tests use
 .BR libptytest (7):
@@ -180,6 +208,9 @@ and
 .BR pty_region_compare (3);
 the PTY tests run real programs through a real pseudo-terminal.
 A program built on libtuikit can be tested the same way.
+Every line of the library is run by its tests; failure paths are reached
+by link-time fault injection in the test binaries, never by hooks in the
+library.
 libptytest is a test dependency only; the library shares no code with it.
 .SH NAMES
 Functions and types are

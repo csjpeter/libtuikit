@@ -40,12 +40,20 @@ descriptors; everything else is pure and renders into a `tui_buf`.
   libptytest (widths, colours, cell model). Renderer tests check the exact
   bytes *and* the emulated screen.
 - **Prefix `tui_`**, and never the names listed in `docs/specification.md`
-  section 3 — tg-cli and issue-manager use them. `tests/unit/check_api.sh`
+  section 3 — tg-cli and issue-manager use them (hence `tui_fieldset`, not
+  `tui_form`). `tests/unit/check_api.sh`
   enforces it.
 - **Every exported function has a man page** (its own or an alias in
   `CMakeLists.txt`); `check_api.sh` fails otherwise, and on any groff warning.
 - **The width table is generated**, never edited: `cmake --build <dir>
   --target regen-width`. `test-text` compares it with the running glibc.
 - The library never prints. Errors are return values with `errno`.
+- **Every line of `src/` is run by a test** (`./manage.sh coverage` fails
+  below 100 %). Failure paths are reached through `tests/common/faults.c`:
+  link-time wrappers (`-Wl,--wrap`) in the test binaries, armed per test.
+  Never add a test hook to the library itself.
+- `tests/unit/test_compat.c` and `tests/pty/test_compat_pty.c` carry
+  email-cli's and tg-cli's terminal tests over; a change that breaks one
+  takes a capability away from them.
 - Source, comments and documentation are in English. C11, libc only.
 - The ABI is versioned by `SOVERSION` (= major version).

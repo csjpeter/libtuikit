@@ -127,6 +127,8 @@ static const Case cases[] = {
     { "\x1b[201~" "a", "a", 0 },            /* stray paste end */
     { "\x1b[1 q" "a", "a", 0 },             /* intermediate byte */
     { "\x1b[1:2A", "Up", 0 },               /* sub-parameter ignored */
+    { "\x1b[1?A" "a", "a", 0 },             /* a private marker inside: not a key */
+    { "\x1b\xC3", "Alt+\xEF\xBF\xBD", 1 },    /* Alt + half a character, then silence */
     { "\x1b[\x03" "a", "Ctrl+C a", 0 },     /* broken CSI keeps the odd byte */
     { "\x1bO\x03", "Ctrl+C", 0 },
 };

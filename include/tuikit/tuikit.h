@@ -14,6 +14,7 @@
 #include "tuikit/canvas.h"
 #include "tuikit/dialog.h"
 #include "tuikit/event.h"
+#include "tuikit/fieldset.h"
 #include "tuikit/lineedit.h"
 #include "tuikit/listview.h"
 #include "tuikit/screen.h"

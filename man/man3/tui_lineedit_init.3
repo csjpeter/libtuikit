@@ -2,7 +2,7 @@
 .TH TUI_LINEEDIT_INIT 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
 .SH NAME
 tui_lineedit_init, tui_lineedit_free, tui_lineedit_set_text,
-tui_lineedit_insert, tui_lineedit_handle, tui_lineedit_render,
+tui_lineedit_insert, tui_lineedit_replace, tui_lineedit_handle, tui_lineedit_render,
 tui_lineedit_cursor_col, tui_lineedit_run, tui_history_init,
 tui_history_free, tui_history_add, tui_history_count, tui_history_get \-
 single-line text editor and line history
@@ -14,6 +14,7 @@ single-line text editor and line history
 .BI "void tui_lineedit_free(tui_lineedit *" le );
 .BI "void tui_lineedit_set_text(tui_lineedit *" le ", const char *" text );
 .BI "int  tui_lineedit_insert(tui_lineedit *" le ", const char *" utf8 );
+.BI "void tui_lineedit_replace(tui_lineedit *" le ", size_t " start ", size_t " end ", const char *" utf8 );
 .BI "tui_edit_result tui_lineedit_handle(tui_lineedit *" le ", const tui_event *" ev );
 .BI "int  tui_lineedit_render(tui_lineedit *" le ", tui_canvas " c ", const char *" prompt ", tui_style " st );
 .BI "int  tui_lineedit_cursor_col(const tui_lineedit *" le );
@@ -60,8 +61,16 @@ buffer.
 inserts text at the cursor: a tab, CR or LF becomes a space, other control
 characters are dropped, and what does not fit is not inserted \(em never
 half a character.
+.BR tui_lineedit_replace ()
+replaces the bytes from
+.I start
+to
+.I end
+(clamped to the text and to character boundaries) the same way and puts
+the cursor after the new text: a completion replaces the token being
+typed with it.
 .BR tui_lineedit_set_text ()
-replaces the text; completion hooks use it.
+replaces the whole text; completion hooks use it.
 .SS Keys
 .BR tui_lineedit_handle ()
 applies one event and returns what it did:

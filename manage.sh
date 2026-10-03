@@ -19,8 +19,9 @@ BUILD_DIR_COVERAGE="$BUILD_DIR/_coverage"
 BUILD_DIR_VALGRIND="$BUILD_DIR/_valgrind"
 BUILD_DIR_CONSUMER="$BUILD_DIR/_consumer"
 
-# Line coverage of the library sources below this fails the run.
-COVERAGE_THRESHOLD=90
+# Line coverage of the library sources below this fails the run: every
+# line of src/ is run by a test (failure paths through tests/common/faults.c).
+COVERAGE_THRESHOLD=100
 
 JOBS="$(nproc)"
 

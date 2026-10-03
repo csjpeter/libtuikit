@@ -107,6 +107,15 @@ TUI_API void tui_lineedit_init(tui_lineedit *le, char *buf, size_t size,
 /** @brief Frees the editor's own memory (not the buffer). */
 TUI_API void tui_lineedit_free(tui_lineedit *le);
 
+/**
+ * @brief Replaces bytes [@p start, @p end) of the text with @p utf8 (as
+ *        tui_lineedit_insert() inserts it) and puts the cursor after it.
+ *        The range is clamped to the text and to character boundaries.
+ *        A completion replaces the token being typed with it.
+ */
+TUI_API void tui_lineedit_replace(tui_lineedit *le, size_t start, size_t end,
+                                  const char *utf8);
+
 /** @brief Replaces the text, the cursor at its end (for completion hooks). */
 TUI_API void tui_lineedit_set_text(tui_lineedit *le, const char *text);
 

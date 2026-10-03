@@ -1,7 +1,7 @@
 .TH TUI_TTY_IS 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
 .SH NAME
 tui_tty_is, tui_tty_cols, tui_tty_rows, tui_tty_raw_enter, tui_tty_raw_exit,
-tui_tty_read_key, tui_tty_read_password \- terminal helpers that need no
+tui_tty_wait, tui_tty_read_key, tui_tty_read_password \- terminal helpers that need no
 session
 .SH SYNOPSIS
 .nf
@@ -15,6 +15,7 @@ session
 .BI "void         tui_tty_raw_exit(tui_tty_raw **" state );
 .B #define TUI_RAII_RAW __attribute__((cleanup(tui_tty_raw_exit)))
 .PP
+.BI "int  tui_tty_wait(int " fd ", int " timeout_ms );
 .BI "int  tui_tty_read_key(int " fd ", tui_event *" ev );
 .BI "int  tui_tty_read_password(int " in_fd ", int " out_fd ", const char *" prompt ,
 .BI "                           char *" buf ", size_t " size );
@@ -72,13 +73,26 @@ email-cli's
     TUI_RAII_RAW tui_tty_raw *raw = tui_tty_raw_enter(0, 0);
 .fi
 .PP
+.BR tui_tty_wait ()
+waits at most
+.I timeout_ms
+milliseconds (negative: no limit) until
+.I fd
+can be read without blocking \(em input, or the end of it \(em as tg-cli's
+.BR terminal_wait_key ().
+Unlike that function it tells an interruption from an error: a signal
+gives \-1 with
+.I errno
+.BR EINTR .
+.PP
 .BR tui_tty_read_key ()
 reads one key from
 .IR fd ,
 blocking until there is one.
 It reads one byte at a time, so input after the key stays for whoever
 reads next.
-A lone ESC is reported after 100 ms of silence.
+A lone ESC is reported after 100 ms of silence, or at once when the input
+ends behind it.
 Keys are decoded as
 .BR tui_decoder_init (3)
 describes; the printable character is in
@@ -110,6 +124,9 @@ The line is read with
 never through stdio; the trailing CR/LF is removed and at most
 .IR size "\-1"
 bytes are kept, NUL-terminated.
+While echo is off, SIGINT, SIGTERM, SIGHUP and SIGQUIT \(em those that
+still have their default action \(em restore the terminal before they end
+the process: Ctrl-C at the prompt does not leave the shell without echo.
 .SH RETURN VALUE
 .BR tui_tty_raw_enter ()
 returns the saved state, or NULL with
@@ -128,6 +145,10 @@ filled, 0 at the end of the input or when the terminal hung up (then
 is
 .BR TUI_EV_HANGUP ),
 and \-1 on error with
+.IR errno .
+.PP
+.BR tui_tty_wait ()
+returns 1 when a read will not block, 0 on timeout, \-1 with
 .IR errno .
 .PP
 .BR tui_tty_read_password ()

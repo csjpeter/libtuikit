@@ -80,6 +80,7 @@ Reported here for the human to take to their owners (see
 | 5 | mamind | `line_editor.c` | Not UTF-8 aware: Backspace removes one byte of a multi-byte character, and the cursor arithmetic in `refresh_line` counts bytes as columns. `ESC [ 3 ~` (Delete) leaves `~` to be inserted as text. |
 | 6 | email-cli | `src/main_tui.c` | No SIGWINCH handling; a resize is seen only when a screen is next redrawn from scratch. |
 | 7 | tg-cli | `terminal_wait_key` | `return (errno == EINTR) ? -1 : -1;` — both branches equal, so an interrupted wait cannot be told from an error. |
+| 8 | tg-cli, email-cli | `terminal_read_password` | The prompt is written before echo is turned off: keys typed as soon as the prompt appears are echoed — the start of the password can show on the screen. Found when carrying tg-cli's password test over (libtuikit turns echo off first). Ctrl-C at the prompt also leaves the terminal without echo. |
 
 ## Name collisions to avoid
 

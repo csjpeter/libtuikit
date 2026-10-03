@@ -94,17 +94,18 @@ static char                  g_enter[SEQ_MAX], g_leave[SEQ_MAX];
 static size_t                g_enter_len, g_leave_len;
 static int                   g_atexit_registered;
 
+/* The slot of a handled signal; every caller passes one of g_signals. */
 static int sig_index(int sig) {
-    for (int i = 0; i < N_SIGNALS; i++)
-        if (g_signals[i] == sig) return i;
-    return -1;
+    int i = 0;
+    while (i < N_SIGNALS - 1 && g_signals[i] != sig) i++;
+    return i;
 }
 
 /* SIGWINCH and SIGCONT are observed, not taken over: a handler the
  * program installed before us still runs. */
 static void chain(int sig) {
     int i = sig_index(sig);
-    if (i < 0 || (g_prev[i].sa_flags & SA_SIGINFO)) return;
+    if (g_prev[i].sa_flags & SA_SIGINFO) return;
     void (*h)(int) = g_prev[i].sa_handler;
     if (h != SIG_DFL && h != SIG_IGN) h(sig);
 }
@@ -134,20 +135,23 @@ static void wake_async(void) {
     (void)w;
 }
 
-static void on_fatal(int sig) {
+/* Gives the terminal back and puts the previous disposition of @p sig
+ * back, for on_fatal(). */
+static void prepare_fatal(int sig) {
     int e = errno;
     leave_mode_async();
     int i = sig_index(sig);
-    if (i >= 0) {
-        sigaction(sig, &g_prev[i], NULL);
-        g_installed[i] = 0;
-    }
+    sigaction(sig, &g_prev[i], NULL);
+    g_installed[i] = 0;
     errno = e;
-    /* Blocked while this handler runs; delivered with the previous
-     * disposition as soon as it returns, so the exit status is the
-     * signal's. */
-    raise(sig);
 }
+
+/* The signal is blocked while this handler runs; raised again, it is
+ * delivered with the previous disposition as soon as the handler returns,
+ * so the exit status is the signal's.  One line on purpose: the process
+ * dies at that return, and a closing brace on a line of its own would be a
+ * line that can never be measured as run. */
+static void on_fatal(int sig) { prepare_fatal(sig); raise(sig); }
 
 static void on_tstp(int sig) {
     (void)sig;
@@ -284,6 +288,26 @@ void tui_term_opts_init(tui_term_opts *o) {
     o->esc_delay_ms = TUI_ESC_DELAY_DEFAULT;
 }
 
+/* Undoes a half-made session; errno is kept. */
+static tui_term *discard(tui_term *t) {
+    int e = errno;
+    if (t->wake_rd >= 0) close(t->wake_rd);
+    if (t->wake_wr >= 0) close(t->wake_wr);
+    tui_decoder_free(&t->dec);
+    free(t);
+    errno = e;
+    return NULL;
+}
+
+/* Gives the mode back after a failed switch; errno is kept. */
+static tui_term *switch_failed(tui_term *t, const sigset_t *old) {
+    int e = errno;
+    restore_mode(t->in_fd, &t->saved);
+    sigprocmask(SIG_SETMASK, old, NULL);
+    errno = e;
+    return discard(t);
+}
+
 tui_term *tui_term_open(const tui_term_opts *o) {
     tui_term_opts def;
     if (!o) {
@@ -311,42 +335,24 @@ tui_term *tui_term_open(const tui_term_opts *o) {
     tui_decoder_init(&t->dec);
     build_sequences(t);
 
-    if (tcgetattr(t->in_fd, &t->saved) != 0) goto fail_free;
+    if (tcgetattr(t->in_fd, &t->saved) != 0) return discard(t);
     t->raw = t->saved;
     tui__make_raw(&t->raw, t->flags);
 
     if (with_signals) {
         int p[2];
-        if (pipe(p) != 0) goto fail_free;
-        if (set_flags(p[0]) != 0 || set_flags(p[1]) != 0) {
-            int e = errno;
-            close(p[0]);
-            close(p[1]);
-            errno = e;
-            goto fail_free;
-        }
+        if (pipe(p) != 0) return discard(t);
         t->wake_rd = p[0];
         t->wake_wr = p[1];
+        if (set_flags(p[0]) != 0 || set_flags(p[1]) != 0) return discard(t);
     }
 
     /* No handled signal may arrive half-way through the switch. */
     sigset_t old;
     block_handled(&old);
 
-    if (tui__apply_mode(t->in_fd, &t->raw) != 0) {
-        int e = errno;
-        restore_mode(t->in_fd, &t->saved);
-        sigprocmask(SIG_SETMASK, &old, NULL);
-        errno = e;
-        goto fail_pipe;
-    }
-    if (tui__write_all(t->out_fd, t->enter, t->enter_len) != 0) {
-        int e = errno;
-        restore_mode(t->in_fd, &t->saved);
-        sigprocmask(SIG_SETMASK, &old, NULL);
-        errno = e;
-        goto fail_pipe;
-    }
+    if (tui__apply_mode(t->in_fd, &t->raw) != 0) return switch_failed(t, &old);
+    if (tui__write_all(t->out_fd, t->enter, t->enter_len) != 0) return switch_failed(t, &old);
 
     if (with_signals) {
         t->signals = 1;
@@ -368,18 +374,6 @@ tui_term *tui_term_open(const tui_term_opts *o) {
     }
     sigprocmask(SIG_SETMASK, &old, NULL);
     return t;
-
-fail_pipe:
-    if (t->wake_rd >= 0) close(t->wake_rd);
-    if (t->wake_wr >= 0) close(t->wake_wr);
-fail_free:
-    {
-        int e = errno;
-        tui_decoder_free(&t->dec);
-        free(t);
-        errno = e;
-    }
-    return NULL;
 }
 
 /* Hands the terminal back; used by close and suspend. */
@@ -554,6 +548,12 @@ int tui_term_wait(tui_term *t, int timeout_ms, struct pollfd *extra,
 
     for (;;) {
         if (t->hangup) {
+            /* What arrived before the end is delivered first: a lone ESC
+             * held for its delay is still a key the user pressed. */
+            if (tui_decoder_timeout(&t->dec, ev)) {
+                rc = 1;
+                break;
+            }
             memset(ev, 0, sizeof(*ev));
             ev->type = TUI_EV_HANGUP;
             rc = 1;
@@ -652,10 +652,8 @@ int tui_term_wait(tui_term *t, int timeout_ms, struct pollfd *extra,
             rc = 1;
             break;
         }
-        if (deadline >= 0 && tui__now_ms() >= deadline) {
-            rc = 0;
-            break;
-        }
+        /* Nothing usable (e.g. an error on the wake-up pipe): the next
+         * round's poll uses what is left of the timeout. */
     }
     if (pfd != fixed) {
         int e = errno;

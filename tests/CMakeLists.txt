@@ -19,8 +19,22 @@ file(MAKE_DIRECTORY "${TUIKIT_TEST_TMPDIR}")
 
 find_library(TUIKIT_UTIL_LIB util)
 
+# Every suite is linked with the fault-injection wrappers (common/faults.c):
+# inert until a test arms them, and the raise() wrapper writes the coverage
+# counters before a signal ends a process.  Test binaries only.
+set(TUIKIT_WRAPPED malloc calloc realloc pipe fcntl tcgetattr tcsetattr
+                   poll read __read_chk write raise)
+set(TUIKIT_WRAP_FLAGS "")
+foreach(_fn IN LISTS TUIKIT_WRAPPED)
+    list(APPEND TUIKIT_WRAP_FLAGS "LINKER:--wrap=${_fn}")
+endforeach()
+
 function(tuikit_add_suite _name _kind _src _lib)
-    add_executable(${_name} ${_src})
+    add_executable(${_name} ${_src} "${CMAKE_CURRENT_SOURCE_DIR}/common/faults.c")
+    target_link_options(${_name} PRIVATE ${TUIKIT_WRAP_FLAGS})
+    if(ENABLE_COVERAGE)
+        target_compile_definitions(${_name} PRIVATE TUIKIT_COVERAGE_BUILD)
+    endif()
     target_include_directories(${_name} PRIVATE
         "${CMAKE_CURRENT_SOURCE_DIR}/common")
     target_compile_options(${_name} PRIVATE -Wall -Wextra -Wshadow)
@@ -48,6 +62,9 @@ tuikit_add_suite(test-screen  unit unit/test_screen.c  tuikit_static)
 tuikit_add_suite(test-widgets unit unit/test_widgets.c tuikit_static)
 tuikit_add_suite(test-lineedit unit unit/test_lineedit.c tuikit_static)
 tuikit_add_suite(test-dialog  unit unit/test_dialog.c  tuikit_static)
+tuikit_add_suite(test-fieldset unit unit/test_fieldset.c tuikit_static)
+tuikit_add_suite(test-compat  unit unit/test_compat.c  tuikit_static)
+tuikit_add_suite(test-faults  unit unit/test_faults.c  tuikit_static)
 
 # --- pty: real programs through a real pseudo-terminal ---------------------
 # Linked against the shared library, through the public interface only.
@@ -68,3 +85,13 @@ add_test(NAME unit.check-api
                  $<TARGET_FILE:tuikit> "${CMAKE_BINARY_DIR}/man"
                  "${CMAKE_SOURCE_DIR}/include")
 set_tests_properties(unit.check-api PROPERTIES LABELS unit TIMEOUT 120)
+
+# --- pty: the scenarios of email-cli's and tg-cli's PTY tests -------------
+add_executable(compat-harness pty/compat_harness.c)
+target_compile_options(compat-harness PRIVATE -Wall -Wextra)
+target_link_libraries(compat-harness PRIVATE tuikit::tuikit)
+
+tuikit_add_suite(test-compat-pty pty pty/test_compat_pty.c tuikit_static)
+target_compile_definitions(test-compat-pty PRIVATE
+    HARNESS="$<TARGET_FILE:compat-harness>")
+add_dependencies(test-compat-pty compat-harness)

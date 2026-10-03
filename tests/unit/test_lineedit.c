@@ -197,6 +197,30 @@ static void test_capacity_and_controls(void) {
     tui_lineedit_init(NULL, big, 4, NULL);
 }
 
+/* A character the terminal reported with Shift (CSI u) is text too. */
+static void test_shifted_character_and_scroll_back(void) {
+    char buf[64];
+    tui_lineedit le;
+    tui_lineedit_init(&le, buf, sizeof(buf), NULL);
+    ASSERT_EQ_INT(type(&le, "\x1b[65;2u"), TUI_EDIT_CHANGED, "Shift+A");
+    ASSERT_EQ_STR(buf, "A", "inserted");
+    /* A long line scrolled to its end, then shortened: the field fills
+     * again from the left rather than showing empty columns. */
+    tui_lineedit_set_text(&le, "abcdefghijklmnopqrstuvwxyz");
+    tui_screen *scr = tui_screen_new(1, 10);
+    tui_canvas row = tui_canvas_of(scr);
+    tui_lineedit_render(&le, row, "> ", TUI_STYLE_DEFAULT);
+    ASSERT_EQ_INT(le.scroll, 19, "scrolled to show the end");
+    type(&le, "\x7f\x7f\x7f\x7f\x7f\x7f\x7f\x7f\x7f\x7f");
+    tui_lineedit_render(&le, row, "> ", TUI_STYLE_DEFAULT);
+    ASSERT_EQ_INT(le.scroll, 9, "scrolled back as the text shrank");
+    type(&le, "\x01");
+    tui_lineedit_render(&le, row, "> ", TUI_STYLE_DEFAULT);
+    ASSERT_EQ_INT(le.scroll, 0, "Home: from the start");
+    tui_screen_free(scr);
+    tui_lineedit_free(&le);
+}
+
 static void test_history_browsing(void) {
     tui_history h;
     tui_history_init(&h, 10);
@@ -475,6 +499,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_words_and_kill_yank),
     TEST_CASE(test_results),
     TEST_CASE(test_capacity_and_controls),
+    TEST_CASE(test_shifted_character_and_scroll_back),
     TEST_CASE(test_history_browsing),
     TEST_CASE(test_hooks),
     TEST_CASE(test_render_scrolls),

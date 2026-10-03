@@ -50,6 +50,11 @@ tui_tty_raw *tui_tty_raw_enter(int fd, unsigned flags) {
     return NULL;
 }
 void tui_tty_raw_exit(tui_tty_raw **state) { if (state) *state = NULL; }
+int  tui_tty_wait(int fd, int timeout_ms) {
+    (void)fd; (void)timeout_ms;
+    errno = ENOTTY;
+    return -1;
+}
 int  tui_tty_read_key(int fd, tui_event *ev) {
     (void)fd;
     if (ev) { memset(ev, 0, sizeof(*ev)); ev->type = TUI_EV_HANGUP; }
@@ -66,6 +71,7 @@ int  tui_tty_read_password(int in_fd, int out_fd, const char *prompt,
 #else
 
 #include <poll.h>
+#include <signal.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <time.h>
@@ -182,6 +188,18 @@ void tui_tty_raw_exit(tui_tty_raw **state) {
     errno = e;
 }
 
+int tui_tty_wait(int fd, int timeout_ms) {
+    struct pollfd pfd = { .fd = fd, .events = POLLIN, .revents = 0 };
+    int r = poll(&pfd, 1, timeout_ms < 0 ? -1 : timeout_ms);
+    if (r < 0) return -1;
+    if (r == 0) return 0;
+    if (pfd.revents & POLLNVAL) {
+        errno = EBADF;
+        return -1;
+    }
+    return 1;      /* input, or a hang-up: a read will not block either way */
+}
+
 int tui_tty_read_key(int fd, tui_event *ev) {
     if (!ev) {
         errno = EINVAL;
@@ -208,21 +226,20 @@ int tui_tty_read_key(int fd, tui_event *ev) {
         }
         unsigned char c;
         ssize_t n = read(fd, &c, 1);
-        if (n < 0) {
-            if (errno == EINTR) continue;
-            if (errno == EIO) {           /* the terminal hung up */
-                memset(ev, 0, sizeof(*ev));
-                ev->type = TUI_EV_HANGUP;
-                rc = 0;
+        if (n < 0 && errno == EINTR) continue;
+        if (n == 0 || (n < 0 && errno == EIO)) {
+            /* The end of input (EIO: the terminal hung up).  A key held
+             * for its ESC delay is delivered first. */
+            if (tui_decoder_timeout(&d, ev)) {
+                rc = 1;
+                break;
             }
-            break;
-        }
-        if (n == 0) {
             memset(ev, 0, sizeof(*ev));
             ev->type = TUI_EV_HANGUP;
             rc = 0;
             break;
         }
+        if (n < 0) break;
         tui_decoder_feed(&d, (const char *)&c, 1);
     }
     if (rc == 1 && ev->type == TUI_EV_PASTE) {
@@ -263,6 +280,54 @@ static int read_line(int fd, char *buf, size_t size) {
     return (int)len;
 }
 
+/* While a password is read with echo off: the mode to restore if a fatal
+ * signal ends the process, and the dispositions to put back. */
+static const int g_pw_signals[] = { SIGINT, SIGTERM, SIGHUP, SIGQUIT };
+#define N_PW_SIGNALS ((int)(sizeof(g_pw_signals) / sizeof(g_pw_signals[0])))
+static struct termios   g_pw_saved;
+static int              g_pw_fd = -1;
+static struct sigaction g_pw_prev[N_PW_SIGNALS];
+static int              g_pw_installed[N_PW_SIGNALS];
+
+/* Async-signal-safe (tcsetattr, sigaction): the mode and the previous
+ * disposition back, for pw_on_signal(). */
+static void pw_prepare(int sig) {
+    tcsetattr(g_pw_fd, TCSANOW, &g_pw_saved);
+    for (int i = 0; i < N_PW_SIGNALS; i++) {
+        if (g_pw_signals[i] == sig) sigaction(sig, &g_pw_prev[i], NULL);
+    }
+}
+
+/* Raised again, the signal is delivered with its default action as the
+ * handler returns; one line, as on_fatal() in term.c explains. */
+static void pw_on_signal(int sig) { pw_prepare(sig); raise(sig); }
+
+static void pw_install(int fd, const struct termios *saved) {
+    g_pw_saved = *saved;
+    g_pw_fd = fd;
+    for (int i = 0; i < N_PW_SIGNALS; i++) {
+        g_pw_installed[i] = 0;
+        struct sigaction cur;
+        if (sigaction(g_pw_signals[i], NULL, &cur) != 0) continue;
+        /* Only a signal that would end the process as it is: one the
+         * program handles or ignores stays the program's. */
+        if ((cur.sa_flags & SA_SIGINFO) || cur.sa_handler != SIG_DFL) continue;
+        struct sigaction sa;
+        memset(&sa, 0, sizeof(sa));
+        sa.sa_handler = pw_on_signal;
+        sigemptyset(&sa.sa_mask);
+        if (sigaction(g_pw_signals[i], &sa, &g_pw_prev[i]) == 0) g_pw_installed[i] = 1;
+    }
+}
+
+static void pw_remove(void) {
+    for (int i = 0; i < N_PW_SIGNALS; i++) {
+        if (g_pw_installed[i]) sigaction(g_pw_signals[i], &g_pw_prev[i], NULL);
+        g_pw_installed[i] = 0;
+    }
+    g_pw_fd = -1;
+}
+
 int tui_tty_read_password(int in_fd, int out_fd, const char *prompt,
                           char *buf, size_t size) {
     if (!buf || size == 0) {
@@ -272,20 +337,33 @@ int tui_tty_read_password(int in_fd, int out_fd, const char *prompt,
     buf[0] = '\0';
     if (!isatty(in_fd)) return read_line(in_fd, buf, size);
 
-    if (prompt) {
-        if (tui__write_all(out_fd, prompt, strlen(prompt)) != 0 ||
-            tui__write_all(out_fd, ": ", 2) != 0)
-            return -1;
-    }
     struct termios saved, quiet;
     if (tcgetattr(in_fd, &saved) != 0) return -1;
     quiet = saved;
     quiet.c_lflag &= ~(tcflag_t)ECHO;
     quiet.c_lflag |= ICANON;
-    if (tcsetattr(in_fd, TCSANOW, &quiet) != 0) return -1;
+    pw_install(in_fd, &saved);
+    /* Echo goes off before the prompt appears: whatever is typed once the
+     * prompt is visible is never echoed (tg-cli wrote the prompt first, and
+     * a quick typist could see the start of the password). */
+    if (tcsetattr(in_fd, TCSANOW, &quiet) != 0) {
+        int e = errno;
+        pw_remove();
+        errno = e;
+        return -1;
+    }
+    if (prompt && (tui__write_all(out_fd, prompt, strlen(prompt)) != 0 ||
+                   tui__write_all(out_fd, ": ", 2) != 0)) {
+        int e = errno;
+        tcsetattr(in_fd, TCSANOW, &saved);
+        pw_remove();
+        errno = e;
+        return -1;
+    }
     int n = read_line(in_fd, buf, size);
     int e = errno;
     tcsetattr(in_fd, TCSANOW, &saved);
+    pw_remove();
     if (tui__write_all(out_fd, "\n", 1) != 0 && n >= 0) return -1;
     errno = e;
     return n;

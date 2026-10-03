@@ -221,10 +221,7 @@ static void test_demo_search(void) {
         "└────────────────────────────────┘",
         NULL };
     ASSERT_WAIT_REGION(s, PTY_REGION(3, 8, 4, 34), prompt, 3000);
-    int row, col;
-    pty_cursor(s, &row, &col);
-    ASSERT_EQ_INT(row, 5, "cursor in the input line");
-    ASSERT_EQ_INT(col, 13, "cursor after Re:");
+    ASSERT_WAIT_CURSOR(s, 5, 13, 3000, "cursor in the input line, after Re:");
     pty_send_key(s, PTY_KEY_ENTER);
     const char *const status[] = { "Found \"Re:\"                                  10x50", NULL };
     ASSERT_WAIT_REGION(s, PTY_REGION(9, 0, 1, 50), status, 3000);

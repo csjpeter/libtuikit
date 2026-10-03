@@ -32,6 +32,28 @@ differences, all additions or clarifications:
 - Valgrind does not emulate SIGTSTP stops (measured); that one test says
   so under Valgrind and runs in full natively and under ASAN.
 
+Added after the first implementation (2026-10-03):
+
+- `tui_fieldset` (`tuikit/fieldset.h`): text and choice fields, a
+  completion drop-down per token, validation -- email-cli's compose dialog
+  and issue-manager's issue form.  (Not `tui_form_*`: issue-manager uses
+  that family, §3.)
+- `tui_tty_wait()`: tg-cli's `terminal_wait_key()`, with EINTR reported.
+- `tui_lineedit_replace()`, for completions.
+- `tui_tty_read_password()` turns echo off before writing the prompt, and
+  restores the terminal if SIGINT/SIGTERM/SIGHUP/SIGQUIT ends the process
+  during it (survey defect 8).
+- A lone ESC held for its delay is delivered before the end of input or a
+  hang-up, on every reading path.
+- email-cli's 34 `input_line` unit cases and its PTY scenarios, and tg-cli's
+  readline, password and key tests, run here as regression tests
+  (`tests/unit/test_compat.c`, `tests/pty/test_compat_pty.c`).  One
+  deliberate difference: email-cli read `ESC x` arriving together as Esc
+  (dropping the `x`); libtuikit reads it as Alt+x.
+- Every line of `src/` is run by a test; the coverage gate is 100 %.
+  Failure paths are reached by link-time fault injection in the test
+  binaries only (`tests/common/faults.c`).
+
 libtuikit is a C11 library for full-screen terminal programs. It exists so
 that the workspace's projects stop rewriting the same terminal code; what they
 rewrite today, and what they learned doing it, is in [survey.md](survey.md).

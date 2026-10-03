@@ -76,6 +76,16 @@ TUI_API void tui_tty_raw_exit(tui_tty_raw **state);
 #endif
 
 /**
+ * @brief Waits up to @p timeout_ms (negative: no limit) until @p fd has
+ *        input -- tg-cli's terminal_wait_key(), with an interruption that
+ *        can be told from an error.
+ * @return 1 when a read will not block (input, or the end of input), 0 on
+ *         timeout, -1 with errno: EINTR when a signal interrupted the
+ *         wait, otherwise the error of poll(2).
+ */
+TUI_API int tui_tty_wait(int fd, int timeout_ms);
+
+/**
  * @brief Reads one key from @p fd, blocking until there is one.
  *
  * The terminal is expected to be in raw mode.  Reads one byte at a time, so
@@ -94,6 +104,10 @@ TUI_API int tui_tty_read_key(int fd, tui_event *ev);
  * echo off, reads one line, restores the mode and writes a newline.  When
  * it is not a terminal, reads one line with no prompt.  The trailing CR/LF
  * is removed; at most @p size - 1 bytes are kept, NUL-terminated.
+ *
+ * While echo is off, SIGINT, SIGTERM, SIGHUP and SIGQUIT -- those with
+ * their default action -- restore the terminal before they end the
+ * process, so Ctrl-C at the prompt does not leave the shell without echo.
  * @return The length of the password, or -1 at end of input or on error.
  */
 TUI_API int tui_tty_read_password(int in_fd, int out_fd, const char *prompt,

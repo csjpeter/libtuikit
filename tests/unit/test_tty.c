@@ -153,6 +153,20 @@ static void test_read_key(void) {
     ASSERT(dt >= TUI_ESC_DELAY_DEFAULT - 5, "Esc waited for the ESC delay");
     ASSERT(dt < 2000, "Esc did not hang");
 
+    /* An unfinished sequence is dropped after the delay; the key typed
+     * later is the one returned. */
+    tpair_type(&p, "\x1b[1;");
+    pid_t pid = fork();
+    ASSERT(pid >= 0, "fork");
+    if (pid == 0) {
+        usleep(300 * 1000);
+        tpair_type(&p, "k");
+        _exit(0);
+    }
+    ASSERT_EQ_INT(tui_tty_read_key(p.slave, &ev), 1, "a key");
+    ASSERT(TUI_EV_IS_CHAR(&ev, 'k'), "k, after the dropped sequence");
+    waitpid(pid, NULL, 0);
+
     tui_tty_raw_exit(&st);
     tpair_close_master(&p);
     ASSERT_EQ_INT(tui_tty_read_key(p.slave, &ev), 0, "end of input after hang-up");
@@ -199,16 +213,10 @@ static void test_read_password_tty(void) {
     char seen[256];
     ASSERT(tpair_read_until(&p, "Password: ", seen, sizeof(seen), 3000) == 0,
            "prompt \"Password: \" written to the terminal");
-    /* The prompt is written before echo is turned off; give the child the
-     * moment it needs, then check echo really is off before typing. */
+    /* Echo is off before the prompt appears: no waiting needed. */
     struct termios t;
-    int64_t until = test_now_ms() + 3000;
-    do {
-        tcgetattr(p.slave, &t);
-        if (!(t.c_lflag & ECHO)) break;
-        usleep(1000);
-    } while (test_now_ms() < until);
-    ASSERT_EQ_INT(t.c_lflag & ECHO, 0, "echo off while the password is typed");
+    tcgetattr(p.slave, &t);
+    ASSERT_EQ_INT(t.c_lflag & ECHO, 0, "echo already off when the prompt is visible");
     tpair_type(&p, "secret-and-long\r\n");
     char out[64] = {0};
     ssize_t n = read(res[0], out, sizeof(out) - 1);

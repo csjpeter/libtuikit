@@ -97,6 +97,27 @@ static inline void test_escape(const char *p, size_t n, char *out, size_t outsz)
     } \
 } while (0)
 
+/* For ASSERT_WAIT_CURSOR: true when the cursor is at {row, col}. */
+static inline int test_cursor_at_(PtySession *s, void *ctx) {
+    const int *want = (const int *)ctx;
+    int r = -1, c = -1;
+    pty_cursor(s, &r, &c);
+    return r == want[0] && c == want[1];
+}
+
+/* Waits until the cursor is at (row, col): the cursor may be placed by a
+ * write of its own, after the text a region wait already saw. */
+#define ASSERT_WAIT_CURSOR(s, row, col, timeout_ms, what) do { \
+    g_tests_run++; \
+    int _want[2] = { (row), (col) }; \
+    if (pty_wait_until(s, test_cursor_at_, _want, timeout_ms) != 0) { \
+        int _r = -1, _c = -1; \
+        pty_cursor(s, &_r, &_c); \
+        PTY_ASSERT_FAIL_("%s: cursor expected at %d,%d, got %d,%d", what, _want[0], _want[1], _r, _c); \
+        return; \
+    } \
+} while (0)
+
 static inline int test_run_suite(const char *suite, const TestCase *tests,
                                  size_t count, int min_assertions,
                                  unsigned alarm_seconds, int argc, char **argv) {

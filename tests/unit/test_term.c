@@ -212,6 +212,16 @@ static void test_wait_keys_and_timeout(void) {
     ASSERT_EQ_INT(tui_term_wait(t, 1000, NULL, 0, &ev), 1, "completed");
     ASSERT_EQ_INT(ev.key, TUI_KEY_DOWN, "Down, not Esc");
 
+    /* An unfinished sequence that never completes is dropped after the
+     * delay, and the wait goes on to its own timeout. */
+    tpair_type(&p, "\x1b[1;");
+    t0 = test_now_ms();
+    ASSERT_EQ_INT(tui_term_wait(t, 300, NULL, 0, &ev), 0, "dropped, then the timeout");
+    ASSERT(test_now_ms() - t0 >= 290, "waited the whole timeout");
+    tpair_type(&p, "z");
+    ASSERT_EQ_INT(tui_term_wait(t, 1000, NULL, 0, &ev), 1, "the next key");
+    ASSERT(TUI_EV_IS_CHAR(&ev, 'z'), "z, nothing of the dropped sequence");
+
     ASSERT_EQ_INT(tui_term_wait(NULL, 0, NULL, 0, &ev), -1, "NULL session");
     ASSERT_EQ_INT(tui_term_wait(t, 0, NULL, 0, NULL), -1, "NULL event");
     ASSERT_EQ_INT(tui_term_wait(t, 0, NULL, 2, &ev), -1, "extra count without array");

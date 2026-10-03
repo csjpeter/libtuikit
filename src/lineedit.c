@@ -199,6 +199,23 @@ int tui_lineedit_insert(tui_lineedit *le, const char *utf8) {
     return any;
 }
 
+/* The start of the character containing byte @p pos. */
+static size_t boundary(const tui_lineedit *le, size_t pos) {
+    if (pos > le->len) pos = le->len;
+    while (pos > 0 && pos < le->len && ((unsigned char)le->buf[pos] & 0xC0) == 0x80) pos--;
+    return pos;
+}
+
+void tui_lineedit_replace(tui_lineedit *le, size_t start, size_t end, const char *utf8) {
+    if (!le || le->size == 0) return;
+    start = boundary(le, start);
+    end = boundary(le, end);
+    if (end < start) end = start;
+    remove_range(le, start, end);
+    le->cur = start;
+    if (utf8) tui_lineedit_insert(le, utf8);
+}
+
 void tui_lineedit_set_text(tui_lineedit *le, const char *text) {
     if (!le || le->size == 0) return;
     le->len = le->cur = 0;
@@ -415,12 +432,13 @@ static int read_event(int fd, tui_decoder *d, tui_event *ev,
         size_t room = sizeof(d->in) - (d->in_len - d->in_pos);
         if (room > sizeof(buf)) room = sizeof(buf);
         ssize_t n = read(fd, buf, room);
-        if (n < 0) {
-            if (errno == EINTR || errno == EAGAIN) continue;
-            if (errno == EIO) return 0;
-            return -1;
+        if (n < 0 && (errno == EINTR || errno == EAGAIN)) continue;
+        if (n == 0 || (n < 0 && errno == EIO)) {
+            /* The end of input: a key held for its ESC delay first. */
+            if (tui_decoder_timeout(d, ev)) return 1;
+            return 0;
         }
-        if (n == 0) return 0;
+        if (n < 0) return -1;
         tui_decoder_feed(d, buf, (size_t)n);
         pending_since = tui__now_ms();
     }

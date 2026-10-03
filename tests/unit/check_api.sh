@@ -23,9 +23,19 @@ checks=0
 [ -f "$lib" ] || { echo "FAIL: no library at $lib" >&2; exit 1; }
 [ -d "$mandir/man3" ] || { echo "FAIL: no man3 directory in $mandir" >&2; exit 1; }
 
-# 1. exported functions vs. man pages
-symbols=$(nm -D --defined-only "$lib" | awk '$2 == "T" { print $3 }' | sort)
-[ -n "$symbols" ] || { echo "FAIL: nm found no exported function in $lib" >&2; exit 1; }
+# 1. exported functions vs. man pages, and nothing exported outside tui_
+symbols=$(nm -D --defined-only "$lib" | awk '$2 == "T" && $3 ~ /^tui_/ { print $3 }' | sort)
+[ -n "$symbols" ] || { echo "FAIL: nm found no exported tui_ function in $lib" >&2; exit 1; }
+others=$(nm -D --defined-only "$lib" | awk '$2 ~ /^[TDBR]$/ && $3 !~ /^tui_/ { print $3 }' | sort)
+if nm -D --defined-only "$lib" | grep -q '__gcov_'; then
+    # A coverage build: libgcov exports names of its own (mangle_path, ...).
+    others=""
+fi
+checks=$((checks + 1))
+if [ -n "$others" ]; then
+    echo "FAIL: exported outside the tui_ namespace: $(echo "$others" | tr '\n' ' ')"
+    failed=$((failed + 1))
+fi
 for sym in $symbols; do
     checks=$((checks + 1))
     if [ ! -e "$mandir/man3/$sym.3.gz" ]; then

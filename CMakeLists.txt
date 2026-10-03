@@ -119,6 +119,7 @@ set(TUIKIT_SOURCES
     src/canvas.c
     src/decoder.c
     src/dialog.c
+    src/fieldset.c
     src/lineedit.c
     src/listview.c
     src/screen.c
@@ -251,7 +252,12 @@ set(TUIKIT_MAN3_ALIASES
     tui_readline_opts_init:tui_readline
     tui_dialog_confirm:tui_dialog_message tui_dialog_prompt:tui_dialog_message
     tui_dialog_menu:tui_dialog_message tui_dialog_free:tui_dialog_message
-    tui_dialog_handle:tui_dialog_message tui_dialog_render:tui_dialog_message)
+    tui_dialog_handle:tui_dialog_message tui_dialog_render:tui_dialog_message
+    tui_fieldset_free:tui_fieldset_init tui_field_text:tui_fieldset_init
+    tui_field_choice:tui_fieldset_init tui_fieldset_focus:tui_fieldset_init
+    tui_fieldset_set_error:tui_fieldset_init tui_fieldset_update_completion:tui_fieldset_init
+    tui_fieldset_handle:tui_fieldset_init tui_fieldset_render:tui_fieldset_init
+    tui_tty_wait:tui_tty_is tui_lineedit_replace:tui_lineedit_init)
 set(TUIKIT_MAN3_ALIASES ${TUIKIT_MAN3_ALIASES} CACHE INTERNAL "")
 
 set(TUIKIT_MAN_OUT "${CMAKE_BINARY_DIR}/man")
