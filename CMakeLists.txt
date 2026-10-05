@@ -125,6 +125,7 @@ set(TUIKIT_SOURCES
     src/screen.c
     src/term.c
     src/text.c
+    src/textedit.c
     src/textview.c
     src/tty.c
     src/version.c
@@ -258,7 +259,11 @@ set(TUIKIT_MAN3_ALIASES
     tui_field_choice:tui_fieldset_init tui_fieldset_focus:tui_fieldset_init
     tui_fieldset_set_error:tui_fieldset_init tui_fieldset_update_completion:tui_fieldset_init
     tui_fieldset_handle:tui_fieldset_init tui_fieldset_render:tui_fieldset_init
-    tui_tty_wait:tui_tty_is tui_lineedit_replace:tui_lineedit_init)
+    tui_tty_wait:tui_tty_is tui_lineedit_replace:tui_lineedit_init
+    tui_textedit_set_text:tui_textedit_init tui_textedit_insert:tui_textedit_init
+    tui_textedit_handle:tui_textedit_init tui_textedit_lines:tui_textedit_init
+    tui_textedit_cursor:tui_textedit_init tui_textedit_render:tui_textedit_init
+    tui_textedit_summary:tui_textedit_init)
 set(TUIKIT_MAN3_ALIASES ${TUIKIT_MAN3_ALIASES} CACHE INTERNAL "")
 
 set(TUIKIT_MAN_OUT "${CMAKE_BINARY_DIR}/man")

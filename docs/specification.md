@@ -39,6 +39,10 @@ Added after the first implementation (2026-10-03):
   and issue-manager's issue form.  (Not `tui_form_*`: issue-manager uses
   that family, §3.)
 - `tui_tty_wait()`: tg-cli's `terminal_wait_key()`, with EINTR reported.
+- `tui_textedit` (TUI-2, `tuikit/textedit.h`): a multi-line editor that
+  keeps newlines and tabs -- issue-manager's `tui_textarea`, generalised to
+  display widths and tab stops, with a one-line summary for form rows.  (Not
+  `tui_textarea`: issue-manager keeps that name for its own, §3.)
 - `tui_dialog_checklist()` (TUI-1): a menu in which several rows are ticked
   with Space; the set is read back on OK, and `answer` is the row Enter was
   pressed on -- issue-manager's status filter.
@@ -157,7 +161,8 @@ Non-goals:
   `include/tuikit/*.h`, with `tuikit/tuikit.h` including all of them.
 - **Names the library never defines**, because tg-cli or issue-manager
   already do (survey, *Name collisions*): `tui_app_*`, `tui_model_*`,
-  `tui_input_*`, `tui_form_*`, `tui_api_*`, `tui_run`, `tui_view_t`,
+  `tui_input_*`, `tui_form_*`, `tui_api_*`, `tui_textarea*`,
+  `tui_text_summary`, `tui_run`, `tui_view_t`,
   `tui_modal_t`, and the macro families `TUI_EVENT_*`, `TUI_FOCUS_*`,
   `TUI_VIEW_*`, `TUI_MODAL_*`, `TUI_FORM_*`, `TUI_SUB_*`, `TUI_MIN_*`,
   `TUI_MAX_*`, `TUI_KEY_MAX`, `TUI_INPUT_MAX`. A unit test greps the installed

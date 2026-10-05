@@ -20,6 +20,7 @@
 #include "tuikit/screen.h"
 #include "tuikit/term.h"
 #include "tuikit/text.h"
+#include "tuikit/textedit.h"
 #include "tuikit/textview.h"
 #include "tuikit/tty.h"
 
