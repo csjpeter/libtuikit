@@ -244,7 +244,7 @@ static void test_tty_wait(void) {
     ASSERT_EQ_INT(errno, EBADF, "errno EBADF");
 
     /* A signal during the wait is EINTR, not an error that looks like a
-     * timeout (survey defect 7). */
+     * timeout (survey defect 6, TG-5). */
     ASSERT_EQ_INT(pipe(p), 0, "pipe");
     struct sigaction sa, old;
     memset(&sa, 0, sizeof(sa));

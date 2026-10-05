@@ -42,7 +42,7 @@ Added after the first implementation (2026-10-03):
 - `tui_lineedit_replace()`, for completions.
 - `tui_tty_read_password()` turns echo off before writing the prompt, and
   restores the terminal if SIGINT/SIGTERM/SIGHUP/SIGQUIT ends the process
-  during it (survey defect 8).
+  during it (survey defect 7; TG-6, EMAIL-5).
 - A lone ESC held for its delay is delivered before the end of input or a
   hang-up, on every reading path.
 - email-cli's 34 `input_line` unit cases and its PTY scenarios, and tg-cli's

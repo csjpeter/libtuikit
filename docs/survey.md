@@ -68,19 +68,25 @@ that a shared library must not reintroduce.
 
 ## Defects found in the other projects
 
-Reported here for the human to take to their owners (see
-`policies/project-boundaries-model.md`); not fixed, not ticketed in those trees.
+Recorded as tickets in the issue manager under the owning project's key (see
+`policies/issue-tracking-model.md`); not fixed here, and nothing written into
+those projects' trees. Re-checked against their sources on 2026-10-05, the
+measured ones by compiling the project's own file with a small driver.
 
-| # | Project | Where | Defect |
-|---|---|---|---|
-| 1 | tg-cli | `src/tui/screen.c` `screen_put_str_n` + `platform/posix/terminal.c` `terminal_wcwidth` | tg-cli never calls `setlocale`, so `wcwidth` returns -1 for every non-ASCII code point and `screen_put_str_n` skips it (`if (w <= 0) continue;`). Accented and CJK text vanishes from the TUI. Measured with glibc (lesson 5); not reproduced in tg-tui itself. |
-| 2 | tg-cli, email-cli | `terminal_read_key`, `case '1'` | `ESC [ 1 ; 5 A` (Ctrl+Up, and every modified arrow/Home/End) consumes `1` and `;` only; `5A` stays in the input and arrives as two typed characters. |
-| 3 | tg-cli, email-cli | `terminal_raw_enter` | The `tcsetattr` result is ignored and `active` is set regardless; a failure is reported as success. `IXON` is left on (lesson 2). |
-| 4 | tg-cli, email-cli | `terminal_read_key`, ESC branch | Bare-ESC detection switches the terminal to `VMIN=0 VTIME=1` and back with unchecked `tcgetattr`/`tcsetattr`; `ESC O x` (SS3, sent by keypads and in application cursor mode) is reported as a bare ESC followed by two typed characters. |
-| 5 | mamind | `line_editor.c` | Not UTF-8 aware: Backspace removes one byte of a multi-byte character, and the cursor arithmetic in `refresh_line` counts bytes as columns. `ESC [ 3 ~` (Delete) leaves `~` to be inserted as text. |
-| 6 | email-cli | `src/main_tui.c` | No SIGWINCH handling; a resize is seen only when a screen is next redrawn from scratch. |
-| 7 | tg-cli | `terminal_wait_key` | `return (errno == EINTR) ? -1 : -1;` — both branches equal, so an interrupted wait cannot be told from an error. |
-| 8 | tg-cli, email-cli | `terminal_read_password` | The prompt is written before echo is turned off: keys typed as soon as the prompt appears are echoed — the start of the password can show on the screen. Found when carrying tg-cli's password test over (libtuikit turns echo off first). Ctrl-C at the prompt also leaves the terminal without echo. |
+| # | Project | Where | Defect | Ticket |
+|---|---|---|---|---|
+| 1 | tg-cli | `src/tui/screen.c` `screen_put_str_n` + `platform/posix/terminal.c` `terminal_wcwidth` | On POSIX `terminal_wcwidth` calls libc `wcwidth` (the project's own `core_wcwidth` is used only on Windows), and tg-cli never calls `setlocale`, so every non-ASCII code point gets -1 and `screen_put_str_n` skips it. Measured: "árvíz" draws 3 columns, "中文" none. | TG-2 |
+| 2 | tg-cli, email-cli | `terminal_read_key`, `case '1'` | `ESC [ 1 ; 5 A` (Ctrl+Up, and every modified arrow/Home/End) consumes `1` and `;` only; `5A` stays in the input and arrives as two typed characters. Measured in both. | TG-3, EMAIL-3 |
+| 3 | tg-cli, email-cli | `terminal_raw_enter` | The `tcsetattr` result is ignored and `active` is set regardless; a failure is reported as success. `IXON` is left on (lesson 2). | TG-4, EMAIL-4 |
+| 4 | email-cli | `terminal_read_key`, ESC branch | ESC followed by anything but `[` is a bare ESC, and the third byte of an SS3 sequence stays in the input: F1 (`ESC O P`) is Esc plus a typed "P". Measured. (tg-cli decodes `ESC O H/F` and consumes other SS3 sequences whole: not affected — corrected 2026-10-05.) | EMAIL-2 |
+| 5 | mamind | `line_editor.c` | Not UTF-8 aware: Backspace removes one byte of a multi-byte character, and the cursor arithmetic in `refresh_line` counts bytes as columns. `ESC [ 3 ~` (Delete) leaves `~` to be inserted as text. | none — mamind has no key in the tracker; reported to the human |
+| 6 | tg-cli | `terminal_wait_key` | `return (errno == EINTR) ? -1 : -1;` — both branches equal, so an interrupted wait cannot be told from an error. | TG-5 |
+| 7 | tg-cli, email-cli | `terminal_read_password` | The prompt is written before echo is turned off: keys typed as soon as the prompt appears are echoed — the start of the password can show on the screen. Found when carrying tg-cli's password test over (libtuikit turns echo off first). Ctrl-C at the prompt also leaves the terminal without echo. | TG-6, EMAIL-5 |
+
+Withdrawn on 2026-10-05: an earlier entry said email-cli redraws only when a
+screen is next drawn after a resize. That is what its specification promises
+(`docs/spec/output-formats.md`: the layout is recomputed on each redraw), so it
+is not a defect.
 
 ## Name collisions to avoid
 
