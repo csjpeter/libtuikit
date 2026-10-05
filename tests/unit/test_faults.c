@@ -126,6 +126,13 @@ static void test_dialog_and_decoder_failures(void) {
     ASSERT_EQ_INT(errno, ENOMEM, "errno");
     fault_reset();
 
+    static const char *const items[] = { "a", "b" };
+    fault_arm(F_CALLOC, 0, 1, ENOMEM);
+    errno = 0;
+    ASSERT_EQ_INT(tui_dialog_checklist(&d, "t", items, 2, NULL, 0), -1, "checklist: the set");
+    ASSERT_EQ_INT(errno, ENOMEM, "errno");
+    fault_reset();
+
     tui_decoder dec;
     tui_decoder_init(&dec);
     tui_event ev;

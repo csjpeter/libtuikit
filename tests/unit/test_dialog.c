@@ -204,6 +204,70 @@ static void test_menu(void) {
     fx_close(&f);
 }
 
+/* TUI-1: several rows ticked -- issue-manager's status filter. */
+static void test_checklist(void) {
+    static const char *const items[] = { "NEW", "APPROVED", "DEVELOPMENT", "CLOSED" };
+    const unsigned char initial[] = { 1, 1, 1, 0 };     /* everything but CLOSED */
+    tui_dialog d;
+    ASSERT_EQ_INT(tui_dialog_checklist(&d, "Status", items, 4, initial, 0), 0, "create");
+    ASSERT_EQ_INT(d.kind, TUI_DIALOG_CHECKLIST, "kind");
+    Fx f;
+    ASSERT(fx_open(&f, 9, 30) == 0, "fixtures");
+    fx_draw(&f, &d);
+    const char *const expect[] = {
+        "",
+        "    ┌─ Status ──────────┐",
+        "    │ [x] NEW           │",
+        "    │ [x] APPROVED      │",
+        "    │ [x] DEVELOPMENT   │",
+        "    │ [ ] CLOSED        │",
+        "    └───────────────────┘",
+        "", "", NULL };
+    ASSERT_SCREEN_EQ(f.s, expect);
+    const char *const map[] = { "..RRRRRRRRRRRRRRRRR..", ".....................", NULL };
+    ASSERT_REGION_STYLE(f.s, PTY_REGION(2, 4, 2, 21), map, legend);
+
+    ASSERT_EQ_INT(send(&d, "\x1b[B "), TUI_DIALOG_OPEN, "Down, Space");
+    ASSERT_EQ_INT(tui_dialog_is_checked(&d, 1), 0, "APPROVED unticked");
+    ASSERT_EQ_INT(send(&d, "\x1b[B\x1b[B "), TUI_DIALOG_OPEN, "to CLOSED, Space");
+    ASSERT_EQ_INT(tui_dialog_is_checked(&d, 3), 1, "CLOSED ticked");
+    fx_draw(&f, &d);
+    const char *const rows[] = { "│ [x] NEW           │", "│ [ ] APPROVED      │",
+                                 "│ [x] DEVELOPMENT   │", "│ [x] CLOSED        │", NULL };
+    ASSERT_REGION_EQ(f.s, PTY_REGION(2, 4, 4, 21), rows);
+    ASSERT_EQ_INT(send(&d, "\r"), TUI_DIALOG_OK, "Enter confirms");
+    ASSERT_EQ_INT(d.answer, 3, "answer: the row Enter was pressed on");
+    ASSERT(d.checked[0] && !d.checked[1] && d.checked[2] && d.checked[3], "the ticked set");
+    ASSERT_EQ_INT(send(&d, " "), TUI_DIALOG_OK, "closed: Space ignored");
+    ASSERT_EQ_INT(tui_dialog_is_checked(&d, 0), 1, "unchanged after close");
+    ASSERT_EQ_INT(tui_dialog_is_checked(&d, 4), 0, "out of range");
+    ASSERT_EQ_INT(tui_dialog_is_checked(&d, -1), 0, "negative");
+    tui_dialog_free(&d);
+
+    /* Cancelled: the caller's set is untouched (the dialog has a copy). */
+    unsigned char mine[] = { 0, 1, 0, 0 };
+    tui_dialog_checklist(&d, "Status", items, 4, mine, 0);
+    ASSERT_EQ_INT(send(&d, "   \x1b"), TUI_DIALOG_CANCELLED, "Space three times, Esc");
+    ASSERT(mine[0] == 0 && mine[1] == 1, "caller's set unchanged");
+    tui_dialog_free(&d);
+
+    /* No initial set, and an empty list. */
+    tui_dialog_checklist(&d, "S", items, 4, NULL, 2);
+    ASSERT_EQ_INT(tui_dialog_is_checked(&d, 2), 0, "nothing ticked");
+    ASSERT_EQ_INT(d.list.selected, 2, "initial selection");
+    tui_dialog_free(&d);
+    ASSERT_EQ_INT(tui_dialog_checklist(&d, "Empty", NULL, 0, NULL, 0), 0, "empty checklist");
+    ASSERT_EQ_INT(send(&d, " \r"), TUI_DIALOG_OPEN, "Space and Enter do nothing");
+    fx_draw(&f, &d);
+    tui_dialog_free(&d);
+    ASSERT_EQ_INT(tui_dialog_checklist(&d, "x", NULL, 3, NULL, 0), -1, "items missing");
+    tui_dialog_message(&d, "m", "x");
+    ASSERT_EQ_INT(tui_dialog_is_checked(&d, 0), 0, "not a checklist");
+    tui_dialog_free(&d);
+    ASSERT_EQ_INT(tui_dialog_is_checked(NULL, 0), 0, "NULL");
+    fx_close(&f);
+}
+
 /* Long text in a small terminal: wrapped, clipped, never outside. */
 static void test_small_terminal(void) {
     tui_dialog d;
@@ -233,6 +297,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_confirm),
     TEST_CASE(test_prompt),
     TEST_CASE(test_menu),
+    TEST_CASE(test_checklist),
     TEST_CASE(test_small_terminal),
 };
 

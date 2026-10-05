@@ -33,7 +33,8 @@ typedef enum tui_dialog_kind {
     TUI_DIALOG_MESSAGE = 0,  /**< text and an OK button */
     TUI_DIALOG_CONFIRM,      /**< text and Yes / No */
     TUI_DIALOG_PROMPT,       /**< text and a line of input */
-    TUI_DIALOG_MENU          /**< a list to choose from */
+    TUI_DIALOG_MENU,         /**< a list to choose from */
+    TUI_DIALOG_CHECKLIST     /**< a list to tick several rows of */
 } tui_dialog_kind;
 
 /** @brief Where the dialog stands. */
@@ -47,11 +48,14 @@ typedef enum tui_dialog_state {
 typedef struct tui_dialog {
     tui_dialog_kind  kind;
     tui_dialog_state state;
-    int              answer;       /**< CONFIRM: 1 yes, 0 no; MENU: the item */
+    int              answer;       /**< CONFIRM: 1 yes, 0 no; MENU, CHECKLIST: the item
+                                        the list stood on */
     char            *title;        /* private copies */
     char            *text;
     const char *const *items;      /**< MENU: the caller's items, kept alive by it */
     int              nitems;
+    unsigned char   *checked;      /**< CHECKLIST: 1 for each ticked item (the
+                                        dialog's own copy; read it on OK) */
     tui_lineedit     edit;         /**< PROMPT: edits the caller's buffer */
     tui_listview     list;         /**< MENU */
     tui_textview     body;         /* private: the wrapped text */
@@ -84,6 +88,24 @@ TUI_API int tui_dialog_prompt(tui_dialog *d, const char *title, const char *text
  */
 TUI_API int tui_dialog_menu(tui_dialog *d, const char *title,
                             const char *const *items, int n, int selected);
+
+/**
+ * @brief A list of @p n items in which several can be ticked: Space ticks
+ *        or unticks the row the list stands on, the list keys move, Enter
+ *        confirms, Esc cancels.  @p initial (may be NULL: nothing ticked)
+ *        gives each item's first state; it is copied, so a cancelled dialog
+ *        leaves the caller's set as it was.  The items are not copied.
+ *
+ * On OK the ticked set is @c checked (or tui_dialog_is_checked()), and
+ * @c answer is the row Enter was pressed on -- the one choice a program can
+ * fall back to when nothing is ticked.
+ */
+TUI_API int tui_dialog_checklist(tui_dialog *d, const char *title,
+                                 const char *const *items, int n,
+                                 const unsigned char *initial, int selected);
+
+/** @brief 1 when item @p i of a checklist is ticked, 0 otherwise. */
+TUI_API int tui_dialog_is_checked(const tui_dialog *d, int i);
 
 /** @brief Frees what the dialog allocated.  Safe after any constructor. */
 TUI_API void tui_dialog_free(tui_dialog *d);

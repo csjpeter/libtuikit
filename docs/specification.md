@@ -39,6 +39,9 @@ Added after the first implementation (2026-10-03):
   and issue-manager's issue form.  (Not `tui_form_*`: issue-manager uses
   that family, §3.)
 - `tui_tty_wait()`: tg-cli's `terminal_wait_key()`, with EINTR reported.
+- `tui_dialog_checklist()` (TUI-1): a menu in which several rows are ticked
+  with Space; the set is read back on OK, and `answer` is the row Enter was
+  pressed on -- issue-manager's status filter.
 - `tui_lineedit_replace()`, for completions.
 - `tui_tty_read_password()` turns echo off before writing the prompt, and
   restores the terminal if SIGINT/SIGTERM/SIGHUP/SIGQUIT ends the process
