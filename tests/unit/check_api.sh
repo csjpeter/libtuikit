@@ -58,7 +58,7 @@ for page in "$mandir"/man3/*.3.gz "$mandir"/man7/*.7.gz; do
 done
 
 # 3. names the library never defines
-reserved='tui_app_[A-Za-z0-9_]*|tui_model_[A-Za-z0-9_]*|tui_input_[A-Za-z0-9_]*|tui_form_[A-Za-z0-9_]*|tui_api_[A-Za-z0-9_]*|tui_run|tui_view_t|tui_modal_t|TUI_EVENT_[A-Z0-9_]*|TUI_FOCUS_[A-Z0-9_]*|TUI_VIEW_[A-Z0-9_]*|TUI_MODAL_[A-Z0-9_]*|TUI_FORM_[A-Z0-9_]*|TUI_SUB_[A-Z0-9_]*|TUI_MIN_[A-Z0-9_]*|TUI_MAX_[A-Z0-9_]*|TUI_KEY_MAX|TUI_INPUT_MAX|TUI_SCREEN_H|TUI_PANE_H|TUI_LIST_VIEW_H|TUI_APP_H'
+reserved='tui_textarea[A-Za-z0-9_]*|tui_text_summary|tui_app_[A-Za-z0-9_]*|tui_model_[A-Za-z0-9_]*|tui_input_[A-Za-z0-9_]*|tui_form_[A-Za-z0-9_]*|tui_api_[A-Za-z0-9_]*|tui_run|tui_view_t|tui_modal_t|TUI_EVENT_[A-Z0-9_]*|TUI_FOCUS_[A-Z0-9_]*|TUI_VIEW_[A-Z0-9_]*|TUI_MODAL_[A-Z0-9_]*|TUI_FORM_[A-Z0-9_]*|TUI_SUB_[A-Z0-9_]*|TUI_MIN_[A-Z0-9_]*|TUI_MAX_[A-Z0-9_]*|TUI_KEY_MAX|TUI_INPUT_MAX|TUI_SCREEN_H|TUI_PANE_H|TUI_LIST_VIEW_H|TUI_APP_H'
 headers=$(ls "$incdir"/tuikit/*.h)
 [ -n "$headers" ] || { echo "FAIL: no headers in $incdir/tuikit" >&2; exit 1; }
 for h in $headers; do

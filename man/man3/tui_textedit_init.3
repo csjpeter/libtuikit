@@ -1,0 +1,112 @@
+'\" t
+.TH TUI_TEXTEDIT_INIT 3 2026-10-05 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_textedit_init, tui_textedit_set_text, tui_textedit_insert,
+tui_textedit_handle, tui_textedit_lines, tui_textedit_cursor,
+tui_textedit_render, tui_textedit_summary \- multi-line text editor
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/textedit.h>
+.PP
+.BI "void   tui_textedit_init(tui_textedit *" te ", char *" buf ", size_t " size ", const char *" initial );
+.BI "void   tui_textedit_set_text(tui_textedit *" te ", const char *" text );
+.BI "size_t tui_textedit_insert(tui_textedit *" te ", const char *" s ", size_t " n );
+.BI "int    tui_textedit_handle(tui_textedit *" te ", const tui_event *" ev );
+.BI "int    tui_textedit_lines(const tui_textedit *" te );
+.BI "void   tui_textedit_cursor(const tui_textedit *" te ", int *" row ", int *" col );
+.BI "void   tui_textedit_render(tui_textedit *" te ", tui_canvas " c ", tui_style " st );
+.BI "int    tui_textedit_summary(const char *" text ", int " cols ", char *" out ", size_t " outsz );
+.fi
+.SH DESCRIPTION
+A
+.B tui_textedit
+edits several lines of UTF-8 text in a buffer the caller owns \(em an issue
+description, a message body.
+Unlike
+.BR tui_lineedit_init (3),
+it keeps every newline and tab, typed or pasted.
+It is a pure model: an event in, the text changed; drawing is separate.
+.PP
+Positions are byte offsets on character boundaries; a combining mark moves
+and is deleted with its character.
+Columns are display columns: a wide character takes two, a combining mark
+none, a tab reaches the next multiple of eight.
+Lines are not wrapped: the view scrolls horizontally as well as vertically,
+so a column on the screen is a column in the text.
+.PP
+.BR tui_textedit_init ()
+starts editing
+.I buf
+(capacity
+.IR size ,
+NUL included) holding
+.I initial
+(may be NULL), with the cursor at the start.
+.BR tui_textedit_set_text ()
+replaces the text the same way and does not count as an edit:
+.I te\->dirty
+is set by edits only, so a program can tell whether the user changed
+anything.
+.PP
+.BR tui_textedit_insert ()
+inserts
+.I n
+bytes at the cursor: CR LF and a lone CR become a newline, tab and newline
+are kept, other control characters are dropped, malformed UTF-8 becomes
+U+FFFD, and what does not fit is left out at a character boundary with
+.I te\->truncated
+set.
+.SS Keys
+.BR tui_textedit_handle ()
+returns 1 for an event it used and 0 for one it leaves to the program (Esc,
+Ctrl-S, Shift-Tab, other Ctrl and Alt chords).
+.TS
+l l.
+characters, paste	insert
+Enter, Tab	newline, tab
+Left, Right	a character
+Up, Down	a line *
+PgUp, PgDn	a page *
+Home, End	line start, end
+Ctrl-A, Ctrl-E	line start, end
+Ctrl+Home, Ctrl+End	text start, end
+Backspace, Delete	a character **
+Ctrl-K	rest of the line **
+.TE
+.PP
+* keeping the column aimed for; a page is the height last drawn.
+** a newline counts as a character: deleting it joins two lines, and
+Ctrl-K at the end of a line removes the newline.
+.SS Drawing
+.BR tui_textedit_render ()
+scrolls so the cursor is in view, draws the visible lines into the canvas
+with the tabs expanded and control characters as U+00B7, clears the rest
+with
+.IR st ,
+and puts the terminal cursor at the cursor.
+The height it drew at is the step of PgUp and PgDn.
+.BR tui_textedit_lines ()
+and
+.BR tui_textedit_cursor ()
+report the number of lines and the cursor's line and display column, for a
+status line.
+.PP
+.BR tui_textedit_summary ()
+writes one line summarising a text for a form row: its first line, cut to
+.I cols
+columns with "\[u2026]", and " (N lines)" when there is more than one.
+.SH RETURN VALUE
+.BR tui_textedit_insert ()
+returns the bytes inserted.
+.BR tui_textedit_summary ()
+returns the columns the summary takes, or \-1 when
+.I outsz
+is too small.
+.SH NOTES
+issue-manager's own text-area widget is where this one comes from; its
+names (and its summary function's) are left to issue-manager, so a program
+can link both.
+.SH SEE ALSO
+.BR tui_lineedit_init (3),
+.BR tui_fieldset_init (3),
+.BR libtuikit (7)
