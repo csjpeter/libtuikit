@@ -238,6 +238,19 @@ run_lintian() {
         # The control fields must parse before anything else is worth checking.
         dpkg-deb -f "$deb" Package Version Depends XB-Git-Commit XB-Build-Date
         lintian --fail-on error,warning --info "$deb" || rc=1
+        # The runtime package's shlibs must ask for "at least" this version:
+        # "=" pins every dependant, and apt removes them on an upgrade.
+        case "$(dpkg-deb -f "$deb" Package)" in
+        libtuikit[0-9]*)
+            local shlibs
+            shlibs="$(dpkg-deb -I "$deb" shlibs)"
+            echo "shlibs: $shlibs"
+            if ! printf '%s\n' "$shlibs" | grep -Eqx 'libtuikit [0-9]+ libtuikit[0-9]+ \(>= [0-9.]+\)'; then
+                echo "lintian: $(basename "$deb"): shlibs must be 'libtuikit N libtuikitN (>= VERSION)'" >&2
+                rc=1
+            fi
+            ;;
+        esac
     done
     if [ "$found" -eq 0 ]; then
         echo "lintian: no .deb in $BUILD_DIR" >&2

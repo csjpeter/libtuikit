@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(libtuikit VERSION 0.2.0 LANGUAGES C)
+project(libtuikit VERSION 0.2.1 LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Version
@@ -486,6 +486,11 @@ set(CPACK_DEBIAN_RUNTIME_PACKAGE_SECTION "libs")
 # this; the dev package has no shared object, so the global one affects
 # only the runtime package.)
 set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS ON)
+# ">=", not CPack's default "=": within one SOVERSION the ABI only grows, so
+# a program built against this version runs on every later one.  With "="
+# every dependant pins the exact version, and apt removes it to install an
+# upgrade of the library (TUI-6).
+set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS_POLICY ">=")
 set(CPACK_DEBIAN_RUNTIME_FILE_NAME
     "${TUIKIT_PKG_RUNTIME}_${TUIKIT_VERSION}_${TUIKIT_BUILD_STAMP}_${TUIKIT_GIT_COMMIT}_${TUIKIT_DEB_ARCH}.deb")
 set(CPACK_COMPONENT_RUNTIME_DESCRIPTION

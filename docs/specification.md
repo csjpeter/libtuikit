@@ -579,6 +579,12 @@ gzipped man pages, copyright and changelog, ldconfig trigger, lintian
 clean, `umask 022`. `./manage.sh` answers to `deps build debug test pty
 coverage valgrind check package clean`, plus `consumer`.
 
+The runtime package's `shlibs` reads `libtuikit 0 libtuikit0 (>= x.y.z)`:
+within one SOVERSION the ABI only grows, so a dependant needs *at least* the
+version it was built against. CPack's default, `=`, pins every dependant to
+one version and makes apt remove them to install an upgrade (TUI-6); the
+lintian gate of `./manage.sh check` refuses it.
+
 Every exported function has a man page in section 3 (grouped pages with
 symlinked aliases); `libtuikit(7)` describes the architecture, the loop, the
 signal behaviour and the sequences the library emits.
