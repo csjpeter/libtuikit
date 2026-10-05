@@ -289,6 +289,146 @@ static void test_demo_not_a_tty(void) {
     pty_close(s);
 }
 
+/* ── The compose view: the form, the editor and the checklist ───────── */
+
+static void test_demo_compose_and_send(void) {
+    PtySession *s = start_demo(60, 14);
+    ASSERT(s != NULL, "start");
+    ASSERT_WAIT_FOR(s, "q quit", 5000);
+    pty_send_str(s, "c");
+    const char *const empty[] = {
+        " New message",
+        "To:",
+        "Subject:",
+        "", "", "", "",
+        "────────────────────────────────────────────────────────────",
+        "", "", "", "", "",
+        "[header]  Ctrl-O switch  Ctrl-S send  Esc discard      14x60",
+        NULL };
+    ASSERT_WAIT_SCREEN(s, empty, 3000);
+    ASSERT_WAIT_CURSOR(s, 1, 9, 3000, "cursor in the To field");
+
+    /* Completion: both contacts with "al", the second one taken. */
+    pty_send_str(s, "al");
+    const char *const dropdown[] = {
+        "To:      al",
+        "         \xE2\x96\xB6 alice@example.com  Alice Smith",
+        "         \xE2\x96\xB6 albert@example.org  Albert",
+        "Subject:",
+        NULL };
+    ASSERT_WAIT_REGION(s, PTY_REGION(1, 0, 4, 60), dropdown, 3000);
+    pty_send_key(s, PTY_KEY_DOWN);
+    pty_send_key(s, PTY_KEY_TAB);
+    /* After a separator the next address completes on its own. */
+    pty_send_str(s, "; bo");
+    ASSERT_WAIT_FOR(s, "bob@example.net  Bob", 3000);
+    pty_send_key(s, PTY_KEY_ENTER);
+    pty_send_key(s, PTY_KEY_TAB);
+    pty_send_str(s, "Budget");
+    ASSERT_WAIT_CURSOR(s, 2, 15, 3000, "cursor in the Subject field");
+    pty_send_key(s, PTY_KEY_CTRL('o'));
+    pty_send_str(s, "Line one\rLine two\tend");
+    const char *const written[] = {
+        " New message",
+        "To:      albert@example.org; bob@example.net",
+        "Subject: Budget",
+        "", "", "", "",
+        "────────────────────────────────────────────────────────────",
+        "Line one",
+        "Line two        end",
+        "", "", "",
+        "[body]  Ctrl-O switch  Ctrl-S send  Esc discard  2:20  14x60",
+        NULL };
+    ASSERT_WAIT_SCREEN(s, written, 3000);
+    ASSERT_WAIT_CURSOR(s, 9, 19, 3000, "cursor after \"end\"");
+
+    /* Send: the labels first. */
+    pty_send_key(s, PTY_KEY_CTRL('s'));
+    ASSERT_WAIT_FOR(s, "[ ] Personal", 3000);
+    pty_send_key(s, PTY_KEY_DOWN);
+    pty_send_str(s, " ");
+    const char *const labels[] = {
+        " New message",
+        "To:      albert@example.org; bob@example.net",
+        "Subject: Budget",
+        "",
+        "                     ┌─ Labels ───────┐",
+        "                     │ [ ] Work       │",
+        "                     │ [x] Personal   │",
+        "─────────────────────│ [ ] Urgent     │─────────────────────",
+        "Line one             └────────────────┘",
+        "Line two        end",
+        "", "", "",
+        "[body]  Ctrl-O switch  Ctrl-S send  Esc discard  2:20  14x60",
+        NULL };
+    ASSERT_WAIT_SCREEN(s, labels, 3000);
+    pty_send_key(s, PTY_KEY_ENTER);
+    const char *const sent[] = {
+        "┌─ Messages ───────┐┌─ Budget ─────────────────────────────┐",
+        "│Welcome           ││To: albert@example.org;               │",
+        "│Árvíztűrő tükörfú…││bob@example.net                       │",
+        "│Wide characters   ││Labels: Personal                      │",
+        "│Budget 2027       ││                                      │",
+        "│Meeting notes     ││Line one                              │",
+        "│Re: Budget 2027   ││Line two        end                   │",
+        "│Budget            ││                                      │",
+        "│                  ││                                      │",
+        "│                  ││                                      │",
+        "│                  ││                                      │",
+        "│                  ││                                      │",
+        "└──────────────────┘└──────────────────────────────────────┘",
+        "Sent to albert@example.org; bob@example.net            14x60",
+        NULL };
+    ASSERT_WAIT_SCREEN(s, sent, 3000);
+    const char *const sel[] = { "BRRRRRRRRRRRRRRRRRRB", NULL };   /* the new message, selected */
+    ASSERT_REGION_STYLE(s, PTY_REGION(7, 0, 1, 20), sel, g_legend);
+    pty_send_key(s, PTY_KEY_CTRL('c'));
+    ASSERT_EXIT_STATUS(s, 0, 3000);
+    pty_close(s);
+}
+
+/* Sending without a recipient points at the field; Esc discards from the
+ * header and from the body; a cancelled checklist goes back to the form. */
+static void test_demo_compose_validation_and_discard(void) {
+    PtySession *s = start_demo(60, 14);
+    ASSERT(s != NULL, "start");
+    ASSERT_WAIT_FOR(s, "q quit", 5000);
+    pty_send_str(s, "c");
+    ASSERT_WAIT_FOR(s, "New message", 3000);
+    pty_send_key(s, PTY_KEY_CTRL('o'));
+    ASSERT_WAIT_FOR(s, "[body]", 3000);
+    pty_send_key(s, PTY_KEY_CTRL('s'));
+    const char *const error[] = {
+        "To:",
+        "Subject:",
+        "To: is empty \xE2\x80\x94 enter a recipient.",
+        "",
+        NULL };
+    ASSERT_WAIT_REGION(s, PTY_REGION(1, 0, 4, 60), error, 3000);
+    ASSERT_WAIT_CURSOR(s, 1, 9, 3000, "back in the To field");
+    pty_send_key(s, PTY_KEY_ESC);
+    const char *const discarded[] = { "Discarded                                              14x60", NULL };
+    ASSERT_WAIT_REGION(s, PTY_REGION(13, 0, 1, 60), discarded, 3000);
+
+    pty_send_str(s, "c");
+    ASSERT_WAIT_FOR(s, "New message", 3000);
+    pty_send_str(s, "zoe");                      /* no contact matches: no drop-down */
+    pty_send_key(s, PTY_KEY_CTRL('s'));
+    ASSERT_WAIT_FOR(s, "Labels", 3000);
+    pty_send_key(s, PTY_KEY_ESC);
+    ASSERT_WAIT_GONE(s, "Labels", 3000);
+    const char *const back[] = { "To:      zoe", NULL };
+    ASSERT_REGION_EQ(s, PTY_REGION(1, 0, 1, 60), back);
+    pty_send_key(s, PTY_KEY_ENTER);              /* Enter in the header: on to the body */
+    ASSERT_WAIT_FOR(s, "[body]", 3000);
+    pty_send_key(s, PTY_KEY_ESC);
+    ASSERT_WAIT_REGION(s, PTY_REGION(13, 0, 1, 60), discarded, 3000);
+    ASSERT_WAIT_FOR(s, "Welcome to the tuikit demo.", 3000);
+    pty_send_key(s, PTY_KEY_CTRL('c'));
+    ASSERT_EXIT_STATUS(s, 0, 3000);
+    pty_close(s);
+}
+
 static const TestCase tests[] = {
     TEST_CASE(test_quit_restores),
     TEST_CASE(test_exit_restores),
@@ -301,6 +441,8 @@ static const TestCase tests[] = {
     TEST_CASE(test_demo_search),
     TEST_CASE(test_demo_resize),
     TEST_CASE(test_demo_not_a_tty),
+    TEST_CASE(test_demo_compose_and_send),
+    TEST_CASE(test_demo_compose_validation_and_discard),
 };
 
 int main(int argc, char **argv) {
