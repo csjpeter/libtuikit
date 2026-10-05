@@ -77,7 +77,9 @@ target_link_libraries(my-program PRIVATE tuikit::tuikit)   # or tuikit::tuikit_s
 
 or vendored, with `add_subdirectory(path/to/libtuikit)` (builds only the
 library). The complete example is `examples/tuikit_demo.c`, a two-pane
-message reader, with its PTY test `examples/test_tuikit_demo.c`.
+message reader with a compose view (a form with address completion, a
+multi-line editor and a checklist of labels), with its PTY test
+`examples/test_tuikit_demo.c`; `tests/pty/test_pty.c` drives every view.
 
 Documentation: `man 7 libtuikit` (architecture, the loop, signals, the
 email-cli equivalents), `man 3 libtuikit` (function overview) and one page
