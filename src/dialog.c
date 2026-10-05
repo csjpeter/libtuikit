@@ -76,8 +76,29 @@ int tui_dialog_menu(tui_dialog *d, const char *title, const char *const *items, 
     return 0;
 }
 
+int tui_dialog_checklist(tui_dialog *d, const char *title, const char *const *items,
+                         int n, const unsigned char *initial, int selected) {
+    if (tui_dialog_menu(d, title, items, n, selected) != 0) return -1;
+    d->kind = TUI_DIALOG_CHECKLIST;
+    d->checked = calloc(n > 0 ? (size_t)n : 1, 1);
+    if (!d->checked) {
+        tui_dialog_free(d);
+        errno = ENOMEM;
+        return -1;
+    }
+    for (int i = 0; initial && i < n; i++) d->checked[i] = initial[i] ? 1 : 0;
+    return 0;
+}
+
+int tui_dialog_is_checked(const tui_dialog *d, int i) {
+    if (!d || !d->checked || i < 0 || i >= d->nitems) return 0;
+    return d->checked[i];
+}
+
 void tui_dialog_free(tui_dialog *d) {
     if (!d) return;
+    free(d->checked);
+    d->checked = NULL;
     free(d->title);
     free(d->text);
     d->title = d->text = NULL;
@@ -125,6 +146,13 @@ tui_dialog_state tui_dialog_handle(tui_dialog *d, const tui_event *ev) {
         if (r == TUI_EDIT_CANCEL) return close_with(d, TUI_DIALOG_CANCELLED);
         break;
     }
+    case TUI_DIALOG_CHECKLIST:
+        if (TUI_EV_IS_CHAR(ev, ' ') && d->nitems > 0) {
+            d->checked[d->list.selected] ^= 1;
+            return d->state;
+        }
+        /* Everything else is the menu's. */
+        /* FALLTHROUGH */
     case TUI_DIALOG_MENU:
         if (cancel) return close_with(d, TUI_DIALOG_CANCELLED);
         if (is_key && ev->key == TUI_KEY_ENTER && d->nitems > 0) {
@@ -160,6 +188,10 @@ static void draw_item(void *ctx, tui_canvas row, int index, int selected) {
     tui_dialog *d = ((menu_ctx *)ctx)->d;
     tui_style st = selected ? d->focus : d->fill;
     tui_canvas_clear(row, st);
+    if (d->kind == TUI_DIALOG_CHECKLIST) {
+        tui_canvas_put(row, 0, 0, d->checked[index] ? "[x] " : "[ ] ", st);
+        row = tui_canvas_sub(row, tui_rect_make(0, 4, 1, tui_canvas_cols(row) - 4));
+    }
     tui_canvas_put_aligned(row, 0, d->items[index] ? d->items[index] : "", TUI_ALIGN_LEFT, st);
 }
 
@@ -176,9 +208,10 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     if (d->kind == TUI_DIALOG_MESSAGE && want < 6) want = 6;
     if (d->kind == TUI_DIALOG_CONFIRM && want < 15) want = 15;
     if (d->kind == TUI_DIALOG_PROMPT && want < 30) want = 30;
-    if (d->kind == TUI_DIALOG_MENU) {
+    if (d->kind == TUI_DIALOG_MENU || d->kind == TUI_DIALOG_CHECKLIST) {
+        int mark = d->kind == TUI_DIALOG_CHECKLIST ? 4 : 0;      /* "[x] " */
         for (int i = 0; i < d->nitems; i++) {
-            int w = tui_str_width(d->items[i]) + 2;
+            int w = tui_str_width(d->items[i]) + 2 + mark;
             if (w > want) want = w;
         }
     }
@@ -194,7 +227,8 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     case TUI_DIALOG_MESSAGE:
     case TUI_DIALOG_CONFIRM: extra = lines > 0 ? 2 : 1; break;   /* blank + buttons */
     case TUI_DIALOG_PROMPT:  extra = 1; break;                     /* the input line */
-    case TUI_DIALOG_MENU:    extra = d->nitems > 0 ? d->nitems : 1; break;
+    case TUI_DIALOG_MENU:
+    case TUI_DIALOG_CHECKLIST: extra = d->nitems > 0 ? d->nitems : 1; break;
     }
     int h = 2 + lines + extra;
     if (h > avail_h) h = avail_h;
@@ -207,11 +241,12 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     tui_canvas cc = tui_canvas_sub(c, content);
     int rows = tui_canvas_rows(cc);
     /* A menu has no text: its list takes every row. */
-    int below = d->kind == TUI_DIALOG_MENU ? rows : extra;
+    int is_list = d->kind == TUI_DIALOG_MENU || d->kind == TUI_DIALOG_CHECKLIST;
+    int below = is_list ? rows : extra;
     if (below > rows) below = rows;
     /* Short of rows, the blank line above the buttons goes first: the
      * text keeps at least one row. */
-    if (d->kind != TUI_DIALOG_MENU && lines > 0 && rows - below < 1 && below > 1) below--;
+    if (!is_list && lines > 0 && rows - below < 1 && below > 1) below--;
     int text_rows = rows - below;
     if (text_rows > 0 && lines > 0)
         tui_textview_render(&d->body, tui_canvas_sub(cc, tui_rect_make(0, 0, text_rows, inner_w)),
@@ -233,7 +268,8 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     case TUI_DIALOG_PROMPT:
         tui_lineedit_render(&d->edit, last, NULL, d->fill);
         break;
-    case TUI_DIALOG_MENU: {
+    case TUI_DIALOG_MENU:
+    case TUI_DIALOG_CHECKLIST: {
         menu_ctx ctx = { d };
         tui_canvas list = tui_canvas_sub(cc, tui_rect_make(text_rows, 0, below, inner_w));
         tui_listview_render(&d->list, list, d->fill, draw_item, &ctx);

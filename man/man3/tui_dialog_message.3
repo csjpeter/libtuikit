@@ -1,7 +1,8 @@
 .TH TUI_DIALOG_MESSAGE 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
 .SH NAME
 tui_dialog_message, tui_dialog_confirm, tui_dialog_prompt, tui_dialog_menu,
-tui_dialog_free, tui_dialog_handle, tui_dialog_render \- modal dialogs
+tui_dialog_checklist, tui_dialog_is_checked, tui_dialog_free,
+tui_dialog_handle, tui_dialog_render \- modal dialogs
 .SH SYNOPSIS
 .nf
 .B #include <tuikit/dialog.h>
@@ -13,6 +14,10 @@ tui_dialog_free, tui_dialog_handle, tui_dialog_render \- modal dialogs
 .BI "                       char *" buf ", size_t " size ", const char *" initial );
 .BI "int  tui_dialog_menu(tui_dialog *" d ", const char *" title ,
 .BI "                     const char *const *" items ", int " n ", int " selected );
+.BI "int  tui_dialog_checklist(tui_dialog *" d ", const char *" title ,
+.BI "                          const char *const *" items ", int " n ,
+.BI "                          const unsigned char *" initial ", int " selected );
+.BI "int  tui_dialog_is_checked(const tui_dialog *" d ", int " i );
 .BI "void tui_dialog_free(tui_dialog *" d );
 .BI "tui_dialog_state tui_dialog_handle(tui_dialog *" d ", const tui_event *" ev );
 .BI "void tui_dialog_render(tui_dialog *" d ", tui_canvas " c );
@@ -58,6 +63,25 @@ items (not copied; the caller keeps them alive) with the list keys of
 Enter chooses
 .RI ( d\->answer
 is the index), Esc cancels.
+.TP
+.BR tui_dialog_checklist ()
+A list of
+.I n
+items in which several can be ticked: each row shows "[x]" or "[ ]",
+Space ticks or unticks the row the list stands on, the list keys move,
+Enter confirms and Esc cancels.
+.I initial
+(may be NULL: nothing ticked) gives each item's first state and is copied,
+so a cancelled checklist leaves the caller's set as it was.
+On
+.B TUI_DIALOG_OK
+the ticked set is
+.I d\->checked
+\(em one byte per item, 1 when ticked \(em or
+.BR tui_dialog_is_checked ();
+.I d\->answer
+is the row Enter was pressed on, the single choice a program can fall back
+to when nothing is ticked (issue-manager's status filter does).
 .PP
 .BR tui_dialog_render ()
 draws a box centred in
@@ -87,6 +111,9 @@ The constructors return 0, or \-1 with
 .BR tui_dialog_handle ()
 returns the state after the event; events after the dialog closed are
 ignored.
+.BR tui_dialog_is_checked ()
+returns 0 for an index out of range and for a dialog that is not a
+checklist.
 .SH EXAMPLE
 .nf
 if (TUI_EV_IS_CHAR(&ev, 'q')) {

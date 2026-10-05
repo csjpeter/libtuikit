@@ -253,6 +253,7 @@ set(TUIKIT_MAN3_ALIASES
     tui_dialog_confirm:tui_dialog_message tui_dialog_prompt:tui_dialog_message
     tui_dialog_menu:tui_dialog_message tui_dialog_free:tui_dialog_message
     tui_dialog_handle:tui_dialog_message tui_dialog_render:tui_dialog_message
+    tui_dialog_checklist:tui_dialog_message tui_dialog_is_checked:tui_dialog_message
     tui_fieldset_free:tui_fieldset_init tui_field_text:tui_fieldset_init
     tui_field_choice:tui_fieldset_init tui_fieldset_focus:tui_fieldset_init
     tui_fieldset_set_error:tui_fieldset_init tui_fieldset_update_completion:tui_fieldset_init
