@@ -429,6 +429,62 @@ static void test_demo_compose_validation_and_discard(void) {
     pty_close(s);
 }
 
+/* The body scrolls: down to the cursor, back up, a page at a time, and
+ * sideways along a line wider than the terminal. */
+static void test_demo_compose_body_scrolls(void) {
+    PtySession *s = start_demo(60, 14);
+    ASSERT(s != NULL, "start");
+    ASSERT_WAIT_FOR(s, "q quit", 5000);
+    pty_send_str(s, "c");
+    ASSERT_WAIT_FOR(s, "New message", 3000);
+    pty_send_key(s, PTY_KEY_CTRL('o'));
+    pty_send_str(s, "L1\rL2\rL3\rL4\rL5\rL6\rL7\rL8");
+    const char *const bottom[] = {
+        " New message", "To:", "Subject:", "", "", "", "",
+        "────────────────────────────────────────────────────────────",
+        "L4", "L5", "L6", "L7", "L8",
+        "[body]  Ctrl-O switch  Ctrl-S send  Esc discard  8:3   14x60",
+        NULL };
+    ASSERT_WAIT_SCREEN(s, bottom, 3000);
+    ASSERT_WAIT_CURSOR(s, 12, 2, 3000, "cursor after L8, on the last body row");
+
+    pty_send_str(s, "\x1b[1;5H");               /* Ctrl-Home: the start of the text */
+    const char *const top[] = {
+        "L1", "L2", "L3", "L4", "L5",
+        "[body]  Ctrl-O switch  Ctrl-S send  Esc discard  1:1   14x60",
+        NULL };
+    ASSERT_WAIT_REGION(s, PTY_REGION(8, 0, 6, 60), top, 3000);
+    ASSERT_WAIT_CURSOR(s, 8, 0, 3000, "cursor at the start");
+
+    pty_send_key(s, PTY_KEY_PGDN);               /* five rows down: L6, scrolled by one */
+    const char *const paged[] = {
+        "L2", "L3", "L4", "L5", "L6",
+        "[body]  Ctrl-O switch  Ctrl-S send  Esc discard  6:1   14x60",
+        NULL };
+    ASSERT_WAIT_REGION(s, PTY_REGION(8, 0, 6, 60), paged, 3000);
+    ASSERT_WAIT_CURSOR(s, 12, 0, 3000, "cursor on L6");
+
+    /* A line wider than the terminal: the view follows the cursor. */
+    pty_send_str(s, "\x1b[1;5F");               /* Ctrl-End */
+    for (int i = 0; i < 65; i++) pty_send_str(s, "x");
+    const char *const right[] = {
+        "", "", "", "", "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "[body]  Ctrl-O switch  Ctrl-S send  Esc discard  8:68  14x60",
+        NULL };
+    ASSERT_WAIT_REGION(s, PTY_REGION(8, 0, 6, 60), right, 3000);
+    ASSERT_WAIT_CURSOR(s, 12, 59, 3000, "cursor at the right edge");
+    pty_send_key(s, PTY_KEY_HOME);
+    const char *const left[] = {
+        "L4", "L5", "L6", "L7", "L8xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+        "[body]  Ctrl-O switch  Ctrl-S send  Esc discard  8:1   14x60",
+        NULL };
+    ASSERT_WAIT_REGION(s, PTY_REGION(8, 0, 6, 60), left, 3000);
+    ASSERT_WAIT_CURSOR(s, 12, 0, 3000, "cursor at the start of the line");
+    pty_send_key(s, PTY_KEY_CTRL('c'));
+    ASSERT_EXIT_STATUS(s, 0, 3000);
+    pty_close(s);
+}
+
 static const TestCase tests[] = {
     TEST_CASE(test_quit_restores),
     TEST_CASE(test_exit_restores),
@@ -443,6 +499,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_demo_not_a_tty),
     TEST_CASE(test_demo_compose_and_send),
     TEST_CASE(test_demo_compose_validation_and_discard),
+    TEST_CASE(test_demo_compose_body_scrolls),
 };
 
 int main(int argc, char **argv) {
