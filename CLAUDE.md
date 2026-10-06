@@ -21,7 +21,7 @@ read, never changed; a fault found in them is reported to the human.
 ./manage.sh pty        # PTY tests (ASAN + UBSan)
 ./manage.sh functional # manage.sh itself on a copy of the tree (packaging), with mocks
 ./manage.sh check      # every gate: unit, pty, functional, valgrind, coverage, package, lintian, consumer
-build/_test/tests/test-decoder <substring>   # one test
+build/tests/unit/bin/test-decoder <substring>   # one test
 ```
 
 ## Architecture

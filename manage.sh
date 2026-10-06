@@ -48,7 +48,7 @@ Commands:
 
 One suite, or one test of a suite:
   ./manage.sh test -R test-decoder
-  build/_test/tests/test-decoder test_paste    (substring filter; -l lists)
+  build/tests/unit/bin/test-decoder test_paste    (substring filter; -l lists)
 USAGE
 }
 
@@ -95,11 +95,13 @@ build_release() {
     echo "Release build done: $BUILD_DIR"
 }
 
+# build_debug_into <dir> [<test bin root>]
 build_debug_into() {
-    local dir="$1"
+    local dir="$1" bin_root="${2:-$1/tests}"
     cmake -S "$SCRIPT_DIR" -B "$dir" -DCMAKE_BUILD_TYPE=Debug \
           -DENABLE_COVERAGE=OFF -DTUIKIT_ENABLE_ASAN=ON \
-          -DTUIKIT_BUILD_TESTS=ON -DTUIKIT_TEST_WRAPPER=
+          -DTUIKIT_BUILD_TESTS=ON -DTUIKIT_TEST_WRAPPER= \
+          "-DTUIKIT_TEST_BIN_ROOT=$bin_root"
     cmake --build "$dir" --parallel "$JOBS"
 }
 
@@ -116,7 +118,9 @@ build_debug() {
 run_label() {
     local label="$1"
     shift
-    build_debug_into "$BUILD_DIR_TEST"
+    # The test tree builds the tests where the integrator runs them from:
+    # build/tests/<category>/bin/<name>.
+    build_debug_into "$BUILD_DIR_TEST" "$BUILD_DIR/tests"
     # Evidence of an earlier run would be taken for this run's.
     if [ -d "$SCRIPT_DIR/build/_test/evidence" ]; then
         ( cd "$SCRIPT_DIR/build/_test" && rm -rf evidence )
