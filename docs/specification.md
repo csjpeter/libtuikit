@@ -563,11 +563,20 @@ Per `policies/testing-model.md`:
   `pty_resize` repaint, Ctrl-S reaching the program, terminal modes restored
   after normal exit, after `SIGTERM` and after `SIGHUP` (the fixture reports
   its termios state after the library has let go).
+- **functional** (`./manage.sh functional`): `manage.sh` itself, on a copy
+  of the tree, with mocks of our own (packaging: see section 8). The
+  library has no binaries of its own to drive; the example's PTY test is
+  its consumer check.
 - Own runner (as libptytest's `test_helpers.h`): one process per suite,
   alarm, name filter, assertion floor. ASAN+UBSan, Valgrind, coverage on
-  `src/` with a failing threshold of 90 % (above the 80 % floor).
-- A library has no functional tests; it has no binaries to drive. The
-  example's PTY test is its consumer check.
+  `src/` with a failing threshold of 100 % (above the 80 % floor).
+- Every test is one `project_test(<category> <name> SOURCES|SCRIPT ...)`
+  line in `tests/CMakeLists.txt` and is built into
+  `build/tests/<category>/bin/<name>`, a script as a small generated
+  wrapper, so that each file there runs by its path alone. The test
+  `unit/check-tests` fails on a declared test missing from `bin/` and on an
+  undeclared file in it. Programs the tests drive (`term-fixture`,
+  `compat-harness`, `tuikit-demo`) are not tests and are not in `bin/`.
 
 ## 8. Packaging and documentation
 

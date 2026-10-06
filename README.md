@@ -116,7 +116,7 @@ cmake/            package config, pkg-config template, .deb build metadata
 ./manage.sh check       # all of the above, with a summary
 ```
 
-One test: `build/_test/tests/test-decoder test_paste` (substring filter, `-l`
+One test: `build/tests/unit/bin/test-decoder test_paste` (substring filter, `-l`
 lists the tests). The tests use `libptytest` as their terminal emulator; the
 library itself shares no code with it.
 
