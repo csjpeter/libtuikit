@@ -96,3 +96,9 @@ tuikit_add_suite(test-compat-pty pty pty/test_compat_pty.c tuikit_static)
 target_compile_definitions(test-compat-pty PRIVATE
     HARNESS="$<TARGET_FILE:compat-harness>")
 add_dependencies(test-compat-pty compat-harness)
+
+# --- functional: manage.sh itself, with mocks of our own ------------------
+add_test(NAME functional.package-output
+         COMMAND "${CMAKE_CURRENT_SOURCE_DIR}/functional/package_output.sh"
+                 "${CMAKE_SOURCE_DIR}" "${TUIKIT_TEST_TMPDIR}")
+set_tests_properties(functional.package-output PROPERTIES LABELS functional TIMEOUT 900)

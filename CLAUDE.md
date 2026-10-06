@@ -19,7 +19,8 @@ read, never changed; a fault found in them is reported to the human.
 ```bash
 ./manage.sh test       # unit tests (ASAN + UBSan) — run most often
 ./manage.sh pty        # PTY tests (ASAN + UBSan)
-./manage.sh check      # every gate: unit, pty, valgrind, coverage, package, lintian, consumer
+./manage.sh functional # manage.sh itself on a copy of the tree (packaging), with mocks
+./manage.sh check      # every gate: unit, pty, functional, valgrind, coverage, package, lintian, consumer
 build/_test/tests/test-decoder <substring>   # one test
 ```
 

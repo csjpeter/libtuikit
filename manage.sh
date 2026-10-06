@@ -9,10 +9,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Every build tree lives under build/, which "clean" removes as a whole and
-# which is never committed.  build/ itself is the Release tree, so packages
-# land in build/<package>_<version>_..._<arch>.deb as the packaging policy
-# asks.
+# which is never committed.  build/ itself is the Release tree; the packages
+# of one run, and nothing else, are in build/packages/ as the packaging
+# policy asks.
 BUILD_DIR="$SCRIPT_DIR/build"
+PKG_DIR="$BUILD_DIR/packages"
 BUILD_DIR_DEBUG="$BUILD_DIR/_debug"
 BUILD_DIR_TEST="$BUILD_DIR/_test"
 BUILD_DIR_COVERAGE="$BUILD_DIR/_coverage"
@@ -35,11 +36,13 @@ Commands:
   debug                 Debug build with ASAN + UBSan (build/_debug)
   test [ctest args]     Unit tests, ASAN + UBSan -- the command run most often
   pty [ctest args]      PTY tests: real programs through a real PTY, ASAN + UBSan
+  functional [ctest args]  Functional tests: manage.sh itself, with mocks of our own
   coverage              Line coverage of the library; fails below the threshold
   valgrind              Unit and PTY tests under Valgrind on a clean Release build
   consumer              Build and run the example against the built .deb packages
   check                 Every gate, with a summary to compare against CI
-  package [deb|rpm|all] Build the packages with CPack (libtuikit0, libtuikit-dev)
+  package [deb|rpm|all] Build the packages with CPack into build/packages/ (libtuikit0,
+                        libtuikit-dev), lintian-checked; empty on failure
   clean                 Remove build/
   help                  This message
 
@@ -136,6 +139,7 @@ run_label() {
 
 run_unit() { run_label unit "$@"; }
 run_pty()  { run_label pty "$@"; }
+run_functional() { run_label functional "$@"; }
 
 run_valgrind() {
     if ! command -v valgrind >/dev/null; then
@@ -152,7 +156,7 @@ run_valgrind() {
     # Valgrind does not emulate SIGTSTP stops (measured); the one test that
     # needs a real stop says so and is checked by the other runs.
     TUIKIT_TEST_UNDER_VALGRIND=1 \
-        ctest --test-dir "$BUILD_DIR_VALGRIND" --output-on-failure --no-tests=error
+        ctest --test-dir "$BUILD_DIR_VALGRIND" -L "^(unit|pty)$" --output-on-failure --no-tests=error
 }
 
 run_coverage() {
@@ -166,7 +170,7 @@ run_coverage() {
     cmake --build "$BUILD_DIR_COVERAGE" --parallel "$JOBS"
     lcov --zerocounters --directory "$BUILD_DIR_COVERAGE"
     # The suites' verdict counts: a failing suite fails the coverage run.
-    ctest --test-dir "$BUILD_DIR_COVERAGE" --output-on-failure --no-tests=error
+    ctest --test-dir "$BUILD_DIR_COVERAGE" -L "^(unit|pty)$" --output-on-failure --no-tests=error
 
     local info="$BUILD_DIR_COVERAGE/coverage.info"
     lcov --capture --directory "$BUILD_DIR_COVERAGE" --output-file "$info.all"
@@ -211,27 +215,49 @@ do_package() {
             ;;
     esac
 
+    # Emptied first: after a run the directory holds exactly that run's
+    # packages, and after a failed run nothing.
+    empty_pkg_dir
     build_release
-
-    # Packages of an earlier build would be mistaken for this one's.
-    find "$BUILD_DIR" -maxdepth 1 -type f \( -name '*.deb' -o -name '*.rpm' \) -delete
 
     local g
     for g in $generators; do
         # umask 022 here, not left to the caller: CPack copies the umask of
         # whoever runs it into the directory modes of the package.  See
         # policies/packaging-and-release-model.md, "The umask leak".
-        ( umask 022; cd "$BUILD_DIR" && cpack -G "$g" --config CPackConfig.cmake )
+        if ! ( umask 022; cd "$BUILD_DIR" && cpack -G "$g" --config CPackConfig.cmake ); then
+            echo "package: cpack -G $g failed; $PKG_DIR left empty" >&2
+            empty_pkg_dir
+            return 1
+        fi
     done
 
+    # A package that is not lintian-clean is not a result.
+    if [ "$generators" != "RPM" ] && ! run_lintian; then
+        echo "package: lintian refused the packages; $PKG_DIR left empty" >&2
+        empty_pkg_dir
+        return 1
+    fi
+
     echo
-    echo "Packages in $BUILD_DIR:"
-    find "$BUILD_DIR" -maxdepth 1 -type f \( -name '*.deb' -o -name '*.rpm' \) | sort
+    echo "Packages in $PKG_DIR:"
+    find "$PKG_DIR" -mindepth 1 | sort
+}
+
+# Removes build/packages/ with everything in it and creates it again.
+empty_pkg_dir() {
+    [ -n "$BUILD_DIR" ] && [ "$PKG_DIR" = "$BUILD_DIR/packages" ] || {
+        echo "package: unexpected package directory: '$PKG_DIR'" >&2
+        return 1
+    }
+    mkdir -p "$BUILD_DIR"
+    ( cd "$BUILD_DIR" && rm -rf packages )
+    mkdir "$PKG_DIR"
 }
 
 run_lintian() {
     local deb rc=0 found=0
-    for deb in "$BUILD_DIR"/*.deb; do
+    for deb in "$PKG_DIR"/*.deb; do
         [ -f "$deb" ] || continue
         found=1
         echo "--- $(basename "$deb")"
@@ -253,7 +279,7 @@ run_lintian() {
         esac
     done
     if [ "$found" -eq 0 ]; then
-        echo "lintian: no .deb in $BUILD_DIR" >&2
+        echo "lintian: no .deb in $PKG_DIR" >&2
         return 1
     fi
     return "$rc"
@@ -270,13 +296,13 @@ run_consumer() {
         ( cd "$SCRIPT_DIR/build" && rm -rf _consumer )
     fi
     mkdir -p "$root"
-    for deb in "$BUILD_DIR"/*.deb; do
+    for deb in "$PKG_DIR"/*.deb; do
         [ -f "$deb" ] || continue
         found=1
         dpkg-deb -x "$deb" "$root"
     done
     if [ "$found" -eq 0 ]; then
-        echo "consumer: no .deb in $BUILD_DIR; run ./manage.sh package first" >&2
+        echo "consumer: no .deb in $PKG_DIR; run ./manage.sh package first" >&2
         return 1
     fi
 
@@ -319,7 +345,7 @@ run_check() {
     local logdir="$BUILD_DIR/_logs"
     mkdir -p "$logdir"
 
-    local gates="unit pty valgrind coverage package lintian consumer"
+    local gates="unit pty functional valgrind coverage package lintian consumer"
     local -A result
     local g rc failed=0
     for g in $gates; do
@@ -328,6 +354,7 @@ run_check() {
         case "$g" in
             unit)     run_unit       > "$logdir/$g.log" 2>&1 || rc=$? ;;
             pty)      run_pty        > "$logdir/$g.log" 2>&1 || rc=$? ;;
+            functional) run_functional > "$logdir/$g.log" 2>&1 || rc=$? ;;
             valgrind) run_valgrind   > "$logdir/$g.log" 2>&1 || rc=$? ;;
             coverage) run_coverage   > "$logdir/$g.log" 2>&1 || rc=$? ;;
             package)  do_package all > "$logdir/$g.log" 2>&1 || rc=$? ;;
@@ -379,6 +406,7 @@ case "$cmd" in
     debug)     build_debug ;;
     test)      run_unit "$@" ;;
     pty)       run_pty "$@" ;;
+    functional) run_functional "$@" ;;
     coverage)  run_coverage ;;
     valgrind)  run_valgrind ;;
     consumer)  run_consumer ;;

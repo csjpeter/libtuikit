@@ -577,7 +577,12 @@ tag, `XB-Git-Commit` / `XB-Build-Date`, `libtuikit0` + `libtuikit-dev`,
 pkg-config `libtuikit`, CMake `find_package(tuikit)` → `tuikit::tuikit`,
 gzipped man pages, copyright and changelog, ldconfig trigger, lintian
 clean, `umask 022`. `./manage.sh` answers to `deps build debug test pty
-coverage valgrind check package clean`, plus `consumer`.
+functional coverage valgrind check package clean`, plus `consumer`.
+
+`./manage.sh package` empties `build/packages/`, builds into it and checks
+the `.deb` files with lintian: after a run the directory holds exactly that
+run's packages, after a failed run nothing. `tests/functional/package_output.sh`
+checks both on a copy of the tree, with a lintian mock for the failure.
 
 The runtime package's `shlibs` reads `libtuikit 0 libtuikit0 (>= x.y.z)`:
 within one SOVERSION the ABI only grows, so a dependant needs *at least* the

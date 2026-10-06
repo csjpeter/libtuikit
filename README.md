@@ -111,7 +111,7 @@ cmake/            package config, pkg-config template, .deb build metadata
 ./manage.sh pty         # PTY tests, ASAN + UBSan
 ./manage.sh valgrind    # all tests under Valgrind, Release build
 ./manage.sh coverage    # line coverage of src/, fails below 100%
-./manage.sh package     # build/libtuikit0_*.deb, build/libtuikit-dev_*.deb
+./manage.sh package     # build/packages/: libtuikit0_*.deb, libtuikit-dev_*.deb
 ./manage.sh consumer    # build and run the example against the .deb content
 ./manage.sh check       # all of the above, with a summary
 ```
