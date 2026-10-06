@@ -3,8 +3,8 @@
 
 /*
  * The example's own PTY test: tuikit-demo through a real pseudo-terminal,
- * the whole first screen compared cell by cell, then a quit through the
- * confirmation dialog.  Self-contained (libptytest only), so that it also
+ * the whole first screen compared cell by cell with its colours, the help
+ * overlay, then Esc, which quits from the top level.  Self-contained (libptytest only), so that it also
  * serves as the consumer check against the installed packages.
  *
  *   test-tuikit-demo /path/to/tuikit-demo
@@ -23,44 +23,58 @@ int g_tests_failed = 0;
 static const char *g_demo;
 
 static void test_first_screen_and_quit(void) {
-    PtySession *s = pty_open(60, 12);
+    PtySession *s = pty_open(80, 24);
     ASSERT(s != NULL, "pty_open");
     const char *argv[] = { g_demo, NULL };
     ASSERT(pty_run(s, argv) == 0, "start tuikit-demo");
     const char *const screen[] = {
-        "┌─ Messages ───────┐┌─ Welcome ────────────────────────────┐",
-        "│Welcome           ││Welcome to the tuikit demo.           │",
-        "│Árvíztűrő tükörfú…││                                      │",
-        "│Wide characters   ││Use the arrow keys to move, Tab to    │",
-        "│Budget 2027       ││switch panes, / to search, c to write │",
-        "│Meeting notes     ││and q to quit.                        │",
-        "│Re: Budget 2027   ││                                      │",
-        "│                  ││                                      │",
-        "│                  ││                                      │",
-        "│                  ││                                      │",
-        "└──────────────────┘└──────────────────────────────────────┘",
-        "Tab pane  / search  q quit                             12x60",
+        " Inbox · 6 messages                                                 tuikit-demo",
+        "┌─ Messages ─────────────┐┌─ Welcome ──────────────────────────────────────────┐",
+        "│Subject                 ││Welcome to the tuikit demo.                         │",
+        "│Welcome                 ││                                                    │",
+        "│Árvíztűrő tükörfúrógép  ││The arrow keys or j and k move, Enter reads, /      │",
+        "│Wide characters         ││filters, n writes, ? lists the keys and Esc quits.  │",
+        "│Budget 2027             ││                                                    │",
+        "│Meeting notes           ││                                                    │",
+        "│Re: Budget 2027         ││                                                    │",
+        "│                        ││                                                    │",
+        "│                        ││                                                    │",
+        "│                        ││                                                    │",
+        "│                        ││                                                    │",
+        "│                        ││                                                    │",
+        "│                        ││                                                    │",
+        "│                        ││                                                    │",
+        "│                        ││                                                    │",
+        "│                        ││                                                    │",
+        "│                        ││                                                    │",
+        "│                        ││                                                    │",
+        "│                        ││                                                    │",
+        "│                        ││                                                    │",
+        "└────────────────────────┘└────────────────────────────────────────────────────┘",
+        "↑↓ move  Enter read  / filter  c clear  n new  ? help  Esc quit",
         NULL };
     ASSERT_WAIT_SCREEN(s, screen, 5000);
 
+    /* The palette: header bar, focused frame, selection, hints. */
     static const PtyStyleKey legend[] = {
-        { '.', PTY_ATTR_NONE, 0, 0 }, { 'R', PTY_ATTR_REVERSE, 0, 0 },
-        { 'B', PTY_ATTR_BOLD, 0, 0 }, { 0, 0, 0, 0 } };
-    const char *const selected[] = { "BRRRRRRRRRRRRRRRRRRB", NULL };   /* focused frame: bold */
-    ASSERT_REGION_STYLE(s, PTY_REGION(1, 0, 1, 20), selected, legend);
-    const char *const frame[] = { "BBBBBBBBBBBBBBBBBBBB....", NULL };
-    ASSERT_REGION_STYLE(s, PTY_REGION(0, 0, 1, 24), frame, legend);
+        { '.', PTY_ATTR_NONE, 0, 0 },
+        { 'H', PTY_ATTR_BOLD, PTY_FG_WHITE, PTY_BG_BLUE },
+        { 'A', PTY_ATTR_BOLD, PTY_FG_CYAN, PTY_BG_DEFAULT },
+        { 'S', PTY_ATTR_BOLD, PTY_FG_BLACK, PTY_BG_CYAN },
+        { 'Y', PTY_ATTR_NONE, PTY_FG_YELLOW, PTY_BG_DEFAULT },
+        { 0, 0, 0, 0 } };
+    const char *const header[] = { "HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH", NULL };
+    ASSERT_REGION_STYLE(s, PTY_REGION(0, 0, 1, 80), header, legend);
+    const char *const selected[] = { "ASSSSSSSSSSSSSSSSSSSSSSSSA", NULL };
+    ASSERT_REGION_STYLE(s, PTY_REGION(3, 0, 1, 26), selected, legend);
+    const char *const hints[] = { "YYYYYYYYYY", NULL };
+    ASSERT_REGION_STYLE(s, PTY_REGION(23, 0, 1, 10), hints, legend);
 
-    pty_send_str(s, "q");
-    const char *const dialog[] = {
-        "┌─ Quit ──────────┐",
-        "│ Leave the demo? │",
-        "│                 │",
-        "│ [ Yes ]  [ No ] │",
-        "└─────────────────┘",
-        NULL };
-    ASSERT_WAIT_REGION(s, PTY_REGION(3, 20, 5, 19), dialog, 3000);
-    pty_send_str(s, "y");
+    pty_send_str(s, "?");
+    ASSERT_WAIT_FOR(s, "Message list shortcuts", 3000);
+    pty_send_str(s, "x");
+    ASSERT_WAIT_SCREEN(s, screen, 3000);
+    pty_send_key(s, PTY_KEY_ESC);
     ASSERT_EXIT_STATUS(s, 0, 3000);
     pty_close(s);
 }

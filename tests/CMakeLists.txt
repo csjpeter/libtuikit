@@ -124,11 +124,13 @@ target_compile_definitions(test-buf PRIVATE TUIKIT_EXPECTED_VERSION="${TUIKIT_VE
 # --- pty: real programs through a real pseudo-terminal ---------------------
 project_test(pty test-pty        SOURCES pty/test_pty.c)
 project_test(pty test-compat-pty SOURCES pty/test_compat_pty.c)
+project_test(pty test-demo       SOURCES pty/test_demo.c)
 
-target_compile_definitions(test-pty PRIVATE
-    TERM_FIXTURE="$<TARGET_FILE:term-fixture>"
-    DEMO="$<TARGET_FILE:tuikit-demo>")
-add_dependencies(test-pty term-fixture tuikit-demo)
+target_compile_definitions(test-pty PRIVATE TERM_FIXTURE="$<TARGET_FILE:term-fixture>")
+add_dependencies(test-pty term-fixture)
+# The demo, every view and element of it (docs/demo-elements.md).
+target_compile_definitions(test-demo PRIVATE DEMO="$<TARGET_FILE:tuikit-demo>")
+add_dependencies(test-demo tuikit-demo)
 # The scenarios of email-cli's and tg-cli's PTY tests.
 target_compile_definitions(test-compat-pty PRIVATE HARNESS="$<TARGET_FILE:compat-harness>")
 add_dependencies(test-compat-pty compat-harness)
