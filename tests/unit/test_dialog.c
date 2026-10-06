@@ -54,8 +54,13 @@ static void fx_close(Fx *f) {
     if (f->s) pty_close(f->s);
 }
 
+/* The palette's roles (policies/tui-interface-model.md): the frame in the
+ * accent, the focused button and the selected item in the selection. */
 static const PtyStyleKey legend[] = {
-    { '.', PTY_ATTR_NONE, 0, 0 }, { 'R', PTY_ATTR_REVERSE, 0, 0 }, { 0, 0, 0, 0 } };
+    { '.', PTY_ATTR_NONE, 0, 0 },
+    { 'A', PTY_ATTR_BOLD, PTY_FG_CYAN, PTY_BG_DEFAULT },
+    { 'S', PTY_ATTR_BOLD, PTY_FG_BLACK, PTY_BG_CYAN },
+    { 0, 0, 0, 0 } };
 
 static void test_message(void) {
     tui_dialog d;
@@ -72,7 +77,7 @@ static void test_message(void) {
         "         └──────────┘",
         "", "", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
-    const char *const map[] = { "...RRRRRR...", NULL };
+    const char *const map[] = { "A..SSSSSS..A", NULL };
     ASSERT_REGION_STYLE(f.s, PTY_REGION(5, 9, 1, 12), map, legend);
     ASSERT_EQ_INT(send(&d, "x"), TUI_DIALOG_OPEN, "other keys leave it open");
     ASSERT_EQ_INT(send(&d, " "), TUI_DIALOG_OK, "Space closes it");
@@ -103,12 +108,12 @@ static void test_confirm(void) {
         "     └─────────────────┘",
         "", "", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
-    const char *const map_no[] = { "...........RRRRRR..", NULL };
+    const char *const map_no[] = { "A..........SSSSSS.A", NULL };
     ASSERT_REGION_STYLE(f.s, PTY_REGION(5, 5, 1, 19), map_no, legend);
     ASSERT_EQ_INT(send(&d, "\x1b[D"), TUI_DIALOG_OPEN, "Left");
     ASSERT_EQ_INT(d.answer, 1, "focus on Yes");
     fx_draw(&f, &d);
-    const char *const map_yes[] = { "..RRRRRRR..........", NULL };
+    const char *const map_yes[] = { "A.SSSSSSS.........A", NULL };
     ASSERT_REGION_STYLE(f.s, PTY_REGION(5, 5, 1, 19), map_yes, legend);
     send(&d, "\t");
     ASSERT_EQ_INT(d.answer, 0, "Tab moves back to No");
@@ -183,7 +188,7 @@ static void test_menu(void) {
         "        └────────────┘",
         "", "", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
-    const char *const map[] = { "..............", "..RRRRRRRRRR..", "..............", NULL };
+    const char *const map[] = { "A............A", "A.SSSSSSSSSS.A", "A............A", NULL };
     ASSERT_REGION_STYLE(f.s, PTY_REGION(3, 8, 3, 14), map, legend);
     send(&d, "\x1b[B");
     ASSERT_EQ_INT(d.answer, 2, "Down");
@@ -224,7 +229,7 @@ static void test_checklist(void) {
         "    └───────────────────┘",
         "", "", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
-    const char *const map[] = { "..RRRRRRRRRRRRRRRRR..", ".....................", NULL };
+    const char *const map[] = { "A.SSSSSSSSSSSSSSSSS.A", "A...................A", NULL };
     ASSERT_REGION_STYLE(f.s, PTY_REGION(2, 4, 2, 21), map, legend);
 
     ASSERT_EQ_INT(send(&d, "\x1b[B "), TUI_DIALOG_OPEN, "Down, Space");

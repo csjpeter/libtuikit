@@ -94,7 +94,13 @@ Every other key goes to the focused text field's editor.
 .SS Drawing
 .BR tui_fieldset_render ()
 draws from the top of a canvas: a row per field with the labels in a
-column (the focused label bold, the others dim, by default), the value
+column (by default the focused label in
+.BR TUI_STYLE_ACCENT ,
+the others plain, the chosen candidate in
+.BR TUI_STYLE_SELECTION ,
+the message in
+.BR TUI_STYLE_ERROR ),
+the value
 after them \(em a choice field shows "< value >" while focused \(em the
 drop-down under the focused field, then the message.
 It puts the terminal cursor in a focused text field, hides it otherwise,

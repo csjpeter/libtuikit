@@ -70,6 +70,30 @@ typedef struct tui_style {
 /** @brief The terminal's default colours, no attribute. */
 #define TUI_STYLE_DEFAULT ((tui_style){ TUI_COLOR_DEFAULT, TUI_COLOR_DEFAULT, 0 })
 
+/**
+ * @name The workspace palette
+ * The roles of policies/tui-interface-model.md, "Palette": a program uses
+ * these and no other styles for these meanings.  All but the hints also
+ * carry an attribute, so that a selection, a frame or an error is told
+ * apart without colour.  The widgets use them as their defaults.
+ * @{
+ */
+/** @brief The header bar: bold white on blue. */
+#define TUI_STYLE_HEADER    ((tui_style){ TUI_WHITE, TUI_BLUE, TUI_ATTR_BOLD })
+/** @brief The row or choice under the cursor: bold black on cyan. */
+#define TUI_STYLE_SELECTION ((tui_style){ TUI_BLACK, TUI_CYAN, TUI_ATTR_BOLD })
+/** @brief The active tab, a modal's frame, the focused field's label: bold cyan. */
+#define TUI_STYLE_ACCENT    ((tui_style){ TUI_CYAN, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD })
+/** @brief The message after a write that worked: bold green. */
+#define TUI_STYLE_OK        ((tui_style){ TUI_GREEN, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD })
+/** @brief A refusal, a failure, an invalid field: bold red. */
+#define TUI_STYLE_ERROR     ((tui_style){ TUI_RED, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD })
+/** @brief Key hints and secondary columns: yellow. */
+#define TUI_STYLE_HINT      ((tui_style){ TUI_YELLOW, TUI_COLOR_DEFAULT, 0 })
+/** @brief What is going on while the user waits: italic yellow. */
+#define TUI_STYLE_PROGRESS  ((tui_style){ TUI_YELLOW, TUI_COLOR_DEFAULT, TUI_ATTR_ITALIC })
+/** @} */
+
 /** @brief A style from its parts. */
 static inline tui_style tui_style_make(tui_color fg, tui_color bg, uint16_t attrs) {
     tui_style s;

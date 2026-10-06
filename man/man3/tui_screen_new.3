@@ -1,3 +1,4 @@
+'\" t
 .TH TUI_SCREEN_NEW 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
 .SH NAME
 tui_screen_new, tui_screen_free, tui_screen_resize, tui_screen_rows,
@@ -10,6 +11,8 @@ tui_screen_render \- a grid of styled cells and its diffing renderer
 .PP
 .B typedef struct tui_style { tui_color fg, bg; uint16_t attrs; } tui_style;
 .B TUI_STYLE_DEFAULT
+.BR TUI_STYLE_HEADER ", " TUI_STYLE_SELECTION ", " TUI_STYLE_ACCENT ", " TUI_STYLE_OK ,
+.BR TUI_STYLE_ERROR ", " TUI_STYLE_HINT ", " TUI_STYLE_PROGRESS
 .BI "tui_style tui_style_make(tui_color " fg ", tui_color " bg ", uint16_t " attrs );
 .BI "tui_style tui_style_attrs(uint16_t " attrs );
 .BI "int       tui_style_eq(tui_style " a ", tui_style " b );
@@ -58,6 +61,23 @@ The attributes are
 .B TUI_ATTR_UNDERLINE
 and
 .BR TUI_ATTR_REVERSE .
+.PP
+The workspace palette gives each role of the interface one style, and
+the widgets use them as their defaults:
+.TS
+l l.
+\fBTUI_STYLE_HEADER\fP	bold white on blue: the header bar
+\fBTUI_STYLE_SELECTION\fP	bold black on cyan: what the cursor is on
+\fBTUI_STYLE_ACCENT\fP	bold cyan: a modal's frame, a focused label
+\fBTUI_STYLE_OK\fP	bold green: a write that worked
+\fBTUI_STYLE_ERROR\fP	bold red: a refusal, a failure
+\fBTUI_STYLE_HINT\fP	yellow: key hints, secondary columns
+\fBTUI_STYLE_PROGRESS\fP	italic yellow: what is being waited for
+.TE
+.PP
+All but the hints carry an attribute besides their colours, so that a
+selection, a frame or an error is told apart without colour; hints are
+told apart by where they stand.
 .SS Drawing
 .BR tui_screen_put ()
 writes UTF-8 text from (\fIrow\fR, \fIcol\fR), at most

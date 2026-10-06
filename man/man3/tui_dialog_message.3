@@ -98,7 +98,13 @@ item are
 .I d\->fill
 and
 .I d\->focus
-(reverse video by default) and may be changed after the constructor.
+(by default the frame in
+.BR TUI_STYLE_ACCENT ,
+the inside plain, the focus in
+.BR TUI_STYLE_SELECTION ;
+see
+.BR tui_screen_new (3))
+and may be changed after the constructor.
 .PP
 .BR tui_dialog_free ()
 releases what the dialog allocated; call it when the dialog is done.

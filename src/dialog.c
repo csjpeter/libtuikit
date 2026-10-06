@@ -25,9 +25,9 @@ static int setup(tui_dialog *d, tui_dialog_kind kind, const char *title, const c
     memset(d, 0, sizeof(*d));
     d->kind = kind;
     d->state = TUI_DIALOG_OPEN;
-    d->frame = TUI_STYLE_DEFAULT;
+    d->frame = TUI_STYLE_ACCENT;          /* the palette's roles */
     d->fill = TUI_STYLE_DEFAULT;
-    d->focus = tui_style_attrs(TUI_ATTR_REVERSE);
+    d->focus = TUI_STYLE_SELECTION;
     tui_textview_init(&d->body);
     tui_listview_init(&d->list);
     d->title = dup_or_empty(title);
