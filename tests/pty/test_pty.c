@@ -207,6 +207,36 @@ static void test_demo_navigation_and_scroll(void) {
     pty_close(s);
 }
 
+/* The workspace's shared movement letters reach the list and the text
+ * view through a real terminal (policies/tui-interface-model.md). */
+static void test_demo_shared_movement_keys(void) {
+    PtySession *s = start_demo(50, 10);
+    ASSERT(s != NULL, "start");
+    ASSERT_WAIT_FOR(s, "q quit", 5000);
+    pty_send_str(s, "jjj");
+    ASSERT_WAIT_FOR(s, "\xE2\x94\x80 Budget 2027 \xE2\x94\x80", 3000);
+    const char *const sel[] = { "BRRRRRRRRRRRRRRB", NULL };
+    ASSERT_REGION_STYLE(s, PTY_REGION(4, 0, 1, 16), sel, g_legend);
+    pty_send_str(s, "G");
+    ASSERT_WAIT_FOR(s, "\xE2\x94\x80 Re: Budget 2027 \xE2\x94\x80", 3000);
+    ASSERT_REGION_STYLE(s, PTY_REGION(6, 0, 1, 16), sel, g_legend);
+    pty_send_str(s, "kk");
+    ASSERT_WAIT_FOR(s, "\xE2\x94\x80 Budget 2027 \xE2\x94\x80", 3000);
+    pty_send_str(s, "\t");                     /* the body: 12 lines in 7 rows */
+    pty_send_key(s, PTY_KEY_CTRL('f'));
+    const char *const paged[] = { "Line 6.", NULL };     /* a page: 7 rows less one */
+    ASSERT_WAIT_REGION(s, PTY_REGION(1, 17, 1, 7), paged, 3000);
+    pty_send_str(s, "G");
+    const char *const end[] = { "Line 12.", NULL };
+    ASSERT_WAIT_REGION(s, PTY_REGION(7, 17, 1, 8), end, 3000);
+    pty_send_str(s, "g");
+    const char *const top[] = { "Line 1 of the budget.", NULL };
+    ASSERT_WAIT_REGION(s, PTY_REGION(1, 17, 1, 21), top, 3000);
+    pty_send_key(s, PTY_KEY_CTRL('c'));
+    ASSERT_EXIT_STATUS(s, 0, 3000);
+    pty_close(s);
+}
+
 static void test_demo_search(void) {
     PtySession *s = start_demo(50, 10);
     ASSERT(s != NULL, "start");
@@ -494,6 +524,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_resize_redraws),
     TEST_CASE(test_suspend_and_resume),
     TEST_CASE(test_demo_navigation_and_scroll),
+    TEST_CASE(test_demo_shared_movement_keys),
     TEST_CASE(test_demo_search),
     TEST_CASE(test_demo_resize),
     TEST_CASE(test_demo_not_a_tty),

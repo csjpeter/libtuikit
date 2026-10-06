@@ -30,4 +30,29 @@ int tui__write_all(int fd, const void *p, size_t n);
 /* Milliseconds of a monotonic clock. */
 int64_t tui__now_ms(void);
 
+#include "tuikit/event.h"
+
+/* The movement key an event stands for in a list or a text view: the
+ * arrows, the page keys and Home/End themselves, and the workspace's
+ * shared letters for them -- j/k, ctrl-f/ctrl-b, g/G
+ * (policies/tui-interface-model.md, "Keys that mean the same everywhere").
+ * TUI_KEY_CHAR when the event is none of these. */
+static inline tui_key tui__nav_key(const tui_event *ev) {
+    if (ev->type != TUI_EV_KEY) return TUI_KEY_CHAR;
+    if (ev->key != TUI_KEY_CHAR) return ev->mods == 0 ? ev->key : TUI_KEY_CHAR;
+    if (ev->mods == TUI_MOD_CTRL) {
+        if (ev->cp == 'f') return TUI_KEY_PGDN;
+        if (ev->cp == 'b') return TUI_KEY_PGUP;
+        return TUI_KEY_CHAR;
+    }
+    if (ev->mods != 0) return TUI_KEY_CHAR;
+    switch (ev->cp) {
+    case 'j': return TUI_KEY_DOWN;
+    case 'k': return TUI_KEY_UP;
+    case 'g': return TUI_KEY_HOME;
+    case 'G': return TUI_KEY_END;
+    default:  return TUI_KEY_CHAR;
+    }
+}
+
 #endif /* LIBTUIKIT_INTERNAL_H */

@@ -246,9 +246,34 @@ static void test_listview_keys(void) {
         ASSERT_EQ_INT(tui_listview_handle(&lv, &ev), 1, "navigation key handled");
         ASSERT_EQ_INT(lv.selected, expect[i], "selection after the key");
     }
-    ev.key = TUI_KEY_CHAR;
+    /* The workspace's shared letters (policies/tui-interface-model.md):
+     * j k, ctrl-f ctrl-b, g G. */
+    static const struct { uint32_t cp; unsigned mods; int sel; const char *what; } letters[] = {
+        { 'j', 0, 1, "j: down" },          { 'k', 0, 0, "k: up" },
+        { 'k', 0, 0, "k at the top: no wrap" },
+        { 'f', TUI_MOD_CTRL, 3, "ctrl-f: a page down" },
+        { 'b', TUI_MOD_CTRL, 0, "ctrl-b: a page up" },
+        { 'G', 0, 9, "G: the last row" }, { 'j', 0, 9, "j at the end: no wrap" },
+        { 'g', 0, 0, "g: the first row" },
+    };
+    for (size_t i = 0; i < sizeof(letters) / sizeof(letters[0]); i++) {
+        ev.key = TUI_KEY_CHAR;
+        ev.cp = letters[i].cp;
+        ev.mods = letters[i].mods;
+        ASSERT_EQ_INT(tui_listview_handle(&lv, &ev), 1, letters[i].what);
+        ASSERT_EQ_INT(lv.selected, letters[i].sel, letters[i].what);
+    }
+    ev.mods = 0;
+    ev.cp = 'x';
+    ASSERT_EQ_INT(tui_listview_handle(&lv, &ev), 0, "other letters are the program's");
+    ev.cp = 'J';
+    ASSERT_EQ_INT(tui_listview_handle(&lv, &ev), 0, "J is not j");
     ev.cp = 'j';
-    ASSERT_EQ_INT(tui_listview_handle(&lv, &ev), 0, "j is the program's to map");
+    ev.mods = TUI_MOD_ALT;
+    ASSERT_EQ_INT(tui_listview_handle(&lv, &ev), 0, "Alt+j is not j");
+    ev.cp = 'g';
+    ev.mods = TUI_MOD_CTRL;
+    ASSERT_EQ_INT(tui_listview_handle(&lv, &ev), 0, "ctrl-g is not g");
     ev.key = TUI_KEY_DOWN;
     ev.mods = TUI_MOD_CTRL;
     ASSERT_EQ_INT(tui_listview_handle(&lv, &ev), 0, "Ctrl+Down is not plain Down");
@@ -417,6 +442,29 @@ static void test_textview_scrolling_and_follow(void) {
     ASSERT_EQ_INT(tui_textview_top(&tv), 0, "scroll clamped");
     ev.key = TUI_KEY_CHAR;
     ASSERT_EQ_INT(tui_textview_handle(&tv, &ev), 0, "other keys not handled");
+
+    /* The shared letters: j k a line, ctrl-f ctrl-b a page, g G the ends. */
+    tui_textview_scroll_to(&tv, 0);
+    tui_textview_render(&tv, all, TUI_STYLE_DEFAULT);
+    static const struct { uint32_t cp; unsigned mods; int top; const char *what; } letters[] = {
+        { 'j', 0, 1, "j: a line down" },  { 'k', 0, 0, "k: a line up" },
+        { 'f', TUI_MOD_CTRL, 3, "ctrl-f: a page, one line of context" },
+        { 'b', TUI_MOD_CTRL, 0, "ctrl-b: a page up" },
+        { 'G', 0, 19, "G: the end" },     { 'g', 0, 0, "g: the top" },
+    };
+    for (size_t i = 0; i < sizeof(letters) / sizeof(letters[0]); i++) {
+        ev.key = TUI_KEY_CHAR;
+        ev.cp = letters[i].cp;
+        ev.mods = letters[i].mods;
+        ASSERT_EQ_INT(tui_textview_handle(&tv, &ev), 1, letters[i].what);
+        ASSERT_EQ_INT(tui_textview_top(&tv), letters[i].top, letters[i].what);
+    }
+    ev.cp = 'e';
+    ASSERT_EQ_INT(tui_textview_handle(&tv, &ev), 0, "ctrl-e is the program's");
+    ev.mods = 0;
+    ev.type = TUI_EV_RESIZE;
+    ASSERT_EQ_INT(tui_textview_handle(&tv, &ev), 0, "not a key");
+    ev.type = TUI_EV_KEY;
 
     /* Re-wrapping keeps the top line in place. */
     tui_textview_scroll_to(&tv, 10);

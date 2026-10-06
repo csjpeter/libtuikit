@@ -2,6 +2,7 @@
 /* Copyright 2026 Péter Császár */
 
 #include "tuikit/listview.h"
+#include "internal.h"
 
 #include <string.h>
 
@@ -90,8 +91,8 @@ int tui_listview_is_visible(const tui_listview *lv, int index) {
 }
 
 int tui_listview_handle(tui_listview *lv, const tui_event *ev) {
-    if (!lv || !ev || ev->type != TUI_EV_KEY || ev->mods != 0) return 0;
-    switch (ev->key) {
+    if (!lv || !ev) return 0;
+    switch (tui__nav_key(ev)) {
     case TUI_KEY_UP:   tui_listview_move_up(lv); return 1;
     case TUI_KEY_DOWN: tui_listview_move_down(lv); return 1;
     case TUI_KEY_PGUP: tui_listview_page_up(lv); return 1;

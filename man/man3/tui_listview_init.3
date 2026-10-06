@@ -58,9 +58,23 @@ only scrolls; it also keeps the viewport from showing empty rows below
 the last item while items above are hidden, e.g. after the list shrank.
 .PP
 .BR tui_listview_handle ()
-applies Up, Down, PgUp, PgDn, Home or End without modifiers and returns 1
-for them (also at an edge, where nothing changes), 0 for any other event.
-Other keys (j/k, g/G) are the program's to map onto the move functions.
+applies Up, Down, PgUp, PgDn, Home or End without modifiers, and the
+workspace's shared letters for them \(em
+.B j
+and
+.B k
+for a row,
+.B ctrl\-f
+and
+.B ctrl\-b
+for a page,
+.B g
+and
+.B G
+for the first and the last row \(em and returns 1 for them (also at an
+edge, where nothing changes; the selection does not wrap), 0 for any
+other event.
+Other letters are the program's.
 .PP
 .BR tui_listview_render ()
 sets the viewport to the height of

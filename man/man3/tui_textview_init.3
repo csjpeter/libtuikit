@@ -53,8 +53,12 @@ wraps explicitly, e.g. to learn the line count before drawing.
 The scroll functions keep the view within the text: the last line can
 come to the bottom of the view, not above it.
 .BR tui_textview_handle ()
-applies Up, Down, PgUp, PgDn (one view less one line), Home and End and
-returns 1 for them, 0 for other events.
+applies Up, Down, PgUp, PgDn (one view less one line), Home and End, and
+the shared letters for them
+.RB ( j ", " k ", " ctrl\-f ", " ctrl\-b ", " g ", " G ,
+as in
+.BR tui_listview_handle (3)),
+and returns 1 for them, 0 for other events.
 .SH RETURN VALUE
 .BR tui_textview_set_text (),
 .BR tui_textview_append ()
