@@ -7,6 +7,9 @@
  * foreground and background -- in the states it has
  * (policies/testing-model.md, "A test of an element checks all of it";
  * policies/tui-interface-model.md for what each should look like and do).
+ * The inventory of the elements, their states and the test that checks
+ * each is docs/demo-elements.md; a new element gets a row there and a test
+ * here.
  */
 
 #include "test_helpers.h"
@@ -30,6 +33,10 @@ static PtySession *start_demo(int cols, int rows) {
     }
     return s;
 }
+
+#define BODYHELP_ROW 7
+#define BODYHELP_COL 19
+#define BODYHELP_W 42
 
 /* The palette's roles as libptytest reports them. */
 static const PtyStyleKey g_legend[] = {
@@ -309,7 +316,19 @@ static void test_help(void) {
         "└────────────────────────┘└────────────────────────────────────────────────────┘",
         "↑↓ scroll  Esc back  n new  ? help",
         NULL };
+    const char *const bodyhelp_map[] = {
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "A.BBBBBBBBBB.............................A",
+        "A.BBBBBBBBBBBBBB.........................A",
+        "A.BBBB...................................A",
+        "A.BBBBBBBBBBBBBBBBB......................A",
+        "A.B......................................A",
+        "A.B......................................A",
+        "A.BBBBBB.................................A",
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        NULL };
     ASSERT_WAIT_SCREEN(s, bodyhelp, 3000);
+    ASSERT_REGION_STYLE(s, PTY_REGION(BODYHELP_ROW, BODYHELP_COL, 9, BODYHELP_W), bodyhelp_map, g_legend);
     pty_send_key(s, PTY_KEY_ESC);
     ASSERT_WAIT_GONE(s, "Message shortcuts", 3000);
     ASSERT_WAIT_FOR(s, "\xE2\x86\x91\xE2\x86\x93 scroll  Esc back", 3000);
@@ -388,6 +407,9 @@ static void test_filter(void) {
         "↑↓ move  Enter read  / filter  c clear  n new  ? help  Esc quit",
         NULL };
     ASSERT_WAIT_SCREEN(s, filtered, 3000);
+    const char *const filtered_header[] = {
+        "HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH", NULL };
+    ASSERT_REGION_STYLE(s, PTY_REGION(0, 0, 1, 80), filtered_header, g_legend);
     const char *const sel[] = { "SSSSSSSSSSSSSSSSSSSSSSSS", NULL };
     ASSERT_REGION_STYLE(s, PTY_REGION(3, 1, 1, 24), sel, g_legend);
     /* A cancelled prompt leaves the filter as it was. */
@@ -659,6 +681,9 @@ static void test_compose_and_send(void) {
         NULL };
     ASSERT_WAIT_SCREEN(s, written, 3000);
     ASSERT_WAIT_CURSOR(s, 9, 19, 3000, "after end");
+    const char *const body_hints[] = {           /* the hints, line and column included */
+        "YYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYYY.", NULL };
+    ASSERT_REGION_STYLE(s, PTY_REGION(23, 0, 1, 59), body_hints, g_legend);
 
     pty_send_key(s, PTY_KEY_CTRL('s'));
     const char *const labels[] = {
