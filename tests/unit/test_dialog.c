@@ -297,12 +297,127 @@ static void test_small_terminal(void) {
     fx_close(&f);
 }
 
+/* TUI-12: the help screen of policies/tui-interface-model.md -- a modal
+ * overlay, two columns, the keys in bold, any key closes it. */
+static void test_help(void) {
+    static const char *const keys[] = {
+        "?",                "this help",
+        "j, \xE2\x86\x93",  "down one row",
+        "q",                "back",
+    };
+    tui_dialog d;
+    ASSERT_EQ_INT(tui_dialog_help(&d, "List shortcuts", keys, 3), 0, "create");
+    ASSERT_EQ_INT(d.kind, TUI_DIALOG_HELP, "kind");
+    Fx f;
+    ASSERT(fx_open(&f, 9, 30) == 0, "fixtures");
+    fx_draw(&f, &d);
+    const char *const expect[] = {
+        "", "",
+        "    ┌─ List shortcuts ───┐",
+        "    │ ?     this help    │",
+        "    │ j, ↓  down one row │",
+        "    │ q     back         │",
+        "    └────────────────────┘",
+        "", NULL };
+    ASSERT_SCREEN_EQ(f.s, expect);
+    static const PtyStyleKey help_legend[] = {
+        { '.', PTY_ATTR_NONE, 0, 0 },
+        { 'A', PTY_ATTR_BOLD, PTY_FG_CYAN, PTY_BG_DEFAULT },      /* the frame */
+        { 'K', PTY_ATTR_BOLD, PTY_FG_DEFAULT, PTY_BG_DEFAULT },   /* a key */
+        { 0, 0, 0, 0 } };
+    const char *const map[] = {
+        "AAAAAAAAAAAAAAAAAAAAAA",
+        "A.K..................A",
+        "A.KKKK...............A",
+        "A.K..................A",
+        "AAAAAAAAAAAAAAAAAAAAAA", NULL };
+    ASSERT_REGION_STYLE(f.s, PTY_REGION(2, 4, 5, 22), map, help_legend);
+    int r, c;
+    ASSERT_EQ_INT(pty_cursor(f.s, &r, &c), 0, "no cursor in the help");
+
+    /* It all fits: any key closes it, the movement keys too. */
+    ASSERT_EQ_INT(send(&d, "j"), TUI_DIALOG_OK, "j closes a help that fits");
+    ASSERT_EQ_INT(send(&d, "x"), TUI_DIALOG_OK, "closed stays closed");
+    tui_dialog_free(&d);
+    tui_dialog_help(&d, "Keys", keys, 3);
+    fx_draw(&f, &d);
+    ASSERT_EQ_INT(send(&d, "\x1b"), TUI_DIALOG_OK, "Esc closes it");
+    tui_dialog_free(&d);
+    tui_dialog_help(&d, "Keys", keys, 3);
+    tui_event resize;
+    memset(&resize, 0, sizeof(resize));
+    resize.type = TUI_EV_RESIZE;
+    ASSERT_EQ_INT(tui_dialog_handle(&d, &resize), TUI_DIALOG_OPEN, "not a key: stays open");
+    ASSERT_EQ_INT(send(&d, "x"), TUI_DIALOG_OK, "never drawn: any key closes it");
+    tui_dialog_free(&d);
+
+    /* Longer than the screen: the movement keys scroll it, others close. */
+    static const char *const many[] = {
+        "a", "one", "b", "two", "c", "three", "d", "four", "e", "five", "f", NULL };
+    Fx g;
+    ASSERT(fx_open(&g, 7, 20) == 0, "fixtures");
+    tui_dialog_help(&d, "Many", many, 6);
+    fx_draw(&g, &d);
+    const char *const top[] = {
+        "", "    ┌─ Many ───┐", "    │ a  one   │", "    │ b  two   │", "    │ c  three │",
+        "    └──────────┘", "", NULL };
+    ASSERT_SCREEN_EQ(g.s, top);
+    static const struct { const char *keys; int top; const char *what; } moves[] = {
+        { "j", 1, "j scrolls a row" },        { "\x1b[B", 2, "Down" },
+        { "\x1b[B", 3, "Down to the end" },   { "j", 3, "no further" },
+        { "k", 2, "k" },                       { "\x1b[A", 1, "Up" },
+        { "G", 3, "G: the end" },              { "g", 0, "g: the top" },
+        { "\x1b[6~", 2, "PgDn: a page less one row" },
+        { "\x1b[5~", 0, "PgUp" },              { "\x1b[F", 3, "End" },
+        { "\x1b[H", 0, "Home" },               { "\x06", 2, "ctrl-f" },
+        { "\x02", 0, "ctrl-b" },               { "\x1b[A", 0, "Up at the top" },
+    };
+    for (size_t i = 0; i < sizeof(moves) / sizeof(moves[0]); i++) {
+        ASSERT_EQ_INT(send(&d, moves[i].keys), TUI_DIALOG_OPEN, moves[i].what);
+        ASSERT_EQ_INT(d.list.scroll_top, moves[i].top, moves[i].what);
+    }
+    send(&d, "G");
+    fx_draw(&g, &d);
+    const char *const bottom[] = {
+        "", "    ┌─ Many ───┐", "    │ d  four  │", "    │ e  five  │", "    │ f        │",
+        "    └──────────┘", "", NULL };
+    ASSERT_SCREEN_EQ(g.s, bottom);
+    ASSERT_EQ_INT(send(&d, "q"), TUI_DIALOG_OK, "another key closes it");
+    tui_dialog_free(&d);
+
+    /* A taller screen after scrolling: the window is pulled back in. */
+    tui_dialog_help(&d, "Many", many, 6);
+    fx_draw(&g, &d);
+    send(&d, "G");
+    Fx big;
+    ASSERT(fx_open(&big, 10, 20) == 0, "fixtures");
+    fx_draw(&big, &d);
+    ASSERT_EQ_INT(d.list.scroll_top, 0, "everything fits: from the top");
+    ASSERT_EQ_INT(send(&d, "j"), TUI_DIALOG_OK, "and j closes it now");
+    tui_dialog_free(&d);
+    fx_close(&big);
+
+    /* No rows; errors. */
+    tui_dialog_help(&d, "Nothing", NULL, 0);
+    fx_draw(&g, &d);
+    ASSERT_EQ_INT(send(&d, " "), TUI_DIALOG_OK, "an empty help closes too");
+    tui_dialog_free(&d);
+    errno = 0;
+    ASSERT_EQ_INT(tui_dialog_help(&d, "x", NULL, 2), -1, "pairs missing");
+    ASSERT_EQ_INT(errno, EINVAL, "errno");
+    ASSERT_EQ_INT(tui_dialog_help(&d, "x", keys, -1), -1, "negative count");
+    ASSERT_EQ_INT(tui_dialog_help(NULL, "x", keys, 1), -1, "no dialog");
+    fx_close(&g);
+    fx_close(&f);
+}
+
 static const TestCase tests[] = {
     TEST_CASE(test_message),
     TEST_CASE(test_confirm),
     TEST_CASE(test_prompt),
     TEST_CASE(test_menu),
     TEST_CASE(test_checklist),
+    TEST_CASE(test_help),
     TEST_CASE(test_small_terminal),
 };
 

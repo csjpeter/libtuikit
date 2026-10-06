@@ -3,6 +3,7 @@
 
 #include "tuikit/dialog.h"
 #include "tuikit/text.h"
+#include "internal.h"
 
 #include <errno.h>
 #include <stdlib.h>
@@ -90,6 +91,23 @@ int tui_dialog_checklist(tui_dialog *d, const char *title, const char *const *it
     return 0;
 }
 
+/* A help row's key or description; a NULL one is drawn empty. */
+static const char *help_str(const tui_dialog *d, int i) {
+    return d->items[i] ? d->items[i] : "";
+}
+
+int tui_dialog_help(tui_dialog *d, const char *title, const char *const *pairs, int n) {
+    if ((!pairs && n > 0) || n < 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (setup(d, TUI_DIALOG_HELP, title, NULL) != 0) return -1;
+    d->items = pairs;
+    d->nitems = n;
+    tui_listview_set_count(&d->list, n);
+    return 0;
+}
+
 int tui_dialog_is_checked(const tui_dialog *d, int i) {
     if (!d || !d->checked || i < 0 || i >= d->nitems) return 0;
     return d->checked[i];
@@ -162,6 +180,25 @@ tui_dialog_state tui_dialog_handle(tui_dialog *d, const tui_event *ev) {
         tui_listview_handle(&d->list, ev);
         d->answer = d->list.selected;
         break;
+    case TUI_DIALOG_HELP: {
+        if (!is_key) break;
+        /* While it does not all fit, the movement keys scroll it. */
+        int max_top = d->nitems - d->list.rows_visible;
+        int page = d->list.rows_visible > 1 ? d->list.rows_visible - 1 : 1;
+        int top = d->list.scroll_top;
+        if (d->list.rows_visible <= 0 || max_top <= 0) return close_with(d, TUI_DIALOG_OK);
+        switch (tui__nav_key(ev)) {
+        case TUI_KEY_UP:   top--; break;
+        case TUI_KEY_DOWN: top++; break;
+        case TUI_KEY_PGUP: top -= page; break;
+        case TUI_KEY_PGDN: top += page; break;
+        case TUI_KEY_HOME: top = 0; break;
+        case TUI_KEY_END:  top = max_top; break;
+        default:           return close_with(d, TUI_DIALOG_OK);
+        }
+        d->list.scroll_top = top < 0 ? 0 : top > max_top ? max_top : top;
+        break;
+    }
     }
     return d->state;
 }
@@ -208,6 +245,16 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     if (d->kind == TUI_DIALOG_MESSAGE && want < 6) want = 6;
     if (d->kind == TUI_DIALOG_CONFIRM && want < 15) want = 15;
     if (d->kind == TUI_DIALOG_PROMPT && want < 30) want = 30;
+    int key_w = 0;
+    if (d->kind == TUI_DIALOG_HELP) {
+        int what_w = 0;
+        for (int i = 0; i < d->nitems; i++) {
+            int k = tui_str_width(help_str(d, 2 * i)), t = tui_str_width(help_str(d, 2 * i + 1));
+            if (k > key_w) key_w = k;
+            if (t > what_w) what_w = t;
+        }
+        if (key_w + 2 + what_w > want) want = key_w + 2 + what_w;
+    }
     if (d->kind == TUI_DIALOG_MENU || d->kind == TUI_DIALOG_CHECKLIST) {
         int mark = d->kind == TUI_DIALOG_CHECKLIST ? 4 : 0;      /* "[x] " */
         for (int i = 0; i < d->nitems; i++) {
@@ -228,7 +275,8 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     case TUI_DIALOG_CONFIRM: extra = lines > 0 ? 2 : 1; break;   /* blank + buttons */
     case TUI_DIALOG_PROMPT:  extra = 1; break;                     /* the input line */
     case TUI_DIALOG_MENU:
-    case TUI_DIALOG_CHECKLIST: extra = d->nitems > 0 ? d->nitems : 1; break;
+    case TUI_DIALOG_CHECKLIST:
+    case TUI_DIALOG_HELP:    extra = d->nitems > 0 ? d->nitems : 1; break;
     }
     int h = 2 + lines + extra;
     if (h > avail_h) h = avail_h;
@@ -241,7 +289,8 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     tui_canvas cc = tui_canvas_sub(c, content);
     int rows = tui_canvas_rows(cc);
     /* A menu has no text: its list takes every row. */
-    int is_list = d->kind == TUI_DIALOG_MENU || d->kind == TUI_DIALOG_CHECKLIST;
+    int is_list = d->kind == TUI_DIALOG_MENU || d->kind == TUI_DIALOG_CHECKLIST ||
+                  d->kind == TUI_DIALOG_HELP;
     int below = is_list ? rows : extra;
     if (below > rows) below = rows;
     /* Short of rows, the blank line above the buttons goes first: the
@@ -273,6 +322,23 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
         menu_ctx ctx = { d };
         tui_canvas list = tui_canvas_sub(cc, tui_rect_make(text_rows, 0, below, inner_w));
         tui_listview_render(&d->list, list, d->fill, draw_item, &ctx);
+        break;
+    }
+    case TUI_DIALOG_HELP: {
+        /* Two columns, the keys in bold; the window is the dialog's own
+         * (it has no cursor), kept within the rows it has now. */
+        tui_style key_st = d->fill;
+        key_st.attrs |= TUI_ATTR_BOLD;
+        d->list.rows_visible = below;
+        int max_top = d->nitems - below;
+        if (d->list.scroll_top > max_top) d->list.scroll_top = max_top > 0 ? max_top : 0;
+        for (int r = 0; r < below && d->list.scroll_top + r < d->nitems; r++) {
+            int i = d->list.scroll_top + r;
+            tui_canvas row = tui_canvas_sub(cc, tui_rect_make(text_rows + r, 0, 1, inner_w));
+            tui_canvas_put(row, 0, 0, help_str(d, 2 * i), key_st);
+            tui_canvas what = tui_canvas_sub(row, tui_rect_make(0, key_w + 2, 1, inner_w - key_w - 2));
+            tui_canvas_put_aligned(what, 0, help_str(d, 2 * i + 1), TUI_ALIGN_LEFT, d->fill);
+        }
         break;
     }
     }

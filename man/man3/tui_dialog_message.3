@@ -1,7 +1,7 @@
 .TH TUI_DIALOG_MESSAGE 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
 .SH NAME
 tui_dialog_message, tui_dialog_confirm, tui_dialog_prompt, tui_dialog_menu,
-tui_dialog_checklist, tui_dialog_is_checked, tui_dialog_free,
+tui_dialog_checklist, tui_dialog_is_checked, tui_dialog_help, tui_dialog_free,
 tui_dialog_handle, tui_dialog_render \- modal dialogs
 .SH SYNOPSIS
 .nf
@@ -18,6 +18,8 @@ tui_dialog_handle, tui_dialog_render \- modal dialogs
 .BI "                          const char *const *" items ", int " n ,
 .BI "                          const unsigned char *" initial ", int " selected );
 .BI "int  tui_dialog_is_checked(const tui_dialog *" d ", int " i );
+.BI "int  tui_dialog_help(tui_dialog *" d ", const char *" title ,
+.BI "                     const char *const *" pairs ", int " n );
 .BI "void tui_dialog_free(tui_dialog *" d );
 .BI "tui_dialog_state tui_dialog_handle(tui_dialog *" d ", const tui_event *" ev );
 .BI "void tui_dialog_render(tui_dialog *" d ", tui_canvas " c );
@@ -82,6 +84,24 @@ the ticked set is
 .I d\->answer
 is the row Enter was pressed on, the single choice a program can fall back
 to when nothing is ticked (issue-manager's status filter does).
+.TP
+.BR tui_dialog_help ()
+The help screen of a view, as the workspace's interface policy describes
+it: a box over the view, titled with the view's name
+(e.g. "Message list shortcuts"), with
+.I n
+rows of a key in bold and what it does beside it.
+.I pairs
+holds 2 *
+.I n
+strings, key and description in turn; they are not copied, and a NULL
+one is drawn empty.
+Any key closes it with
+.BR TUI_DIALOG_OK ,
+Esc included \(em except while the rows do not all fit, when the list's
+movement keys (Up, Down, PgUp, PgDn, Home, End,
+.BR j ", " k ", " ctrl\-f ", " ctrl\-b ", " g ", " G )
+scroll it.
 .PP
 .BR tui_dialog_render ()
 draws a box centred in
