@@ -46,6 +46,11 @@ Added after the first implementation (2026-10-03):
 - `tui_dialog_checklist()` (TUI-1): a menu in which several rows are ticked
   with Space; the set is read back on OK, and `answer` is the row Enter was
   pressed on -- issue-manager's status filter.
+- `tui_dialog_help()` (TUI-12): the help screen of
+  policies/tui-interface-model.md -- a box over the view, two columns, the
+  keys in bold, closed by any key; while it does not fit, the movement keys
+  scroll it. Its rows are `items` read in pairs, so `tui_dialog` keeps its
+  size.
 - `tui_lineedit_replace()`, for completions.
 - `tui_tty_read_password()` turns echo off before writing the prompt, and
   restores the terminal if SIGINT/SIGTERM/SIGHUP/SIGQUIT ends the process

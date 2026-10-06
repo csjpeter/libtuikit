@@ -34,7 +34,8 @@ typedef enum tui_dialog_kind {
     TUI_DIALOG_CONFIRM,      /**< text and Yes / No */
     TUI_DIALOG_PROMPT,       /**< text and a line of input */
     TUI_DIALOG_MENU,         /**< a list to choose from */
-    TUI_DIALOG_CHECKLIST     /**< a list to tick several rows of */
+    TUI_DIALOG_CHECKLIST,    /**< a list to tick several rows of */
+    TUI_DIALOG_HELP          /**< the keys of a view, closed by any key */
 } tui_dialog_kind;
 
 /** @brief Where the dialog stands. */
@@ -52,8 +53,9 @@ typedef struct tui_dialog {
                                         the list stood on */
     char            *title;        /* private copies */
     char            *text;
-    const char *const *items;      /**< MENU: the caller's items, kept alive by it */
-    int              nitems;
+    const char *const *items;      /**< MENU: the caller's items, kept alive by it;
+                                        HELP: key and description, in pairs */
+    int              nitems;       /**< MENU: items; HELP: pairs */
     unsigned char   *checked;      /**< CHECKLIST: 1 for each ticked item (the
                                         dialog's own copy; read it on OK) */
     tui_lineedit     edit;         /**< PROMPT: edits the caller's buffer */
@@ -103,6 +105,20 @@ TUI_API int tui_dialog_menu(tui_dialog *d, const char *title,
 TUI_API int tui_dialog_checklist(tui_dialog *d, const char *title,
                                  const char *const *items, int n,
                                  const unsigned char *initial, int selected);
+
+/**
+ * @brief The help screen of a view: @p n rows of a key and what it does,
+ *        given as 2 * @p n strings in @p pairs (key, description, key,
+ *        description, ...), in two columns with the keys in bold, under
+ *        @p title (the view's name, e.g. "Message list shortcuts").
+ *
+ * Any key closes it (state TUI_DIALOG_OK) -- except, while the rows do not
+ * all fit, the list's movement keys (arrows, page keys, Home/End, j/k,
+ * ctrl-f/ctrl-b, g/G), which scroll it.  The strings are not copied.
+ * policies/tui-interface-model.md, "The help screen".
+ */
+TUI_API int tui_dialog_help(tui_dialog *d, const char *title,
+                            const char *const *pairs, int n);
 
 /** @brief 1 when item @p i of a checklist is ticked, 0 otherwise. */
 TUI_API int tui_dialog_is_checked(const tui_dialog *d, int i);
