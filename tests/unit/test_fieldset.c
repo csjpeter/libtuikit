@@ -120,11 +120,10 @@ static void fx_close(Fx *x) {
 
 static const PtyStyleKey legend[] = {
     { '.', PTY_ATTR_NONE, 0, 0 },
-    { 'd', PTY_ATTR_DIM, 0, 0 },
-    { 'B', PTY_ATTR_BOLD, 0, 0 },
-    { 'c', PTY_ATTR_NONE, PTY_FG_CYAN, 0 },
-    { 'C', PTY_ATTR_REVERSE, PTY_FG_CYAN, 0 },
-    { 'r', PTY_ATTR_NONE, PTY_FG_RED, 0 },
+    /* The palette's roles (policies/tui-interface-model.md). */
+    { 'A', PTY_ATTR_BOLD, PTY_FG_CYAN, PTY_BG_DEFAULT },     /* accent: the focused label */
+    { 'S', PTY_ATTR_BOLD, PTY_FG_BLACK, PTY_BG_CYAN },       /* selection */
+    { 'E', PTY_ATTR_BOLD, PTY_FG_RED, PTY_BG_DEFAULT },      /* error */
     { 0, 0, 0, 0 } };
 
 static void test_layout_and_focus(void) {
@@ -135,7 +134,7 @@ static void test_layout_and_focus(void) {
     ASSERT_EQ_INT(fx_draw(&x, &c.f, 8), 4, "four rows");
     const char *const expect[] = { "To:", "Cc:", "Subject:", "Type:    Bug", "", "", "", "", NULL };
     ASSERT_SCREEN_EQ(x.s, expect);
-    const char *const labels[] = { "BBB", "ddd", "dddddddd", "ddddd....", NULL };
+    const char *const labels[] = { "AAA", "...", "........", ".........", NULL };
     ASSERT_REGION_STYLE(x.s, PTY_REGION(0, 0, 4, 9), labels, legend);
     int r, col;
     pty_cursor(x.s, &r, &col);
@@ -193,7 +192,7 @@ static void test_completion(void) {
         "         \xE2\x96\xB6 albert@example.org  Albert",
         "Cc:", "Subject:", "Type:    Bug", "", "", NULL };
     ASSERT_SCREEN_EQ(x.s, expect);
-    const char *const styles[] = { "", ".........CCCC", ".........cccc", NULL };
+    const char *const styles[] = { "", ".........SSSS", ".............", NULL };
     ASSERT_REGION_STYLE(x.s, PTY_REGION(0, 0, 3, 13), styles, legend);
 
     send(&c.f, "\x1b[B");
@@ -244,7 +243,7 @@ static void test_validation_and_submit(void) {
         "To:", "Cc:", "Subject:", "Type:    Bug",
         "To: is empty \xE2\x80\x94 enter at least one recipient.", "", NULL };
     ASSERT_SCREEN_EQ(x.s, expect);
-    const char *const err[] = { "rrrrrrrrrrrrrrr", NULL };
+    const char *const err[] = { "EEEEEEEEEEEEEEE", NULL };
     ASSERT_REGION_STYLE(x.s, PTY_REGION(4, 0, 1, 15), err, legend);
     send(&c.f, "zed@host");                    /* matches no contact: no drop-down */
     ASSERT_EQ_STR(c.f.error, "", "typing clears the message");

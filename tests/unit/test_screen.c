@@ -142,6 +142,51 @@ static void test_styles(void) {
     tui_buf_free(&b);
 }
 
+/* The workspace palette (policies/tui-interface-model.md, "Palette"):
+ * each role is the exact colours and attribute the policy names. */
+static void test_palette(void) {
+    tui_screen *scr = tui_screen_new(1, 10);
+    tui_buf b;
+    tui_buf_init(&b);
+    PtySession *s = pty_open(10, 1);
+    ASSERT(scr && s, "fixtures");
+    tui_screen_set_sync(scr, 0);
+    tui_screen_put(scr, 0, 0, 0, "H", TUI_STYLE_HEADER);
+    tui_screen_put(scr, 0, 1, 0, "S", TUI_STYLE_SELECTION);
+    tui_screen_put(scr, 0, 2, 0, "A", TUI_STYLE_ACCENT);
+    tui_screen_put(scr, 0, 3, 0, "O", TUI_STYLE_OK);
+    tui_screen_put(scr, 0, 4, 0, "E", TUI_STYLE_ERROR);
+    tui_screen_put(scr, 0, 5, 0, "h", TUI_STYLE_HINT);
+    tui_screen_put(scr, 0, 6, 0, "p", TUI_STYLE_PROGRESS);
+    render_feed(scr, s, &b);
+    ASSERT_BYTES(b.data, b.len,
+                 CLEAR ""
+                 "\033[0;1;37;44mH"
+                 "\033[0;1;30;46mS"
+                 "\033[0;1;36mA"
+                 "\033[0;1;32mO"
+                 "\033[0;1;31mE"
+                 "\033[0;33mh"
+                 "\033[0;3;33mp"
+                 "\033[0m\033[?25l",
+                 "the seven roles");
+    static const PtyStyleKey legend[] = {
+        { '.', PTY_ATTR_NONE, 0, 0 },
+        { 'H', PTY_ATTR_BOLD, PTY_FG_WHITE, PTY_BG_BLUE },
+        { 'S', PTY_ATTR_BOLD, PTY_FG_BLACK, PTY_BG_CYAN },
+        { 'A', PTY_ATTR_BOLD, PTY_FG_CYAN, PTY_BG_DEFAULT },
+        { 'O', PTY_ATTR_BOLD, PTY_FG_GREEN, PTY_BG_DEFAULT },
+        { 'E', PTY_ATTR_BOLD, PTY_FG_RED, PTY_BG_DEFAULT },
+        { 'h', PTY_ATTR_NONE, PTY_FG_YELLOW, PTY_BG_DEFAULT },
+        { 'p', PTY_ATTR_ITALIC, PTY_FG_YELLOW, PTY_BG_DEFAULT },
+        { 0, 0, 0, 0 } };
+    const char *const map[] = { "HSAOEhp...", NULL };
+    ASSERT_REGION_STYLE(s, PTY_REGION(0, 0, 1, 10), map, legend);
+    pty_close(s);
+    tui_screen_free(scr);
+    tui_buf_free(&b);
+}
+
 static void test_clear_with_background(void) {
     tui_screen *scr = tui_screen_new(2, 4);
     tui_buf b;
@@ -385,6 +430,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_new_and_errors),
     TEST_CASE(test_first_frame_bytes_and_screen),
     TEST_CASE(test_styles),
+    TEST_CASE(test_palette),
     TEST_CASE(test_clear_with_background),
     TEST_CASE(test_wide_characters),
     TEST_CASE(test_combining_and_controls),

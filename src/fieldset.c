@@ -41,12 +41,13 @@ void tui_fieldset_init(tui_fieldset *f, tui_field *fields, int n) {
     f->fields = fields;
     f->nfields = fields && n > 0 ? n : 0;
     f->state = TUI_DIALOG_OPEN;
-    f->label_style = tui_style_attrs(TUI_ATTR_DIM);
-    f->focus_style = tui_style_attrs(TUI_ATTR_BOLD);
+    /* The palette's roles (policies/tui-interface-model.md). */
+    f->label_style = TUI_STYLE_DEFAULT;
+    f->focus_style = TUI_STYLE_ACCENT;
     f->value_style = TUI_STYLE_DEFAULT;
-    f->cand_style = tui_style_make(TUI_CYAN, TUI_COLOR_DEFAULT, 0);
-    f->cand_sel_style = tui_style_make(TUI_CYAN, TUI_COLOR_DEFAULT, TUI_ATTR_REVERSE);
-    f->error_style = tui_style_make(TUI_RED, TUI_COLOR_DEFAULT, 0);
+    f->cand_style = TUI_STYLE_DEFAULT;
+    f->cand_sel_style = TUI_STYLE_SELECTION;
+    f->error_style = TUI_STYLE_ERROR;
 }
 
 void tui_fieldset_free(tui_fieldset *f) {
