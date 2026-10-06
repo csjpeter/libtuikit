@@ -2,6 +2,7 @@
 /* Copyright 2026 Péter Császár */
 
 #include "tuikit/textview.h"
+#include "internal.h"
 #include "tuikit/text.h"
 
 #include <errno.h>
@@ -201,9 +202,9 @@ void tui_textview_scroll_end(tui_textview *tv) {
 }
 
 int tui_textview_handle(tui_textview *tv, const tui_event *ev) {
-    if (!tv || !ev || ev->type != TUI_EV_KEY || ev->mods != 0) return 0;
+    if (!tv || !ev) return 0;
     int page = tv->rows > 1 ? tv->rows - 1 : 1;
-    switch (ev->key) {
+    switch (tui__nav_key(ev)) {
     case TUI_KEY_UP:   tui_textview_scroll(tv, -1); return 1;
     case TUI_KEY_DOWN: tui_textview_scroll(tv, 1); return 1;
     case TUI_KEY_PGUP: tui_textview_scroll(tv, -page); return 1;

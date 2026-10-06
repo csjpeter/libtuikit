@@ -398,8 +398,11 @@ Shift-Tab (`CSI Z`), bracketed paste (`CSI 200 ~ … CSI 201 ~`), UTF-8 with
 U+FFFD for malformed input, Ctrl+letter, `\r` and `\n` as Enter, 0x7F and
 0x08 as Backspace. A sequence split across two reads is assembled. An
 unknown complete sequence is consumed whole and dropped; it never leaks as
-typed characters. Mapping keys to actions (`j`/`k`, `q`) stays in the
-program.
+typed characters. Mapping keys to actions (`q`, `/`) stays in the
+program; the movement keys shared by every TUI of the workspace (`j`/`k`,
+`ctrl-f`/`ctrl-b`, `g`/`G`, policies/tui-interface-model.md) are applied by
+`tui_listview_handle` and `tui_textview_handle` beside the arrows and the
+page keys.
 
 ### 4.5 `tui_screen` — cells and rendering (M3)
 
