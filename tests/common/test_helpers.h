@@ -118,6 +118,22 @@ static inline int test_cursor_at_(PtySession *s, void *ctx) {
     } \
 } while (0)
 
+/* For ASSERT_WAIT_GONE: true when @p ctx (text) is not on the screen. */
+static inline int test_text_gone_(PtySession *s, void *ctx) {
+    return !pty_screen_contains(s, (const char *)ctx);
+}
+
+/* Waits until @p text is no longer on the screen: a dialog has closed.
+ * (Waiting for text that is on the screen either way proves nothing.) */
+#define ASSERT_WAIT_GONE(s, text, timeout_ms) do { \
+    g_tests_run++; \
+    if (pty_wait_until(s, test_text_gone_, (void *)(text), timeout_ms) != 0) { \
+        PTY_ASSERT_FAIL_S_(s, (const char *)NULL, "\"%s\" still on the screen", text); \
+        pty_screen_dump(s, PTY_ASSERT_OUT); \
+        return; \
+    } \
+} while (0)
+
 static inline int test_run_suite(const char *suite, const TestCase *tests,
                                  size_t count, int min_assertions,
                                  unsigned alarm_seconds, int argc, char **argv) {

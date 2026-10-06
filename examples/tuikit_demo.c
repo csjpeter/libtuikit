@@ -2,21 +2,26 @@
 /* Copyright 2026 Péter Császár */
 
 /*
- * tuikit-demo -- a small two-pane message reader built on libtuikit.
+ * tuikit-demo -- a small message reader built on libtuikit.
  *
- * It is the library's worked example and its consumer check: a list on the
- * left, the selected message on the right, a status row, a search prompt
- * and a quit confirmation, redrawn on resize -- and a compose view that
- * uses the form, the multi-line editor and the checklist dialog.  When
+ * It is the library's worked example and its consumer check, and it
+ * follows the workspace's interface policy (policies/tui-interface-model.md)
+ * the way every TUI here should: a header bar, the body, one status line;
+ * the palette; the shared keys; help on ?; a modal at a time.
+ *
+ * The reader: a list of subjects on the left, the selected message on the
+ * right.  The list keys move (j/k, the arrows, ctrl-f/ctrl-b, g/G), Enter
+ * or Tab reads the message, / filters the subjects and c clears the
+ * filter, n writes a new message, ? shows the keys, Esc quits, ctrl-c
+ * quits at once, ctrl-z suspends.
+ *
+ * The compose view: To (completed from the contacts; ";" separates
+ * addresses) and Subject, then the body, a full-screen editor.  Tab moves
+ * on, shift-Tab back, ctrl-s sends after asking for labels, Esc discards
+ * (asking first when something was typed).
+ *
+ * Below 80x24 it shows a notice instead of a layout it cannot draw.  When
  * standard input is not a terminal it prints the subjects as plain text.
- *
- * Reader keys: Up/Down/PgUp/PgDn/Home/End move in the focused pane, Tab
- * switches panes, / searches the subjects, c writes a message, q asks to
- * quit, Ctrl-C quits at once.
- *
- * Compose keys: Tab moves between the header fields (To completes from the
- * contacts; ";" separates addresses), Ctrl-O switches between the header
- * and the body, Ctrl-S sends (after asking for labels), Esc discards.
  *
  * Build: cc tuikit_demo.c $(pkg-config --cflags --libs libtuikit)
  */
@@ -25,8 +30,13 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <signal.h>
 #include <stdio.h>
 #include <string.h>
+
+#define MIN_ROWS 24
+#define MIN_COLS 80
+#define PROGRAM  "tuikit-demo"
 
 typedef struct {
     const char *subject;
@@ -34,20 +44,24 @@ typedef struct {
 } message;
 
 static const message g_messages[] = {
-    { "Welcome", "Welcome to the tuikit demo.\n\nUse the arrow keys to move, "
-                 "Tab to switch panes, / to search, c to write and q to quit." },
+    { "Welcome", "Welcome to the tuikit demo.\n\nThe arrow keys or j and k move, "
+                 "Enter reads, / filters, n writes, ? lists the keys and Esc "
+                 "quits." },
     { "Árvíztűrő tükörfúrógép", "Ékezetes betűk: á é í ó ö ő ú ü ű.\n"
                                  "Every one of them takes one column." },
     { "Wide characters", "\xE4\xB8\xAD\xE6\x96\x87 takes two columns per "
                          "character; the layout must not shift." },
     { "Budget 2027", "Line 1 of the budget.\nLine 2.\nLine 3.\nLine 4.\n"
                      "Line 5.\nLine 6.\nLine 7.\nLine 8.\nLine 9.\nLine 10.\n"
-                     "Line 11.\nLine 12." },
+                     "Line 11.\nLine 12.\nLine 13.\nLine 14.\nLine 15.\n"
+                     "Line 16.\nLine 17.\nLine 18.\nLine 19.\nLine 20.\n"
+                     "Line 21.\nLine 22.\nLine 23.\nLine 24." },
     { "Meeting notes", "Agenda:\n\t1. Status\n\t2. Plans\n\t3. Questions" },
     { "Re: Budget 2027", "Looks good to me." },
 };
 #define N_MESSAGES ((int)(sizeof(g_messages) / sizeof(g_messages[0])))
 #define MAX_SENT 4
+#define MAX_ALL (N_MESSAGES + MAX_SENT)
 
 typedef struct {
     const char *addr, *name, *label;
@@ -63,27 +77,57 @@ static const contact g_contacts[] = {
 static const char *const g_labels[] = { "Work", "Personal", "Urgent" };
 #define N_LABELS 3
 
+/* The help screens: key, what it does. */
+static const char *const g_list_keys[] = {
+    "j, k, \xE2\x86\x93, \xE2\x86\x91", "move one row",
+    "ctrl-f, ctrl-b",                   "move one page",
+    "g, G",                             "first, last row",
+    "Enter, Tab, l, \xE2\x86\x92",      "read the message",
+    "/",                                "filter the subjects",
+    "c",                                "clear the filter",
+    "n",                                "write a new message",
+    "?",                                "this help",
+    "Esc",                              "quit",
+    "ctrl-c",                           "quit at once",
+    "ctrl-z",                           "suspend",
+};
+static const char *const g_body_keys[] = {
+    "j, k, \xE2\x86\x93, \xE2\x86\x91", "scroll one line",
+    "ctrl-f, ctrl-b",                   "scroll one page",
+    "g, G",                             "top, end",
+    "Esc, q, Tab, h, \xE2\x86\x90",     "back to the list",
+    "n",                                "write a new message",
+    "?",                                "this help",
+    "ctrl-c",                           "quit at once",
+};
+
 typedef enum { FOCUS_LIST, FOCUS_BODY } focus_t;
-typedef enum { DLG_SEARCH, DLG_QUIT, DLG_LABELS } dialog_t;
+typedef enum { DLG_FILTER, DLG_HELP, DLG_LABELS, DLG_DISCARD } dialog_t;
+typedef enum { ST_PLAIN, ST_OK } status_kind;
 
 typedef struct {
     /* the reader */
-    tui_listview list;
+    tui_listview list;           /* over shown[] */
     tui_textview body;
     focus_t      focus;
-    int          shown;          /* message in the body view, -1: none */
+    int          open;           /* message in the body view, -1: none */
+    int          shown[MAX_ALL]; /* the messages the filter lets through */
+    int          nshown;
+    char         filter[64];
     char         sent_subject[MAX_SENT][64];
     char         sent_body[MAX_SENT][1400];
     int          nsent;
-    /* the dialog on top, if any */
+    /* the modal on top, if any */
     tui_dialog   dialog;
     int          dialog_open;
     dialog_t     dialog_kind;
     char         query[64];
+    /* the status line: a message until the next key, else the hints */
     char         status[96];
+    status_kind  status_kind;
     /* the compose view */
     int          composing;
-    int          compose_body;   /* the body has the focus, not the header */
+    int          compose_body;   /* the body has the cursor, not the header */
     char         to[256], subject[64], text[1024];
     tui_field    fields[2];
     tui_fieldset form;
@@ -91,7 +135,7 @@ typedef struct {
     int          rows, cols;
 } app;
 
-static const tui_style st_normal = { TUI_COLOR_DEFAULT, TUI_COLOR_DEFAULT, 0 };
+static const tui_style st_plain = { TUI_COLOR_DEFAULT, TUI_COLOR_DEFAULT, 0 };
 
 static int message_count(const app *a) { return N_MESSAGES + a->nsent; }
 
@@ -103,53 +147,109 @@ static const char *body_of(const app *a, int i) {
     return i < N_MESSAGES ? g_messages[i].body : a->sent_body[i - N_MESSAGES];
 }
 
-static void show_message(app *a) {
+static void set_status(app *a, status_kind kind, const char *text) {
+    snprintf(a->status, sizeof(a->status), "%s", text);
+    a->status_kind = kind;
+}
+
+/* The message under the list's cursor, -1 when the list is empty. */
+static int selected_message(const app *a) {
     int i = a->list.selected;
-    if (i < 0 || i == a->shown) return;
-    tui_textview_set_text(&a->body, body_of(a, i));
-    a->shown = i;
+    return i >= 0 && i < a->nshown ? a->shown[i] : -1;
+}
+
+static void show_selected(app *a) {
+    int m = selected_message(a);
+    if (m == a->open) return;
+    tui_textview_set_text(&a->body, m >= 0 ? body_of(a, m) : "");
+    a->open = m;
+}
+
+/* Rebuilds the list from the filter; the cursor goes to @p want (a message
+ * index) if it is shown, else to the first row. */
+static void apply_filter(app *a, int want) {
+    a->nshown = 0;
+    int row = 0;
+    for (int i = 0; i < message_count(a); i++) {
+        if (a->filter[0] && !strstr(subject_of(a, i), a->filter)) continue;
+        if (i == want) row = a->nshown;
+        a->shown[a->nshown++] = i;
+    }
+    tui_listview_set_count(&a->list, a->nshown);
+    tui_listview_select(&a->list, row);
+    show_selected(a);
+}
+
+/* ── Frame: the header bar and the status line ───────────────────────── */
+
+/* Where we are on the left, the program on the right; the left side is
+ * clipped first. */
+static void draw_header(tui_canvas row, const char *where) {
+    tui_canvas_clear(row, TUI_STYLE_HEADER);
+    int cols = tui_canvas_cols(row), name_w = (int)strlen(PROGRAM) + 1;
+    tui_canvas_put_aligned(row, 0, PROGRAM " ", TUI_ALIGN_RIGHT, TUI_STYLE_HEADER);
+    tui_canvas left = tui_canvas_sub(row, tui_rect_make(0, 1, 1, cols - name_w - 2));
+    tui_canvas_put_aligned(left, 0, where, TUI_ALIGN_LEFT, TUI_STYLE_HEADER);
+}
+
+/* The message if there is one, else the hints; the hints always fit, a
+ * message is cut to make room for them. */
+static void draw_status(app *a, tui_canvas row, const char *hints) {
+    tui_canvas_clear(row, st_plain);
+    if (!a->status[0]) {
+        tui_canvas_put_aligned(row, 0, hints, TUI_ALIGN_LEFT, TUI_STYLE_HINT);
+        return;
+    }
+    tui_style st = a->status_kind == ST_OK ? TUI_STYLE_OK : st_plain;
+    tui_canvas_put_aligned(row, 0, a->status, TUI_ALIGN_LEFT, st);
 }
 
 /* ── The reader ──────────────────────────────────────────────────────── */
 
 static void draw_subject(void *ctx, tui_canvas row, int index, int selected) {
     app *a = ctx;
-    tui_style st = st_normal;
+    tui_style st = st_plain;
     if (selected) {
-        st.attrs = a->focus == FOCUS_LIST ? TUI_ATTR_REVERSE : TUI_ATTR_BOLD;
+        /* The focused list fills the row; the other pane's cursor is bold. */
+        st = a->focus == FOCUS_LIST ? TUI_STYLE_SELECTION : tui_style_attrs(TUI_ATTR_BOLD);
         tui_canvas_clear(row, st);
     }
-    tui_canvas_put_aligned(row, 0, subject_of(a, index), TUI_ALIGN_LEFT, st);
-}
-
-/* The status row: hints or a message on the left, the size on the right
- * when there is room for both. */
-static void draw_status(app *a, tui_canvas row, const char *text) {
-    tui_style bar = tui_style_attrs(TUI_ATTR_REVERSE);
-    tui_canvas_clear(row, bar);
-    tui_canvas_put_aligned(row, 0, text, TUI_ALIGN_LEFT, bar);
-    char size[32];
-    snprintf(size, sizeof(size), "%dx%d", a->rows, a->cols);
-    if (tui_str_width(text) + 1 + tui_str_width(size) <= tui_canvas_cols(row))
-        tui_canvas_put_aligned(row, 0, size, TUI_ALIGN_RIGHT, bar);
+    tui_canvas_put_aligned(row, 0, subject_of(a, a->shown[index]), TUI_ALIGN_LEFT, st);
 }
 
 static void draw_reader(app *a, tui_canvas all) {
-    tui_rect top, status, left, right;
-    tui_rect_split_v(tui_canvas_rect(all), -1, &top, &status);
-    int left_w = a->cols / 3;
-    if (left_w < 12) left_w = 12;
-    tui_rect_split_h(top, left_w, &left, &right);
+    char where[128];
+    if (a->filter[0])
+        snprintf(where, sizeof(where), "Inbox \xC2\xB7 %d of %d \xC2\xB7 filter: %s",
+                 a->nshown, message_count(a), a->filter);
+    else
+        snprintf(where, sizeof(where), "Inbox \xC2\xB7 %d messages", message_count(a));
+    draw_header(tui_canvas_sub(all, tui_rect_make(0, 0, 1, a->cols)), where);
 
-    tui_style frame_l = a->focus == FOCUS_LIST ? tui_style_attrs(TUI_ATTR_BOLD) : st_normal;
-    tui_style frame_r = a->focus == FOCUS_BODY ? tui_style_attrs(TUI_ATTR_BOLD) : st_normal;
+    tui_rect body = tui_rect_make(1, 0, a->rows - 2, a->cols), left, right;
+    tui_rect_split_h(body, a->cols / 3, &left, &right);
+    tui_style frame_l = a->focus == FOCUS_LIST ? TUI_STYLE_ACCENT : st_plain;
+    tui_style frame_r = a->focus == FOCUS_BODY ? TUI_STYLE_ACCENT : st_plain;
     tui_canvas_box(all, left, "Messages", frame_l);
-    tui_canvas_box(all, right, a->shown >= 0 ? subject_of(a, a->shown) : "", frame_r);
-    tui_listview_render(&a->list, tui_canvas_sub(all, tui_rect_inset(left, 1)), st_normal,
-                        draw_subject, a);
-    tui_textview_render(&a->body, tui_canvas_sub(all, tui_rect_inset(right, 1)), st_normal);
-    draw_status(a, tui_canvas_sub(all, status),
-                a->status[0] ? a->status : "Tab pane  / search  q quit");
+    tui_canvas_box(all, right, a->open >= 0 ? subject_of(a, a->open) : "", frame_r);
+
+    /* The list: a header row naming the column, then the rows. */
+    tui_rect in = tui_rect_inset(left, 1);
+    tui_canvas cl = tui_canvas_sub(all, in);
+    tui_canvas_put(cl, 0, 0, "Subject", tui_style_attrs(TUI_ATTR_BOLD));
+    tui_canvas rows = tui_canvas_sub(cl, tui_rect_make(1, 0, in.rows - 1, in.cols));
+    if (a->nshown == 0) {
+        tui_canvas_put_aligned(rows, 0, "Nothing matches.", TUI_ALIGN_LEFT, st_plain);
+        tui_canvas_put_aligned(rows, 1, "c clears the filter.", TUI_ALIGN_LEFT, TUI_STYLE_HINT);
+    } else {
+        tui_listview_render(&a->list, rows, st_plain, draw_subject, a);
+    }
+    tui_textview_render(&a->body, tui_canvas_sub(all, tui_rect_inset(right, 1)), st_plain);
+
+    draw_status(a, tui_canvas_sub(all, tui_rect_make(a->rows - 1, 0, 1, a->cols)),
+                a->focus == FOCUS_LIST
+                    ? "\xE2\x86\x91\xE2\x86\x93 move  Enter read  / filter  c clear  n new  ? help  Esc quit"
+                    : "\xE2\x86\x91\xE2\x86\x93 scroll  Esc back  n new  ? help");
 }
 
 /* ── The compose view ────────────────────────────────────────────────── */
@@ -193,19 +293,29 @@ static void compose_open(app *a) {
     tui_textedit_init(&a->editor, a->text, sizeof(a->text), NULL);
     a->composing = 1;
     a->compose_body = 0;
-    a->status[0] = '\0';
 }
 
-static void compose_close(app *a, const char *status) {
+static void compose_close(app *a, status_kind kind, const char *status) {
     tui_fieldset_free(&a->form);
     a->composing = 0;
-    snprintf(a->status, sizeof(a->status), "%s", status);
+    set_status(a, kind, status);
+}
+
+/* Esc: what was typed is not thrown away on one stray key. */
+static void compose_discard(app *a) {
+    if (!a->to[0] && !a->subject[0] && !a->text[0]) {
+        compose_close(a, ST_PLAIN, "Discarded.");
+        return;
+    }
+    tui_dialog_confirm(&a->dialog, "Discard the message", "Throw away what was typed?", 0);
+    a->dialog_open = 1;
+    a->dialog_kind = DLG_DISCARD;
 }
 
 /* The message goes into the list, with its labels, and is selected. */
 static void compose_send(app *a) {
     if (a->nsent == MAX_SENT) {
-        compose_close(a, "Outbox full");
+        compose_close(a, ST_PLAIN, "Outbox full: the message was not sent.");
         return;
     }
     int k = a->nsent++;
@@ -218,47 +328,64 @@ static void compose_send(app *a) {
         strcat(labels, g_labels[i]);
     }
     snprintf(a->sent_body[k], sizeof(a->sent_body[k]), "To: %s\nLabels: %s\n\n%s",
-             a->to, labels[0] ? labels : "none", a->text);
-    tui_listview_set_count(&a->list, message_count(a));
-    tui_listview_select(&a->list, N_MESSAGES + k);
-    a->shown = -1;
-    show_message(a);
+             a->to, labels[0] ? labels : "-", a->text);
+    a->open = -1;
+    apply_filter(a, N_MESSAGES + k);
+    a->focus = FOCUS_LIST;
     char st[96];
-    snprintf(st, sizeof(st), "Sent to %.80s", a->to);   /* the status row is short */
-    compose_close(a, st);
+    snprintf(st, sizeof(st), "Sent to %.80s.", a->to);
+    compose_close(a, ST_OK, st);
 }
 
 static void draw_compose(app *a, tui_canvas all) {
-    int rows = tui_canvas_rows(all), cols = tui_canvas_cols(all);
-    tui_canvas title = tui_canvas_sub(all, tui_rect_make(0, 0, 1, cols));
-    tui_canvas_clear(title, tui_style_attrs(TUI_ATTR_REVERSE));
-    tui_canvas_put(title, 0, 1, "New message", tui_style_attrs(TUI_ATTR_REVERSE | TUI_ATTR_BOLD));
-    /* Six rows for the header: two fields, three of drop-down, the error. */
-    tui_canvas header = tui_canvas_sub(all, tui_rect_make(1, 0, 6, cols));
-    tui_canvas_hline(all, 7, 0, cols, st_normal);
+    int rows = a->rows, cols = a->cols;
+    draw_header(tui_canvas_sub(all, tui_rect_make(0, 0, 1, cols)), "New message");
+    /* Six rows for the header fields: two fields, three of drop-down, the
+     * message; then a rule, then the body to the status line. */
+    tui_canvas fields = tui_canvas_sub(all, tui_rect_make(1, 0, 6, cols));
+    tui_canvas_hline(all, 7, 0, cols, st_plain);
     tui_canvas body = tui_canvas_sub(all, tui_rect_make(8, 0, rows - 9, cols));
-    /* The focused part is drawn last: it places the cursor. */
+    /* The part with the cursor is drawn last: it places the cursor. */
     if (a->compose_body) {
-        tui_fieldset_render(&a->form, header);
-        tui_textedit_render(&a->editor, body, st_normal);
+        /* No field has the cursor: no label is the focused one. */
+        tui_style focus = a->form.focus_style;
+        a->form.focus_style = a->form.label_style;
+        tui_fieldset_render(&a->form, fields);
+        a->form.focus_style = focus;
+        tui_textedit_render(&a->editor, body, st_plain);
     } else {
-        tui_textedit_render(&a->editor, body, st_normal);
-        tui_fieldset_render(&a->form, header);
+        tui_textedit_render(&a->editor, body, st_plain);
+        tui_fieldset_render(&a->form, fields);
     }
-    char hint[96];
-    int line, col;
-    tui_textedit_cursor(&a->editor, &line, &col);
-    snprintf(hint, sizeof(hint), "%s  Ctrl-O switch  Ctrl-S send  Esc discard",
-             a->compose_body ? "[body]" : "[header]");
-    if (a->compose_body)
-        snprintf(hint + strlen(hint), sizeof(hint) - strlen(hint), "  %d:%d", line + 1, col + 1);
-    draw_status(a, tui_canvas_sub(all, tui_rect_make(rows - 1, 0, 1, cols)), hint);
+    char hints[128];
+    if (a->compose_body) {
+        int line, col;
+        tui_textedit_cursor(&a->editor, &line, &col);
+        snprintf(hints, sizeof(hints),
+                 "shift-Tab fields  ctrl-s send  Esc discard  line %d, col %d%s",
+                 line + 1, col + 1, a->editor.truncated ? "  limit reached" : "");
+    } else {
+        snprintf(hints, sizeof(hints), "Tab next field  ctrl-s send  Esc discard");
+    }
+    draw_status(a, tui_canvas_sub(all, tui_rect_make(rows - 1, 0, 1, cols)), hints);
 }
+
+/* ── Drawing ─────────────────────────────────────────────────────────── */
 
 static void draw(app *a, tui_screen *scr) {
     tui_canvas all = tui_canvas_of(scr);
-    tui_canvas_clear(all, st_normal);
+    tui_canvas_clear(all, st_plain);
     tui_screen_set_cursor(scr, 0, 0, 0);
+    if (a->rows < MIN_ROWS || a->cols < MIN_COLS) {
+        char line[96];
+        snprintf(line, sizeof(line), "The terminal is %dx%d; " PROGRAM " needs %dx%d.",
+                 a->cols, a->rows, MIN_COLS, MIN_ROWS);
+        int mid = a->rows / 2 > 0 ? a->rows / 2 - 1 : 0;
+        tui_canvas_put_aligned(all, mid, "Terminal too small", TUI_ALIGN_CENTER, TUI_STYLE_ERROR);
+        tui_canvas_put_aligned(all, mid + 1, line, TUI_ALIGN_CENTER, st_plain);
+        tui_canvas_put_aligned(all, mid + 2, "Esc quits.", TUI_ALIGN_CENTER, TUI_STYLE_HINT);
+        return;
+    }
     if (a->composing) draw_compose(a, all);
     else draw_reader(a, all);
     if (a->dialog_open) tui_dialog_render(&a->dialog, all);
@@ -266,37 +393,38 @@ static void draw(app *a, tui_screen *scr) {
 
 /* ── Keys ────────────────────────────────────────────────────────────── */
 
-/* Applies a closed dialog; 1 when the program should end. */
-static int dialog_closed(app *a) {
-    int quit = 0;
-    if (a->dialog_kind == DLG_SEARCH) {
-        if (a->dialog.state == TUI_DIALOG_OK && a->query[0]) {
-            int found = -1;
-            for (int i = 0; i < message_count(a) && found < 0; i++)
-                if (strstr(subject_of(a, i), a->query)) found = i;
-            if (found >= 0) {
-                tui_listview_select(&a->list, found);
-                show_message(a);
-                snprintf(a->status, sizeof(a->status), "Found \"%s\"", a->query);
-            } else {
-                snprintf(a->status, sizeof(a->status), "No match for \"%s\"", a->query);
-            }
+static void open_dialog(app *a, dialog_t kind) {
+    a->dialog_open = 1;
+    a->dialog_kind = kind;
+}
+
+static void dialog_closed(app *a) {
+    tui_dialog_state st = a->dialog.state;
+    switch (a->dialog_kind) {
+    case DLG_FILTER:
+        if (st == TUI_DIALOG_OK) {
+            snprintf(a->filter, sizeof(a->filter), "%s", a->query);
+            apply_filter(a, selected_message(a));
         }
-    } else if (a->dialog_kind == DLG_LABELS) {
-        if (a->dialog.state == TUI_DIALOG_OK) compose_send(a);
-    } else {
-        quit = a->dialog.state == TUI_DIALOG_OK && a->dialog.answer == 1;
+        break;
+    case DLG_LABELS:
+        if (st == TUI_DIALOG_OK) compose_send(a);
+        break;
+    case DLG_DISCARD:
+        if (st == TUI_DIALOG_OK && a->dialog.answer == 1) compose_close(a, ST_PLAIN, "Discarded.");
+        break;
+    case DLG_HELP:
+        break;
     }
     tui_dialog_free(&a->dialog);
     a->dialog_open = 0;
-    return quit;
+}
+
+static int is_key(const tui_event *ev, tui_key key, unsigned mods) {
+    return ev->type == TUI_EV_KEY && ev->key == key && ev->mods == mods;
 }
 
 static void compose_key(app *a, const tui_event *ev) {
-    if (TUI_EV_IS_CTRL(ev, 'o')) {
-        a->compose_body = !a->compose_body;
-        return;
-    }
     if (TUI_EV_IS_CTRL(ev, 's')) {
         if (!a->to[0]) {
             tui_fieldset_set_error(&a->form, "To: is empty \xE2\x80\x94 enter a recipient.");
@@ -305,18 +433,24 @@ static void compose_key(app *a, const tui_event *ev) {
             return;
         }
         tui_dialog_checklist(&a->dialog, "Labels", g_labels, N_LABELS, NULL, 0);
-        a->dialog_open = 1;
-        a->dialog_kind = DLG_LABELS;
+        open_dialog(a, DLG_LABELS);
         return;
     }
     if (a->compose_body) {
-        if (ev->type == TUI_EV_KEY && ev->key == TUI_KEY_ESC) compose_close(a, "Discarded");
+        if (is_key(ev, TUI_KEY_ESC, 0)) compose_discard(a);
+        else if (is_key(ev, TUI_KEY_TAB, TUI_MOD_SHIFT)) a->compose_body = 0;
         else tui_textedit_handle(&a->editor, ev);
+        return;
+    }
+    /* Tab past the last field, with no drop-down open, goes on to the body. */
+    if (is_key(ev, TUI_KEY_TAB, 0) && a->form.ncand == 0 && a->form.focus == 1) {
+        a->compose_body = 1;
         return;
     }
     tui_dialog_state st = tui_fieldset_handle(&a->form, ev);
     if (st == TUI_DIALOG_CANCELLED) {
-        compose_close(a, "Discarded");
+        a->form.state = TUI_DIALOG_OPEN;
+        compose_discard(a);
     } else if (st == TUI_DIALOG_OK) {
         /* Enter in the header goes on to the body. */
         a->form.state = TUI_DIALOG_OPEN;
@@ -324,45 +458,74 @@ static void compose_key(app *a, const tui_event *ev) {
     }
 }
 
+static void reader_key(app *a, const tui_event *ev, int *quit) {
+    if (TUI_EV_IS_CHAR(ev, '?')) {
+        if (a->focus == FOCUS_LIST)
+            tui_dialog_help(&a->dialog, "Message list shortcuts", g_list_keys,
+                            (int)(sizeof(g_list_keys) / sizeof(g_list_keys[0]) / 2));
+        else
+            tui_dialog_help(&a->dialog, "Message shortcuts", g_body_keys,
+                            (int)(sizeof(g_body_keys) / sizeof(g_body_keys[0]) / 2));
+        open_dialog(a, DLG_HELP);
+        return;
+    }
+    if (TUI_EV_IS_CHAR(ev, 'n')) {
+        compose_open(a);
+        return;
+    }
+    if (TUI_EV_IS_CHAR(ev, '/')) {
+        tui_dialog_prompt(&a->dialog, "Filter the subjects", "Subject contains:", a->query,
+                          sizeof(a->query), a->filter);
+        open_dialog(a, DLG_FILTER);
+        return;
+    }
+    if (TUI_EV_IS_CHAR(ev, 'c')) {
+        if (a->filter[0]) {
+            a->filter[0] = '\0';
+            apply_filter(a, selected_message(a));
+        }
+        return;
+    }
+    if (a->focus == FOCUS_BODY) {
+        if (is_key(ev, TUI_KEY_ESC, 0) || is_key(ev, TUI_KEY_TAB, 0) ||
+            is_key(ev, TUI_KEY_LEFT, 0) || TUI_EV_IS_CHAR(ev, 'q') || TUI_EV_IS_CHAR(ev, 'h'))
+            a->focus = FOCUS_LIST;
+        else
+            tui_textview_handle(&a->body, ev);
+        return;
+    }
+    if (is_key(ev, TUI_KEY_ESC, 0)) {           /* the top level: Esc quits */
+        *quit = 1;
+        return;
+    }
+    if (a->nshown > 0 && (is_key(ev, TUI_KEY_ENTER, 0) || is_key(ev, TUI_KEY_TAB, 0) ||
+                          is_key(ev, TUI_KEY_RIGHT, 0) || TUI_EV_IS_CHAR(ev, 'l'))) {
+        a->focus = FOCUS_BODY;
+        return;
+    }
+    if (tui_listview_handle(&a->list, ev)) show_selected(a);
+}
+
 /* One key; 1 when the program should end. */
 static int handle_key(app *a, const tui_event *ev) {
     if (TUI_EV_IS_CTRL(ev, 'c')) return 1;
+    if (TUI_EV_IS_CTRL(ev, 'z')) {
+        raise(SIGTSTP);                          /* tui_term gives the terminal back */
+        return 0;
+    }
+    if (a->rows < MIN_ROWS || a->cols < MIN_COLS) return is_key(ev, TUI_KEY_ESC, 0);
+    a->status[0] = '\0';                         /* a message lasts until the next key */
     if (a->dialog_open) {
-        if (tui_dialog_handle(&a->dialog, ev) != TUI_DIALOG_OPEN) return dialog_closed(a);
+        if (tui_dialog_handle(&a->dialog, ev) != TUI_DIALOG_OPEN) dialog_closed(a);
         return 0;
     }
     if (a->composing) {
         compose_key(a, ev);
         return 0;
     }
-    a->status[0] = '\0';
-    if (ev->type == TUI_EV_KEY && ev->key == TUI_KEY_TAB) {
-        a->focus = a->focus == FOCUS_LIST ? FOCUS_BODY : FOCUS_LIST;
-        return 0;
-    }
-    if (TUI_EV_IS_CHAR(ev, 'q')) {
-        tui_dialog_confirm(&a->dialog, "Quit", "Leave the demo?", 0);
-        a->dialog_open = 1;
-        a->dialog_kind = DLG_QUIT;
-        return 0;
-    }
-    if (TUI_EV_IS_CHAR(ev, '/')) {
-        tui_dialog_prompt(&a->dialog, "Search", "Subject contains:", a->query,
-                          sizeof(a->query), NULL);
-        a->dialog_open = 1;
-        a->dialog_kind = DLG_SEARCH;
-        return 0;
-    }
-    if (TUI_EV_IS_CHAR(ev, 'c')) {
-        compose_open(a);
-        return 0;
-    }
-    if (a->focus == FOCUS_LIST) {
-        if (tui_listview_handle(&a->list, ev)) show_message(a);
-    } else {
-        tui_textview_handle(&a->body, ev);
-    }
-    return 0;
+    int quit = 0;
+    reader_key(a, ev, &quit);
+    return quit;
 }
 
 /* Not a terminal: the same content as plain text (email-cli's non-TTY
@@ -379,21 +542,20 @@ int main(void) {
     tui_term *t = tui_term_open(&o);
     if (!t) {
         if (errno == ENOTTY) return print_plain();
-        perror("tuikit-demo: terminal");
+        perror(PROGRAM ": terminal");
         return 1;
     }
 
     static app a;
     memset(&a, 0, sizeof(a));
-    a.shown = -1;
+    a.open = -1;
     tui_listview_init(&a.list);
-    tui_listview_set_count(&a.list, N_MESSAGES);
     tui_textview_init(&a.body);
-    show_message(&a);
+    apply_filter(&a, 0);
 
     if (tui_term_size(t, &a.rows, &a.cols) != 0) {
-        a.rows = 24;
-        a.cols = 80;
+        a.rows = MIN_ROWS;
+        a.cols = MIN_COLS;
     }
     tui_screen *scr = tui_screen_new(a.rows, a.cols);
     tui_buf out;
