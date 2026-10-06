@@ -479,6 +479,13 @@ if(NOT _tuikit_arch_rc EQUAL 0 OR NOT TUIKIT_DEB_ARCH)
     set(TUIKIT_DEB_ARCH "amd64")
 endif()
 
+# The finished packages, and nothing else, go to build/packages/: CPack's
+# own staging tree (_CPack_Packages) stays in the build directory.
+# manage.sh empties the directory before each run, so it holds exactly one
+# run's packages (policies/packaging-and-release-model.md, "Where the
+# output goes").
+set(CPACK_OUTPUT_FILE_PREFIX "${CMAKE_BINARY_DIR}/packages")
+
 set(CPACK_DEBIAN_RUNTIME_PACKAGE_NAME    "${TUIKIT_PKG_RUNTIME}")
 set(CPACK_DEBIAN_RUNTIME_PACKAGE_SECTION "libs")
 # shlibs file and the ldconfig trigger, so packages linking the library get
