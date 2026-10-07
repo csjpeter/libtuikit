@@ -508,6 +508,49 @@ widget the program routes events to first.
   prompt (one `tui_lineedit`), menu (one `tui_listview`). Same
   `handle`/`render` shape, result read from the struct.
 
+### 4.7a Drop-down completion — one rule for every TUI
+
+Every TUI of the workspace completes a field the same way, through
+`tui_fieldset`; `policies/tui-interface-model.md` refers here for the
+details (POL-29). The rule is the owner's decision of 2026-10-07 (TUI-17);
+it replaced email-cli's, under which the first candidate was chosen at once
+and Tab or Enter accepted it.
+
+- **What is completed.** The *token* at the cursor: the text from the last
+  of the field's `separators` (e.g. `";,"` for addresses) up to the cursor,
+  leading spaces skipped. The program's `complete` callback returns the
+  candidates for it (`text` to insert, `label` to show); what matches is the
+  program's choice (email-cli and the demo match case-insensitively
+  anywhere in an address or a name). At most `TUI_FIELDSET_CAND_MAX` (16)
+  are kept.
+- **When the drop-down is open.** After every edit that leaves the token
+  with candidates; it lists them under the field, one row each, marked `▶`.
+  Typing asks again; an empty token has none.
+- **Nothing is chosen when it opens** (`cand_sel` is -1): the cursor stays
+  in the field, and no row is in the selection style.
+- **Down** moves onto the first candidate and then down the list (it stops
+  at the last); **Up** moves up, and from the first candidate back into the
+  field.
+- **Enter** replaces the token with the chosen candidate's `text` and closes
+  the drop-down. With none chosen, Enter is the form's own Enter (submit,
+  through the validation).
+- **Tab** replaces the token with the longest prefix that every candidate's
+  `text` shares, when that is longer than the token, and stays in the field
+  with the drop-down open on the new token; the prefix is cut back to a
+  whole UTF-8 character. When one candidate is left it is written out whole
+  and the drop-down closes. When nothing longer is shared, Tab changes
+  nothing. (With no drop-down, Tab is the next field.)
+- **Shift-Tab** plays no part in completion: it is the previous field, as
+  everywhere in a form.
+- **Esc** (and Ctrl-C) closes the drop-down and keeps the text; only an Esc
+  with no drop-down open cancels the form.
+- **Looks.** The chosen row in `TUI_STYLE_SELECTION`, the others plain; the
+  focused field's label in `TUI_STYLE_ACCENT`.
+
+`tui_lineedit` keeps email-cli's own completion hooks (`tab_fn`,
+`shift_tab_fn`, `render_below`) for programs that draw in place with
+`tui_lineedit_run()`; a full-screen TUI uses the drop-down above.
+
 ### 4.8 Typical loop
 
 ```c
