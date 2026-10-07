@@ -285,7 +285,15 @@ static void test_help(void) {
         NULL };
     ASSERT_WAIT_SCREEN(s, help, 3000);
     ASSERT_REGION_STYLE(s, PTY_REGION(5, 19, 13, 41), help_map, g_legend);
-    pty_send_str(s, "j");                        /* it fits: j closes it too */
+    /* Other keys do nothing (TUI-18): j, x, Enter; q goes back. */
+    pty_send_str(s, "jx\r");
+    pty_send_str(s, "q");
+    WAIT_READER(s);
+    const char *const still[] = { "SSSSSSSSSSSSSSSSSSSSSSSS", NULL };   /* j did not move the list */
+    ASSERT_REGION_STYLE(s, PTY_REGION(3, 1, 1, 24), still, g_legend);
+    pty_send_str(s, "?");
+    ASSERT_WAIT_SCREEN(s, help, 3000);
+    pty_send_key(s, PTY_KEY_BACK);
     WAIT_READER(s);
     pty_send_str(s, "jjj");
     pty_send_key(s, PTY_KEY_ENTER);

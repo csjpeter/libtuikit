@@ -181,12 +181,17 @@ tui_dialog_state tui_dialog_handle(tui_dialog *d, const tui_event *ev) {
         d->answer = d->list.selected;
         break;
     case TUI_DIALOG_HELP: {
-        if (!is_key) break;
-        /* While it does not all fit, the movement keys scroll it. */
+        /* Back as from any view: Esc, q, Backspace (and Ctrl-C, as in
+         * every dialog).  The movement keys scroll; nothing else does
+         * anything (TUI-18). */
+        if (cancel || TUI_EV_IS_CHAR(ev, 'q') ||
+            (is_key && ev->key == TUI_KEY_BACKSPACE && ev->mods == 0))
+            return close_with(d, TUI_DIALOG_OK);
+        if (d->list.rows_visible <= 0) return d->state;   /* not drawn yet */
         int max_top = d->nitems - d->list.rows_visible;
+        if (max_top < 0) max_top = 0;
         int page = d->list.rows_visible > 1 ? d->list.rows_visible - 1 : 1;
         int top = d->list.scroll_top;
-        if (d->list.rows_visible <= 0 || max_top <= 0) return close_with(d, TUI_DIALOG_OK);
         switch (tui__nav_key(ev)) {
         case TUI_KEY_UP:   top--; break;
         case TUI_KEY_DOWN: top++; break;
@@ -194,7 +199,7 @@ tui_dialog_state tui_dialog_handle(tui_dialog *d, const tui_event *ev) {
         case TUI_KEY_PGDN: top += page; break;
         case TUI_KEY_HOME: top = 0; break;
         case TUI_KEY_END:  top = max_top; break;
-        default:           return close_with(d, TUI_DIALOG_OK);
+        default:           return d->state;
         }
         d->list.scroll_top = top < 0 ? 0 : top > max_top ? max_top : top;
         break;

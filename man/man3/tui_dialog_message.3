@@ -96,12 +96,14 @@ holds 2 *
 .I n
 strings, key and description in turn; they are not copied, and a NULL
 one is drawn empty.
-Any key closes it with
+Esc,
+.B q
+and Backspace close it with
 .BR TUI_DIALOG_OK ,
-Esc included \(em except while the rows do not all fit, when the list's
-movement keys (Up, Down, PgUp, PgDn, Home, End,
+as they go back from any view, and so does Ctrl\-C; the list's movement
+keys (Up, Down, PgUp, PgDn, Home, End,
 .BR j ", " k ", " ctrl\-f ", " ctrl\-b ", " g ", " G )
-scroll it.
+scroll it when the rows do not all fit; every other key changes nothing.
 .PP
 .BR tui_dialog_render ()
 draws a box centred in
