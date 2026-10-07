@@ -192,26 +192,44 @@ static void test_completion(void) {
         "         \xE2\x96\xB6 albert@example.org  Albert",
         "Cc:", "Subject:", "Type:    Bug", "", "", NULL };
     ASSERT_SCREEN_EQ(x.s, expect);
-    const char *const styles[] = { "", ".........SSSS", ".............", NULL };
+    /* TUI-17: nothing is chosen when the drop-down opens. */
+    ASSERT_EQ_INT(c.f.cand_sel, -1, "nothing chosen at first");
+    const char *const styles[] = { "", ".............", ".............", NULL };
     ASSERT_REGION_STYLE(x.s, PTY_REGION(0, 0, 3, 13), styles, legend);
+    send(&c.f, "\t");
+    ASSERT_EQ_STR(c.to, "al", "Tab: nothing longer is shared, nothing changes");
+    ASSERT_EQ_INT(c.f.ncand, 2, "Tab leaves the drop-down open");
+    ASSERT_EQ_INT(c.f.focus, 0, "Tab stays in the field");
 
     send(&c.f, "\x1b[B");
-    ASSERT_EQ_INT(c.f.cand_sel, 1, "Down chooses");
-    send(&c.f, "\x1b[B");
+    ASSERT_EQ_INT(c.f.cand_sel, 0, "Down moves onto the first candidate");
+    fx_draw(&x, &c.f, 8);
+    const char *const chosen[] = { "", ".........SSSS", ".............", NULL };
+    ASSERT_REGION_STYLE(x.s, PTY_REGION(0, 0, 3, 13), chosen, legend);
+    send(&c.f, "\x1b[B\x1b[B");
     ASSERT_EQ_INT(c.f.cand_sel, 1, "Down at the last");
-    send(&c.f, "\x1b[A\x1b[A\x1b[B");
-    ASSERT_EQ_INT(c.f.cand_sel, 1, "Up and Down within the list");
+    send(&c.f, "\x1b[A\x1b[A");
+    ASSERT_EQ_INT(c.f.cand_sel, -1, "Up from the first: back in the field");
+    send(&c.f, "\x1b[A");
+    ASSERT_EQ_INT(c.f.cand_sel, -1, "Up in the field: stays");
     ASSERT_EQ_INT(c.f.focus, 0, "focus stays while the drop-down is open");
-    send(&c.f, "\t");
-    ASSERT_EQ_STR(c.to, "albert@example.org", "Tab accepts: the token replaced");
+    send(&c.f, "\x1b[Z");
+    ASSERT_EQ_INT(c.f.focus, 3, "shift-Tab: no completion role, the previous field");
+    tui_fieldset_focus(&c.f, 0);
+    send(&c.f, "\x7f" "l");                      /* the drop-down again */
+    ASSERT_EQ_INT(c.f.ncand, 2, "two candidates again");
+    send(&c.f, "\x1b[B\x1b[B");
+    ASSERT_EQ_INT(send(&c.f, "\r"), TUI_DIALOG_OPEN, "Enter on a chosen candidate accepts");
+    ASSERT_EQ_STR(c.to, "albert@example.org", "the token replaced");
     ASSERT_EQ_INT(c.f.ncand, 0, "drop-down closed");
 
     /* A second address after a separator: only that token is replaced. */
     send(&c.f, "; bo");
     ASSERT_EQ_STR(g_last_token, "bo", "the token after the separator, spaces skipped");
     ASSERT_EQ_INT(c.f.ncand, 1, "one candidate");
-    ASSERT_EQ_INT(send(&c.f, "\r"), TUI_DIALOG_OPEN, "Enter accepts, does not submit");
-    ASSERT_EQ_STR(c.to, "albert@example.org; bob@example.net", "second address completed");
+    send(&c.f, "\t");
+    ASSERT_EQ_STR(c.to, "albert@example.org; bob@example.net", "Tab: one candidate, written out");
+    ASSERT_EQ_INT(c.f.ncand, 0, "and the drop-down closes");
 
     /* Esc closes the drop-down and keeps the text; typing opens it again. */
     send(&c.f, ", AL");
@@ -327,6 +345,59 @@ static void test_render_limits_and_edges(void) {
     fx_close(&x);
 }
 
+/* TUI-17: Tab writes what every candidate shares, cut on a character. */
+static const char *const *g_prefix_set;
+static int complete_set(void *user, int field, const char *token,
+                        tui_completion *out, int max) {
+    (void)user;
+    (void)field;
+    if (!token[0]) return 0;
+    int n = 0;
+    for (int i = 0; g_prefix_set[i] && n < max; i++) {
+        if (!strncmp(g_prefix_set[i], token, strlen(token))) {
+            out[n].text = g_prefix_set[i];
+            out[n].label = NULL;
+            n++;
+        }
+    }
+    return n;
+}
+
+static void test_tab_common_prefix(void) {
+    char buf[64];
+    tui_field fl;
+    tui_field_text(&fl, "To:", buf, sizeof(buf), NULL);
+    fl.complete = complete_set;
+    fl.separators = ";";
+    tui_fieldset f;
+    tui_fieldset_init(&f, &fl, 1);
+    static const char *const names[] = { "anna@x.org", "anne@x.org", "annika@y.org", "bob@z.org", NULL };
+    g_prefix_set = names;
+    send(&f, "a");
+    ASSERT_EQ_INT(f.ncand, 3, "three candidates");
+    send(&f, "\t");
+    ASSERT_EQ_STR(buf, "ann", "Tab: the prefix all three share");
+    ASSERT_EQ_INT(f.ncand, 3, "still three");
+    send(&f, "e\t");
+    ASSERT_EQ_STR(buf, "anne@x.org", "one left: written out");
+    ASSERT_EQ_INT(f.ncand, 0, "closed");
+    send(&f, ";a\x1b[B\x1b[B\x1b[B\r");
+    ASSERT_EQ_STR(buf, "anne@x.org;annika@y.org", "after a separator: Down three times, Enter");
+    tui_fieldset_free(&f);
+
+    /* A shared prefix that ends inside a character is cut before it. */
+    static const char *const accents[] = { "x\xC3\xA9a", "x\xC3\xA8b", NULL };
+    g_prefix_set = accents;
+    tui_field_text(&fl, "To:", buf, sizeof(buf), NULL);
+    fl.complete = complete_set;
+    tui_fieldset_init(&f, &fl, 1);
+    send(&f, "x");
+    ASSERT_EQ_INT(f.ncand, 2, "two candidates");
+    send(&f, "\t");
+    ASSERT_EQ_STR(buf, "x", "two accents share a byte, not a character");
+    tui_fieldset_free(&f);
+}
+
 /* A completion returning more than fits, a negative count, a NULL text and
  * an over-long token are all handled. */
 static int complete_odd(void *user, int field, const char *token,
@@ -359,6 +430,8 @@ static void test_completion_edges(void) {
     send(&f, "q");
     ASSERT_EQ_INT(f.ncand, TUI_FIELDSET_CAND_MAX, "capped");
     send(&f, "\t");
+    ASSERT_EQ_STR(buf, "qq", "Tab: NULL texts share nothing");
+    send(&f, "\x1b[B\r");
     ASSERT_EQ_STR(buf, "", "a NULL text replaces the token with nothing");
     Fx x;
     ASSERT(fx_open(&x, 4, 20) == 0, "fixtures");
@@ -372,7 +445,7 @@ static void test_completion_edges(void) {
     tui_lineedit_set_text(&fl.edit, longtok);
     tui_fieldset_update_completion(&f);
     ASSERT_EQ_INT((int)strlen(g_last_token), 60, "a long token is cut, not overrun");
-    send(&f, "\r");
+    send(&f, "\x1b[B\r");
     ASSERT_EQ_INT(buf[strlen(buf) - 1], 'X', "accepted");
     tui_fieldset_free(&f);
     fx_close(&x);
@@ -397,6 +470,7 @@ static void test_lineedit_replace(void) {
 static const TestCase tests[] = {
     TEST_CASE(test_layout_and_focus),
     TEST_CASE(test_completion),
+    TEST_CASE(test_tab_common_prefix),
     TEST_CASE(test_validation_and_submit),
     TEST_CASE(test_render_limits_and_edges),
     TEST_CASE(test_completion_edges),

@@ -69,11 +69,19 @@ When there are any, a drop-down lists them under the field
 shown, or
 .I text
 when there is no label).
-With the drop-down open, Up and Down choose, Tab or Enter replace the
-token with the chosen
-.IR text ,
-and Esc closes the drop-down and keeps the text; typing opens it again.
-These are email-cli's compose rules.
+The drop-down opens with nothing chosen
+.RI ( cand_sel
+is \-1): Down moves onto the candidates and Up back \(em from the first
+one, into the field again.
+Enter replaces the token with the chosen candidate's
+.IR text ;
+with none chosen it is the form's Enter.
+Tab replaces the token with the longest prefix that all candidates share,
+when that is longer than the token, and stays in the field.
+Shift-Tab plays no part in completion.
+Esc closes the drop-down and keeps the text; typing opens it again.
+(Up to 0.3, as in email-cli, the first candidate was chosen at once and
+Tab accepted it; the workspace's owner replaced that rule in 0.4.)
 .BR tui_fieldset_update_completion ()
 asks again, for a program that changed the text itself.
 .SS Keys
