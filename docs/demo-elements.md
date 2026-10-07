@@ -41,7 +41,7 @@ policies/tui-interface-model.md. Every full screen is also a position check.
 | Header bar | `New message` | text, style | `test_compose_and_send` |
 | Field labels | To focused (accent), Subject focused (accent), none focused while the body has the cursor | style | `test_compose_and_send` |
 | To field | empty, typed, completed, two addresses | text, cursor | `test_compose_and_send` |
-| Completion drop-down | two candidates, first and second chosen (selection), one candidate; Tab and Enter accept; no drop-down without a match | text, style | `test_compose_and_send`, `test_compose_refusals_and_discard` |
+| Completion drop-down | opened with nothing chosen, first and second chosen (selection), one candidate; Tab writes the shared prefix (nothing, or the one candidate), Enter takes the chosen one; no drop-down without a match | text, style | `test_compose_and_send`, `test_compose_refusals_and_discard` |
 | Subject field | typed; Tab from it goes to the body | text, cursor | `test_compose_and_send` |
 | Refusal | ctrl-s with no recipient: message under the fields, focus on To | text, style (bold red) | `test_compose_refusals_and_discard` |
 | Body editor | typed lines and a tab, scrolled down to the cursor, back to the top, sideways along a long line | text, cursor | `test_compose_and_send`, `test_compose_body_editor` |

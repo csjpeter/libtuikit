@@ -173,7 +173,11 @@ the same hooks on tui_lineedit
 the same stub behaviour
 .TP
 .B compose dialog (fields, address drop-down)
-tui_fieldset with a completion callback and ";," separators
+tui_fieldset with a completion callback and ";," separators.
+The drop-down's keys differ by the owner's decision (see
+.BR tui_fieldset_init (3)):
+Enter accepts only a candidate the cursor was moved onto, and Tab fills in
+the prefix all candidates share instead of accepting the first one.
 .SH TG-CLI EQUIVALENTS
 .TP
 .B Screen, screen_put_str_n, screen_fill, screen_flip

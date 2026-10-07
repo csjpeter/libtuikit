@@ -96,7 +96,8 @@ typedef struct tui_fieldset {
     void                *user;      /**< for validate and complete */
     tui_completion       cand[TUI_FIELDSET_CAND_MAX];
     int                  ncand;     /**< candidates shown (0: no drop-down) */
-    int                  cand_sel;
+    int                  cand_sel;  /**< the chosen candidate; -1: none (the cursor
+                                         is in the field) */
     char                 error[256];
     tui_style            label_style, focus_style, value_style;
     tui_style            cand_style, cand_sel_style, error_style;
@@ -126,8 +127,12 @@ TUI_API void tui_fieldset_update_completion(tui_fieldset *f);
 /**
  * @brief Gives the form one event.
  *
- * With the drop-down open: Up/Down choose, Tab or Enter accept the
- * candidate (it replaces the current token), Esc closes the drop-down.
+ * With the drop-down open, nothing is chosen at first: Down moves onto
+ * the candidates and Up back (from the first one, into the field again);
+ * Enter accepts a chosen candidate (it replaces the current token) and is
+ * the form's Enter when none is chosen; Tab replaces the token with the
+ * longest prefix all candidates share, when that is longer, and stays in
+ * the field; Esc closes the drop-down.
  * Otherwise: Tab/Shift-Tab and Down/Up move between fields, Enter submits
  * (through @c validate), Esc or Ctrl-C cancel.  A choice field takes
  * Left/Right/Space; a text field takes every key of tui_lineedit_handle(3).

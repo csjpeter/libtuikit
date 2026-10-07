@@ -576,16 +576,24 @@ static void test_compose_and_send(void) {
         "Tab next field  ctrl-s send  Esc discard",
         NULL };
     ASSERT_WAIT_SCREEN(s, dropdown, 3000);
+    /* Nothing chosen until Down (TUI-17). */
+    const char *const drop_none[] = {
+        "..........................................",
+        "..........................................", NULL };
+    ASSERT_REGION_STYLE(s, PTY_REGION(2, 0, 2, 42), drop_none, g_legend);
+    pty_send_key(s, PTY_KEY_TAB);                /* nothing more is shared: no change */
+    pty_send_key(s, PTY_KEY_DOWN);
     const char *const drop_map[] = {
         ".........SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS.",
         "..........................................", NULL };
-    ASSERT_REGION_STYLE(s, PTY_REGION(2, 0, 2, 42), drop_map, g_legend);
+    ASSERT_WAIT_REGION_STYLE(s, PTY_REGION(2, 0, 2, 42), drop_map, g_legend, 3000);
+    ASSERT_REGION_EQ(s, PTY_REGION(0, 0, 24, 80), dropdown);
     pty_send_key(s, PTY_KEY_DOWN);
     const char *const drop_map2[] = {
         "..........................................",
         ".........SSSSSSSSSSSSSSSSSSSSSSSSSSSS.....", NULL };
     ASSERT_WAIT_REGION_STYLE(s, PTY_REGION(2, 0, 2, 42), drop_map2, g_legend, 3000);
-    pty_send_key(s, PTY_KEY_TAB);
+    pty_send_key(s, PTY_KEY_ENTER);              /* Enter takes the chosen one */
     const char *const accepted[] = {
         " New message                                                        tuikit-demo",
         "To:      albert@example.org",
@@ -641,7 +649,7 @@ static void test_compose_and_send(void) {
         "Tab next field  ctrl-s send  Esc discard",
         NULL };
     ASSERT_WAIT_SCREEN(s, second, 3000);
-    pty_send_key(s, PTY_KEY_ENTER);              /* Enter accepts the candidate */
+    pty_send_key(s, PTY_KEY_TAB);                /* one candidate: Tab writes it out */
     ASSERT_WAIT_CURSOR(s, 1, 44, 3000, "after the second address");
     pty_send_key(s, PTY_KEY_TAB);
     ASSERT_WAIT_CURSOR(s, 2, 9, 3000, "Tab: the Subject field");

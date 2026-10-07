@@ -100,7 +100,7 @@ static size_t token_start(const tui_field *fl) {
 void tui_fieldset_update_completion(tui_fieldset *f) {
     if (!f) return;
     f->ncand = 0;
-    f->cand_sel = 0;
+    f->cand_sel = -1;                  /* nothing chosen until Down */
     tui_field *fl = focused(f);
     if (!fl || fl->kind != TUI_FIELD_TEXT || !fl->complete || !fl->edit.buf) return;
     size_t start = token_start(fl);
@@ -120,6 +120,32 @@ static void accept_candidate(tui_fieldset *f) {
     const char *text = f->cand[f->cand_sel].text;
     tui_lineedit_replace(&fl->edit, token_start(fl), fl->edit.cur, text ? text : "");
     f->ncand = 0;
+}
+
+/* Tab with the drop-down open: the token becomes the longest prefix every
+ * candidate shares, when that is longer than what was typed.  Cut on a
+ * character boundary. */
+static void insert_common_prefix(tui_fieldset *f) {
+    tui_field *fl = focused(f);
+    const char *first = f->cand[0].text ? f->cand[0].text : "";
+    size_t n = strlen(first);
+    for (int i = 1; i < f->ncand; i++) {
+        const char *t = f->cand[i].text ? f->cand[i].text : "";
+        size_t k = 0;
+        while (k < n && t[k] == first[k]) k++;
+        n = k;
+    }
+    while (n > 0 && ((unsigned char)first[n] & 0xC0) == 0x80) n--;
+    size_t start = token_start(fl);
+    if (n <= fl->edit.cur - start) return;
+    char prefix[512];
+    if (n >= sizeof(prefix)) n = sizeof(prefix) - 1;
+    memcpy(prefix, first, n);
+    prefix[n] = '\0';
+    int complete = f->ncand == 1;      /* the one candidate, written out */
+    tui_lineedit_replace(&fl->edit, start, fl->edit.cur, prefix);
+    if (complete) f->ncand = 0;
+    else tui_fieldset_update_completion(f);
 }
 
 static void move_focus(tui_fieldset *f, int dir) {
@@ -151,16 +177,23 @@ tui_dialog_state tui_fieldset_handle(tui_fieldset *f, const tui_event *ev) {
     int cancel = key && (ev->key == TUI_KEY_ESC || TUI_EV_IS_CTRL(ev, 'c'));
 
     if (f->ncand > 0) {
+        /* Down moves onto the list, Up back and, from its first row, into
+         * the field again; Enter takes a chosen candidate only; Tab fills
+         * in what the candidates share.  (Decided by the human, TUI-17.) */
         if (plain && ev->key == TUI_KEY_DOWN) {
             if (f->cand_sel < f->ncand - 1) f->cand_sel++;
             return f->state;
         }
         if (plain && ev->key == TUI_KEY_UP) {
-            if (f->cand_sel > 0) f->cand_sel--;
+            if (f->cand_sel >= 0) f->cand_sel--;
             return f->state;
         }
-        if (plain && (ev->key == TUI_KEY_TAB || ev->key == TUI_KEY_ENTER)) {
+        if (plain && ev->key == TUI_KEY_ENTER && f->cand_sel >= 0) {
             accept_candidate(f);
+            return f->state;
+        }
+        if (plain && ev->key == TUI_KEY_TAB) {
+            insert_common_prefix(f);
             return f->state;
         }
         if (cancel) {                 /* closes the drop-down, keeps the text */
