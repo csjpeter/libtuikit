@@ -72,7 +72,7 @@ static void test_first_screen_and_quit(void) {
 
     pty_send_str(s, "?");
     ASSERT_WAIT_FOR(s, "Message list shortcuts", 3000);
-    pty_send_str(s, "x");
+    pty_send_str(s, "q");                        /* q goes back from the help */
     ASSERT_WAIT_SCREEN(s, screen, 3000);
     pty_send_key(s, PTY_KEY_ESC);
     ASSERT_EXIT_STATUS(s, 0, 3000);

@@ -26,7 +26,7 @@ policies/tui-interface-model.md. Every full screen is also a position check.
 | Status line | hints of the list, hints of the body, a plain message, an ok message, cleared by the next key | text, style (hint yellow, plain, bold green) | `test_reader_at_rest`, `test_reader_list_and_body`, `test_compose_refusals_and_discard`, `test_compose_and_send` |
 | Unbound keys, q on the top level | nothing changes, the program keeps running | the next key still works | `test_reader_at_rest` |
 | Esc on the top level | quits with status 0 | exit status | `test_reader_at_rest` |
-| Help (`?`) | of the list, of the body; closed by any key (j, Esc) | text, style (accent frame, bold keys) | `test_help` |
+| Help (`?`) | of the list, of the body; j, x and Enter do nothing; q, Backspace and Esc go back | text, style (accent frame, bold keys), the list unmoved | `test_help` |
 | Filter prompt (`/`) | typed, cancelled (filter kept), confirmed | text, style (accent frame), cursor | `test_filter` |
 | `c` | clears a filter, keeps the cursor on the same message; nothing without a filter | header text, selection style | `test_filter` |
 | Too small notice | below 80 columns, below 24 rows, keys ignored, Esc quits; back to 80x24 | text, style (bold red title, hint) | `test_too_small_and_resize` |

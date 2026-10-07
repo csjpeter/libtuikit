@@ -48,8 +48,9 @@ Added after the first implementation (2026-10-03):
   pressed on -- issue-manager's status filter.
 - `tui_dialog_help()` (TUI-12): the help screen of
   policies/tui-interface-model.md -- a box over the view, two columns, the
-  keys in bold, closed by any key; while it does not fit, the movement keys
-  scroll it. Its rows are `items` read in pairs, so `tui_dialog` keeps its
+  keys in bold; Esc, q and Backspace close it, the movement keys scroll it
+  when it does not fit, other keys do nothing (TUI-18; the policy's "any
+  key closes it" is changed by POL-28). Its rows are `items` read in pairs, so `tui_dialog` keeps its
   size.
 - `tui_lineedit_replace()`, for completions.
 - `tui_tty_read_password()` turns echo off before writing the prompt, and

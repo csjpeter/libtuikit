@@ -335,20 +335,31 @@ static void test_help(void) {
     int r, c;
     ASSERT_EQ_INT(pty_cursor(f.s, &r, &c), 0, "no cursor in the help");
 
-    /* It all fits: any key closes it, the movement keys too. */
-    ASSERT_EQ_INT(send(&d, "j"), TUI_DIALOG_OK, "j closes a help that fits");
+    /* TUI-18: Esc, q and Backspace go back; other keys do nothing. */
+    static const char *const ignored[] = { "j", "x", "\r", " ", "?", "\t", "G", "\x1b[6~" };
+    for (size_t i = 0; i < sizeof(ignored) / sizeof(ignored[0]); i++) {
+        ASSERT_EQ_INT(send(&d, ignored[i]), TUI_DIALOG_OPEN, "another key leaves it open");
+        ASSERT_EQ_INT(d.list.scroll_top, 0, "and it all fits: nothing scrolls");
+    }
+    ASSERT_EQ_INT(send(&d, "q"), TUI_DIALOG_OK, "q closes it");
     ASSERT_EQ_INT(send(&d, "x"), TUI_DIALOG_OK, "closed stays closed");
     tui_dialog_free(&d);
-    tui_dialog_help(&d, "Keys", keys, 3);
-    fx_draw(&f, &d);
-    ASSERT_EQ_INT(send(&d, "\x1b"), TUI_DIALOG_OK, "Esc closes it");
-    tui_dialog_free(&d);
+    static const char *const backs[] = { "\x1b", "\x7f", "\x03" };
+    static const char *const what[] = { "Esc closes it", "Backspace closes it", "Ctrl-C closes it" };
+    for (int i = 0; i < 3; i++) {
+        tui_dialog_help(&d, "Keys", keys, 3);
+        fx_draw(&f, &d);
+        ASSERT_EQ_INT(send(&d, backs[i]), TUI_DIALOG_OK, what[i]);
+        tui_dialog_free(&d);
+    }
     tui_dialog_help(&d, "Keys", keys, 3);
     tui_event resize;
     memset(&resize, 0, sizeof(resize));
     resize.type = TUI_EV_RESIZE;
     ASSERT_EQ_INT(tui_dialog_handle(&d, &resize), TUI_DIALOG_OPEN, "not a key: stays open");
-    ASSERT_EQ_INT(send(&d, "x"), TUI_DIALOG_OK, "never drawn: any key closes it");
+    ASSERT_EQ_INT(send(&d, "j"), TUI_DIALOG_OPEN, "never drawn: j does nothing");
+    ASSERT_EQ_INT(d.list.scroll_top, 0, "nothing scrolled before it was drawn");
+    ASSERT_EQ_INT(send(&d, "\x08"), TUI_DIALOG_OK, "0x08 is Backspace on some terminals: closes");
     tui_dialog_free(&d);
 
     /* Longer than the screen: the movement keys scroll it, others close. */
@@ -382,7 +393,9 @@ static void test_help(void) {
         "", "    ┌─ Many ───┐", "    │ d  four  │", "    │ e  five  │", "    │ f        │",
         "    └──────────┘", "", NULL };
     ASSERT_SCREEN_EQ(g.s, bottom);
-    ASSERT_EQ_INT(send(&d, "q"), TUI_DIALOG_OK, "another key closes it");
+    ASSERT_EQ_INT(send(&d, "x"), TUI_DIALOG_OPEN, "a scrolled help: x does nothing");
+    ASSERT_EQ_INT(d.list.scroll_top, 3, "and does not scroll");
+    ASSERT_EQ_INT(send(&d, "q"), TUI_DIALOG_OK, "q closes it");
     tui_dialog_free(&d);
 
     /* A taller screen after scrolling: the window is pulled back in. */
@@ -393,14 +406,17 @@ static void test_help(void) {
     ASSERT(fx_open(&big, 10, 20) == 0, "fixtures");
     fx_draw(&big, &d);
     ASSERT_EQ_INT(d.list.scroll_top, 0, "everything fits: from the top");
-    ASSERT_EQ_INT(send(&d, "j"), TUI_DIALOG_OK, "and j closes it now");
+    ASSERT_EQ_INT(send(&d, "j"), TUI_DIALOG_OPEN, "j does not close it");
+    ASSERT_EQ_INT(d.list.scroll_top, 0, "nor scrolls what fits");
+    ASSERT_EQ_INT(send(&d, "\x7f"), TUI_DIALOG_OK, "Backspace closes it");
     tui_dialog_free(&d);
     fx_close(&big);
 
     /* No rows; errors. */
     tui_dialog_help(&d, "Nothing", NULL, 0);
     fx_draw(&g, &d);
-    ASSERT_EQ_INT(send(&d, " "), TUI_DIALOG_OK, "an empty help closes too");
+    ASSERT_EQ_INT(send(&d, " "), TUI_DIALOG_OPEN, "an empty help: Space does nothing");
+    ASSERT_EQ_INT(send(&d, "\x1b"), TUI_DIALOG_OK, "Esc closes it");
     tui_dialog_free(&d);
     errno = 0;
     ASSERT_EQ_INT(tui_dialog_help(&d, "x", NULL, 2), -1, "pairs missing");
