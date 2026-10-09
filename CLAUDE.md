@@ -57,4 +57,7 @@ descriptors; everything else is pure and renders into a `tui_buf`.
   email-cli's and tg-cli's terminal tests over; a change that breaks one
   takes a capability away from them.
 - Source, comments and documentation are in English. C11, libc only.
-- The ABI is versioned by `SOVERSION` (= major version).
+- The ABI is versioned by `SOVERSION` (= major version). Within one, no
+  public struct changes size and no function disappears: `abi/libtuikit<N>.abi`
+  records them and `check-abi` enforces it; a new struct or function is
+  recorded when it is added (the test prints the line).

@@ -116,6 +116,10 @@ project_test(unit test-faults    SOURCES unit/test_faults.c)
 # API conformance: a man page per exported function, clean man pages, no
 # reserved names in the headers.
 project_test(unit check-api      SCRIPT unit/check_api.sh ARGS $<TARGET_FILE:tuikit> ${CMAKE_BINARY_DIR}/man ${CMAKE_SOURCE_DIR}/include TIMEOUT 120)
+# The ABI of this SOVERSION does not change (abi/libtuikit<N>.abi).
+add_executable(abi-sizes unit/abi_sizes.c)
+target_link_libraries(abi-sizes PRIVATE tuikit::tuikit)
+project_test(unit check-abi      SCRIPT unit/check_abi.sh ARGS $<TARGET_FILE:tuikit> $<TARGET_FILE:abi-sizes> ${CMAKE_SOURCE_DIR}/abi TIMEOUT 60)
 # Every declared test is in bin/, and nothing else is.
 project_test(unit check-tests    SCRIPT unit/check_tests.sh ARGS ${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt ${TUIKIT_TEST_BIN_ROOT} TIMEOUT 60)
 

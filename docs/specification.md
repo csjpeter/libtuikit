@@ -651,6 +651,18 @@ the `.deb` files with lintian: after a run the directory holds exactly that
 run's packages, after a failed run nothing. `tests/functional/package_output.sh`
 checks both on a copy of the tree, with a lintian mock for the failure.
 
+Within one SOVERSION the ABI only grows. `abi/libtuikit<N>.abi` records,
+for the SOVERSION in force, the size and alignment of every public struct a
+program allocates itself and every exported function; the unit test
+`check-abi` fails when a struct changes size or alignment, when a function
+disappears, and when a new struct or function is not recorded. A change
+that the record refuses needs a new SOVERSION, with its own record. (It
+compares sizes, not member offsets: two members of the same size swapped
+would pass, and are left to review.) The record starts at 0.2.0: 0.1.0's
+`tui_dialog` was 8 bytes smaller and the SOVERSION stayed 0 (TUI-15);
+every package built against 0.1.0 depends on `libtuikit0 (= 0.1.0)`, so
+apt never pairs it with a later library.
+
 The runtime package's `shlibs` reads `libtuikit 0 libtuikit0 (>= x.y.z)`:
 within one SOVERSION the ABI only grows, so a dependant needs *at least* the
 version it was built against. CPack's default, `=`, pins every dependant to
