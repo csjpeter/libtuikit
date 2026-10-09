@@ -1,0 +1,172 @@
+# The ABI of libtuikit.so.0, checked by tests/unit/check_abi.sh (TUI-15).
+#
+# Within one SOVERSION a program built against any release runs on every
+# later one, so no struct below changes its size or alignment and no
+# function below disappears.  A change of either needs a new SOVERSION
+# (and a new record, abi/libtuikit<N>.abi).  New structs and functions are
+# added here as they are added to the headers.
+#
+# The ABI recorded here is that of 0.2.0 and later.  0.1.0 differs: its
+# tui_dialog was 272 bytes (it grew by the checklist's `checked` pointer
+# in 0.2.0, without a SOVERSION change).  Every package built against 0.1.0
+# depends on libtuikit0 (= 0.1.0), so apt never pairs it with a later
+# library; see TUI-15.
+#
+# size <struct> <bytes> <alignment>   symbol <exported function>
+arch x86_64
+size tui_buf 32 8
+size tui_canvas 24 8
+size tui_completion 16 8
+size tui_decoder 312 8
+size tui_dialog 280 8
+size tui_event 56 8
+size tui_field 152 8
+size tui_fieldset 632 8
+size tui_history 16 8
+size tui_lineedit 104 8
+size tui_listview 16 4
+size tui_readline_opts 32 8
+size tui_rect 16 4
+size tui_style 12 4
+size tui_term_opts 16 4
+size tui_textedit 56 8
+size tui_textview 64 8
+symbol tui_buf_append
+symbol tui_buf_free
+symbol tui_buf_init
+symbol tui_buf_printf
+symbol tui_buf_puts
+symbol tui_buf_reset
+symbol tui_buf_write_fd
+symbol tui_canvas_box
+symbol tui_canvas_clear
+symbol tui_canvas_fill
+symbol tui_canvas_hline
+symbol tui_canvas_of
+symbol tui_canvas_put
+symbol tui_canvas_put_aligned
+symbol tui_canvas_set_cursor
+symbol tui_canvas_sub
+symbol tui_canvas_vline
+symbol tui_cp_sanitize
+symbol tui_cp_width
+symbol tui_decoder_feed
+symbol tui_decoder_free
+symbol tui_decoder_init
+symbol tui_decoder_next
+symbol tui_decoder_pending
+symbol tui_decoder_timeout
+symbol tui_dialog_checklist
+symbol tui_dialog_confirm
+symbol tui_dialog_free
+symbol tui_dialog_handle
+symbol tui_dialog_help
+symbol tui_dialog_is_checked
+symbol tui_dialog_menu
+symbol tui_dialog_message
+symbol tui_dialog_prompt
+symbol tui_dialog_render
+symbol tui_event_name
+symbol tui_field_choice
+symbol tui_field_text
+symbol tui_fieldset_focus
+symbol tui_fieldset_free
+symbol tui_fieldset_handle
+symbol tui_fieldset_init
+symbol tui_fieldset_render
+symbol tui_fieldset_set_error
+symbol tui_fieldset_update_completion
+symbol tui_history_add
+symbol tui_history_count
+symbol tui_history_free
+symbol tui_history_get
+symbol tui_history_init
+symbol tui_lineedit_cursor_col
+symbol tui_lineedit_free
+symbol tui_lineedit_handle
+symbol tui_lineedit_init
+symbol tui_lineedit_insert
+symbol tui_lineedit_render
+symbol tui_lineedit_replace
+symbol tui_lineedit_run
+symbol tui_lineedit_set_text
+symbol tui_listview_end
+symbol tui_listview_handle
+symbol tui_listview_home
+symbol tui_listview_init
+symbol tui_listview_is_visible
+symbol tui_listview_move_down
+symbol tui_listview_move_up
+symbol tui_listview_page_down
+symbol tui_listview_page_up
+symbol tui_listview_render
+symbol tui_listview_reveal_selected
+symbol tui_listview_select
+symbol tui_listview_set_count
+symbol tui_listview_set_viewport
+symbol tui_readline
+symbol tui_readline_opts_init
+symbol tui_rect_center
+symbol tui_rect_inset
+symbol tui_rect_intersect
+symbol tui_rect_split_h
+symbol tui_rect_split_v
+symbol tui_screen_clear
+symbol tui_screen_cols
+symbol tui_screen_fill
+symbol tui_screen_free
+symbol tui_screen_invalidate
+symbol tui_screen_new
+symbol tui_screen_put
+symbol tui_screen_render
+symbol tui_screen_resize
+symbol tui_screen_rows
+symbol tui_screen_set_cursor
+symbol tui_screen_set_sync
+symbol tui_str_fit
+symbol tui_str_fit_ellipsis
+symbol tui_str_width
+symbol tui_strn_width
+symbol tui_term_close
+symbol tui_term_fd
+symbol tui_term_flush_buf
+symbol tui_term_open
+symbol tui_term_opts_init
+symbol tui_term_resume
+symbol tui_term_size
+symbol tui_term_suspend
+symbol tui_term_wait
+symbol tui_term_write
+symbol tui_textedit_cursor
+symbol tui_textedit_handle
+symbol tui_textedit_init
+symbol tui_textedit_insert
+symbol tui_textedit_lines
+symbol tui_textedit_render
+symbol tui_textedit_set_text
+symbol tui_textedit_summary
+symbol tui_textview_append
+symbol tui_textview_at_end
+symbol tui_textview_free
+symbol tui_textview_handle
+symbol tui_textview_init
+symbol tui_textview_lines
+symbol tui_textview_render
+symbol tui_textview_scroll
+symbol tui_textview_scroll_end
+symbol tui_textview_scroll_to
+symbol tui_textview_set_text
+symbol tui_textview_top
+symbol tui_textview_wrap
+symbol tui_tty_cols
+symbol tui_tty_is
+symbol tui_tty_raw_enter
+symbol tui_tty_raw_exit
+symbol tui_tty_read_key
+symbol tui_tty_read_password
+symbol tui_tty_rows
+symbol tui_tty_wait
+symbol tui_utf8_decode
+symbol tui_utf8_encode
+symbol tui_utf8_seq_len
+symbol tui_version
