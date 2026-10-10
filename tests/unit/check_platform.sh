@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: GPL-3.0-only
+# SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-Proprietary
 # Copyright (c) 2026 Peter Csaszar (Császár Péter)
 # Created: 2026-10-10
 # Checks that no code branch exists for a platform the project is not built for.
