@@ -122,6 +122,11 @@ One test: `build/tests/unit/bin/test-decoder test_paste` (substring filter, `-l`
 lists the tests). The tests use `libptytest` as their terminal emulator; the
 library itself shares no code with it.
 
+## Platform
+
+Linux (Debian) is the only target. What binds the code to it is listed in
+[docs/portability.md](docs/portability.md).
+
 ## License
 
 GPL-3.0-only, see `LICENSE`.

@@ -35,7 +35,8 @@ descriptors; everything else is pure and renders into a `tui_buf`.
 
 - **email-cli is the reference.** Where tg-cli and email-cli differ, email-cli
   wins, and the library may only add to email-cli's terminal capabilities,
-  never remove one. Each one has a row in `libtuikit(7)`, "EMAIL-CLI
+  never remove one (its Windows stub is the one exception: Linux is the only
+  target, `policies/platform-scope-model.md`). Each one has a row in `libtuikit(7)`, "EMAIL-CLI
   EQUIVALENTS", and a test.
 - **Independent of the test instrument.** No code or logic is shared with
   libptytest (widths, colours, cell model). Renderer tests check the exact
@@ -57,6 +58,9 @@ descriptors; everything else is pure and renders into a `tui_buf`.
   email-cli's and tg-cli's terminal tests over; a change that breaks one
   takes a capability away from them.
 - Source, comments and documentation are in English. C11, libc only.
+- **Linux is the only target.** No `#ifdef` branch for another platform
+  (`check-platform` fails on one); what binds the code to Linux is listed in
+  `docs/portability.md`.
 - **Every source file and script starts with the workspace header**
   (`policies/source-header-model.md`): SPDX licence tag, copyright line,
   `Created:` date, one purpose line. `check-headers` fails without it; the

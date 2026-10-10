@@ -12,9 +12,7 @@
  * with the character it belongs to.
  */
 
-#if !defined(_WIN32)
 #define _POSIX_C_SOURCE 200809L
-#endif
 
 #include "tuikit/lineedit.h"
 #include "tuikit/buf.h"
@@ -394,8 +392,6 @@ static void visible_text(const tui_lineedit *le, int avail, tui_buf *out) {
     }
 }
 
-#if !defined(_WIN32)
-
 #include <poll.h>
 #include <time.h>
 #include <unistd.h>
@@ -587,27 +583,3 @@ int tui_readline(const char *prompt, char *buf, size_t size, const tui_readline_
     errno = e;
     return rc;
 }
-
-#else  /* _WIN32 */
-
-int tui_lineedit_run(tui_lineedit *le, int in_fd, int out_fd, int row, int col,
-                     const char *prompt) {
-    (void)le; (void)in_fd; (void)out_fd; (void)row; (void)col; (void)prompt;
-    errno = ENOTTY;
-    return -1;
-}
-
-void tui_readline_opts_init(tui_readline_opts *o) {
-    if (!o) return;
-    memset(o, 0, sizeof(*o));
-    o->out_fd = 1;
-}
-
-int tui_readline(const char *prompt, char *buf, size_t size, const tui_readline_opts *o) {
-    (void)prompt; (void)o;
-    if (buf && size) buf[0] = '\0';
-    errno = ENOTTY;
-    return TUI_READLINE_EOF;
-}
-
-#endif

@@ -156,10 +156,6 @@ returns 1 when a read will not block, 0 on timeout, \-1 with
 .BR tui_tty_read_password ()
 returns the length of the password, or \-1 at the end of the input or on
 error.
-.SH NOTES
-On Windows these functions behave as email-cli's stub: not a terminal,
-80 columns, 0 rows, raw mode unavailable
-.RB ( ENOTTY ).
 .SH SEE ALSO
 .BR tui_term_open (3),
 .BR tui_decoder_init (3),

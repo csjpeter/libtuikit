@@ -9,9 +9,7 @@
  * lists them under "email-cli equivalents".
  */
 
-#if !defined(_WIN32)
 #define _POSIX_C_SOURCE 200809L
-#endif
 
 #include "tuikit/tty.h"
 #include "internal.h"
@@ -19,58 +17,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-
-#if defined(_WIN32)
-
-#include <io.h>
-#include <time.h>
-
-int tui__write_all(int fd, const void *p, size_t n) {
-    const char *s = p;
-    while (n > 0) {
-        int w = _write(fd, s, (unsigned)(n > 0x7FFFFFFF ? 0x7FFFFFFF : n));
-        if (w < 0) return -1;
-        s += w;
-        n -= (size_t)w;
-    }
-    return 0;
-}
-
-int64_t tui__now_ms(void) {
-    struct timespec ts;
-    timespec_get(&ts, TIME_UTC);
-    return (int64_t)ts.tv_sec * 1000 + ts.tv_nsec / 1000000;
-}
-
-/* email-cli's Windows stub semantics: no terminal. */
-int  tui_tty_is(int fd)   { (void)fd; return 0; }
-int  tui_tty_cols(int fd) { (void)fd; return 80; }
-int  tui_tty_rows(int fd) { (void)fd; return 0; }
-tui_tty_raw *tui_tty_raw_enter(int fd, unsigned flags) {
-    (void)fd; (void)flags;
-    errno = ENOTTY;
-    return NULL;
-}
-void tui_tty_raw_exit(tui_tty_raw **state) { if (state) *state = NULL; }
-int  tui_tty_wait(int fd, int timeout_ms) {
-    (void)fd; (void)timeout_ms;
-    errno = ENOTTY;
-    return -1;
-}
-int  tui_tty_read_key(int fd, tui_event *ev) {
-    (void)fd;
-    if (ev) { memset(ev, 0, sizeof(*ev)); ev->type = TUI_EV_HANGUP; }
-    errno = ENOTTY;
-    return -1;
-}
-int  tui_tty_read_password(int in_fd, int out_fd, const char *prompt,
-                           char *buf, size_t size) {
-    (void)in_fd; (void)out_fd; (void)prompt; (void)buf; (void)size;
-    errno = ENOTTY;
-    return -1;
-}
-
-#else
 
 #include <poll.h>
 #include <signal.h>
@@ -371,4 +317,3 @@ int tui_tty_read_password(int in_fd, int out_fd, const char *prompt,
     return n;
 }
 
-#endif /* !_WIN32 */

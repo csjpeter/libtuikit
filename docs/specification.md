@@ -99,7 +99,7 @@ libtuikit equivalent:
 | `input_line_init/run` — row, prompt, initial text, cursor at end, Enter → 1, ESC/Ctrl-C → 0 | `tui_lineedit_init` / `tui_lineedit_run` — same contract |
 | `InputLine.tab_fn`, `shift_tab_fn`, `render_below` hooks | the same three hooks on `tui_lineedit` |
 | immediate-mode drawing (escape sequences at a row, real terminal cursor) | `tui_lineedit_run` draws directly at a terminal row; the retained `tui_screen` is optional, never required |
-| builds on Windows (MinGW) with a stub terminal layer | builds on Windows with the same stub semantics (§1) |
+| builds on Windows (MinGW) with a stub terminal layer | not carried over: Linux is the only target (§1, docs/portability.md) |
 
 A unit test per row of this table keeps the promise checkable.
 
@@ -128,10 +128,10 @@ Non-goals:
 - No ncurses, no terminfo, no dependency beyond libc. The target terminal is
   xterm-compatible (`xterm-256color`); sequences outside the common
   xterm/VT220 subset are not emitted.
-- No Windows console implementation. The library does **build** on Windows
-  (MinGW) with email-cli's stub semantics — not a TTY, 80 columns, 0 rows,
-  raw mode unavailable, width 1 — so that email-cli's Windows build keeps
-  compiling after it migrates.
+- No platform but Linux (policies/platform-scope-model.md). Nothing is
+  built, tested or promised for macOS, Windows or Android, and the library
+  carries no stub for them (email-cli's Windows stub was not taken over);
+  what binds the code to Linux is listed in `docs/portability.md`.
 - No mouse in the first version (see *Open questions*).
 
 ## 2. Design principles
