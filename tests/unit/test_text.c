@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: BSD-2-Clause */
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Copyright 2026 Péter Császár */
 
 /* Unit tests of tui_text: UTF-8, widths, sanitising, fitting. */

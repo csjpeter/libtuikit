@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright 2026 Péter Császár
+
 # A consuming project, as one of the workspace's programs would be:
 # libtuikit through find_package(), libptytest for the PTY test.
 cmake_minimum_required(VERSION 3.20)
