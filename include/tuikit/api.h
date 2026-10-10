@@ -14,9 +14,7 @@
  * marked TUI_API are exported.  See libtuikit(7).
  */
 
-#if defined(_WIN32)
-#  define TUI_API
-#elif defined(__GNUC__)
+#if defined(__GNUC__)
 #  define TUI_API __attribute__((visibility("default")))
 #else
 #  define TUI_API

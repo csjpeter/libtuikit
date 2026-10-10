@@ -127,6 +127,7 @@ target_link_libraries(abi-sizes PRIVATE tuikit::tuikit)
 project_test(unit check-abi      SCRIPT unit/check_abi.sh ARGS $<TARGET_FILE:tuikit> $<TARGET_FILE:abi-sizes> ${CMAKE_SOURCE_DIR}/abi TIMEOUT 60)
 project_test(unit check-license  SCRIPT unit/check_license.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
 project_test(unit check-headers  SCRIPT unit/check_headers.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
+project_test(unit check-platform  SCRIPT unit/check_platform.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
 # Every declared test is in bin/, and nothing else is.
 project_test(unit check-tests    SCRIPT unit/check_tests.sh ARGS ${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt ${TUIKIT_TEST_BIN_ROOT} TIMEOUT 60)
 

@@ -13,9 +13,7 @@
  * the handled signals are blocked while those variables change.
  */
 
-#if !defined(_WIN32)
 #define _POSIX_C_SOURCE 200809L
-#endif
 
 #include "tuikit/term.h"
 #include "internal.h"
@@ -23,34 +21,6 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
-
-#if defined(_WIN32)
-
-struct tui_term { int unused; };
-
-void tui_term_opts_init(tui_term_opts *o) {
-    if (!o) return;
-    memset(o, 0, sizeof(*o));
-    o->in_fd = 0;
-    o->out_fd = 1;
-    o->flags = TUI_TERM_ALTSCREEN | TUI_TERM_HIDE_CURSOR | TUI_TERM_NOWRAP;
-    o->esc_delay_ms = TUI_ESC_DELAY_DEFAULT;
-}
-tui_term *tui_term_open(const tui_term_opts *o) { (void)o; errno = ENOTTY; return NULL; }
-int  tui_term_close(tui_term *t) { (void)t; return 0; }
-int  tui_term_size(tui_term *t, int *r, int *c) { (void)t; (void)r; (void)c; errno = ENOTTY; return -1; }
-int  tui_term_write(tui_term *t, const void *p, size_t n) { (void)t; (void)p; (void)n; errno = ENOTTY; return -1; }
-int  tui_term_flush_buf(tui_term *t, tui_buf *b) { (void)t; tui_buf_reset(b); errno = ENOTTY; return -1; }
-int  tui_term_suspend(tui_term *t) { (void)t; errno = ENOTTY; return -1; }
-int  tui_term_resume(tui_term *t) { (void)t; errno = ENOTTY; return -1; }
-int  tui_term_wait(tui_term *t, int timeout_ms, struct pollfd *extra, int n_extra, tui_event *ev) {
-    (void)t; (void)timeout_ms; (void)extra; (void)n_extra; (void)ev;
-    errno = ENOTTY;
-    return -1;
-}
-int  tui_term_fd(const tui_term *t) { (void)t; return -1; }
-
-#else
 
 #include <fcntl.h>
 #include <poll.h>
@@ -665,4 +635,3 @@ int tui_term_wait(tui_term *t, int timeout_ms, struct pollfd *extra,
     return rc;
 }
 
-#endif /* !_WIN32 */

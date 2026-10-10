@@ -12,11 +12,8 @@
  *
  * For programs that are not full-screen all the time: size a paged
  * listing, enter raw mode for one keypress, ask for a password.  This is
- * the style of email-cli's terminal layer, and every capability of that
+ * the style of email-cli's terminal layer, and every terminal capability of that
  * layer is here (see libtuikit(7), "email-cli equivalents").
- *
- * On Windows these compile to email-cli's stub behaviour: not a terminal,
- * 80 columns, 0 rows, raw mode unavailable.
  */
 
 #include "tuikit/api.h"
