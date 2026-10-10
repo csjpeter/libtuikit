@@ -31,7 +31,8 @@ files=0
 while IFS= read -r f; do
     files=$((files + 1))
     check
-    head -5 "$f" | grep -q "SPDX-License-Identifier: $spdx" ||
+    first="$(head -5 "$f")"   # not "head | grep -q": under pipefail an early exit of grep reads as a failure (TUI-36)
+    [[ "$first" == *"SPDX-License-Identifier: $spdx"* ]] ||
         fail "$f: no 'SPDX-License-Identifier: $spdx' in its first lines"
 done < <(find . \( -path ./build -o -path ./.git \) -prune -o -type f \
               \( -name '*.c' -o -name '*.h' -o -name '*.sh' -o -name '*.cmake' \
@@ -60,10 +61,12 @@ grep -q '^License: GPL-3$' CMakeLists.txt || fail "CMakeLists.txt: debian/copyri
 # The dual licence is said in LICENSE and in debian/copyright
 # (policies/licensing-model.md, "What the dual licence is written as").
 check
-head -4 LICENSE | tr '\n' ' ' | grep -q 'Licensed under the GNU GPL version 3 only. The copyright holder also licenses this work, separately, under proprietary terms.' ||
+lic_start="$(head -4 LICENSE | tr '\n' ' ')"
+[[ "$lic_start" == *'Licensed under the GNU GPL version 3 only. The copyright holder also licenses this work, separately, under proprietary terms.'* ]] ||
     fail "LICENSE does not start with the dual-licence sentence"
 check
-tr '\n' ' ' < CMakeLists.txt | tr -s ' ' | grep -q 'The copyright holder also licenses this work, separately, under proprietary terms' ||
+cmake_flat="$(tr '\n' ' ' < CMakeLists.txt | tr -s ' ')"
+[[ "$cmake_flat" == *'The copyright holder also licenses this work, separately, under proprietary terms'* ]] ||
     fail "CMakeLists.txt: debian/copyright does not say that the holder licenses the work separately"
 
 check

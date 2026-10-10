@@ -278,7 +278,7 @@ run_lintian() {
             local shlibs
             shlibs="$(dpkg-deb -I "$deb" shlibs)"
             echo "shlibs: $shlibs"
-            if ! printf '%s\n' "$shlibs" | grep -Eqx 'libtuikit [0-9]+ libtuikit[0-9]+ \(>= [0-9.]+\)'; then
+            if ! grep -Eqx 'libtuikit [0-9]+ libtuikit[0-9]+ \(>= [0-9.]+\)' <<< "$shlibs"; then
                 echo "lintian: $(basename "$deb"): shlibs must be 'libtuikit N libtuikitN (>= VERSION)'" >&2
                 rc=1
             fi

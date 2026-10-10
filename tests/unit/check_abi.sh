@@ -60,7 +60,9 @@ current_syms="$(nm -D --defined-only "$lib" | awk '$2 == "T" && $3 ~ /^tui_/ { p
 while read -r kind name; do
     [ "$kind" = symbol ] || continue
     run=$((run + 1))
-    if ! printf '%s\n' "$current_syms" | grep -qx "$name"; then
+    # A here-string, not a pipe: "grep -q" leaves at its first match, and under
+    # pipefail the printf feeding it would then read as a failure (TUI-36).
+    if ! grep -qx "$name" <<< "$current_syms"; then
         fail "$name is recorded but no longer exported -- a removal needs a new SOVERSION"
     fi
 done < "$record"

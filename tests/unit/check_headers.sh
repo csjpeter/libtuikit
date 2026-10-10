@@ -44,7 +44,7 @@ while IFS= read -r f; do
                 fail "$f: third header line is not 'Created: YYYY-MM-DD': '${h[2]}'"
             fi
             [ "${#h[@]}" -ge 4 ] && [ -n "${h[3]}" ] || fail "$f: no purpose line"
-            printf '%s\n' "${h[@]}" | grep -q '@' && fail "$f: the header contains an '@' (an e-mail address?)" || true
+            [[ "${h[*]}" != *@* ]] || fail "$f: the header contains an '@' (an e-mail address?)"
             ;;
     esac
 done < <(find . \( -path ./build -o -path ./.git \) -prune -o -type f \
