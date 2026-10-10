@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: BSD-2-Clause */
+/* SPDX-License-Identifier: GPL-3.0-or-later */
 /* Copyright 2026 Péter Császár */
 
 #include "tuikit/text.h"

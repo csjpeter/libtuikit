@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright 2026 Péter Császár
+
 # The example program and its PTY test.  The test is self-contained
 # (libptytest only), so "manage.sh consumer" can build both against the
 # installed packages as a consuming project would.

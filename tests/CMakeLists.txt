@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright 2026 Péter Császár
+
 # Test suites.  One executable per suite; the kind is the CTest label, so
 # "ctest -L unit" and "ctest -L pty" run one kind each.
 # See policies/testing-model.md.
@@ -120,6 +123,7 @@ project_test(unit check-api      SCRIPT unit/check_api.sh ARGS $<TARGET_FILE:tui
 add_executable(abi-sizes unit/abi_sizes.c)
 target_link_libraries(abi-sizes PRIVATE tuikit::tuikit)
 project_test(unit check-abi      SCRIPT unit/check_abi.sh ARGS $<TARGET_FILE:tuikit> $<TARGET_FILE:abi-sizes> ${CMAKE_SOURCE_DIR}/abi TIMEOUT 60)
+project_test(unit check-license  SCRIPT unit/check_license.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
 # Every declared test is in bin/, and nothing else is.
 project_test(unit check-tests    SCRIPT unit/check_tests.sh ARGS ${CMAKE_CURRENT_SOURCE_DIR}/CMakeLists.txt ${TUIKIT_TEST_BIN_ROOT} TIMEOUT 60)
 

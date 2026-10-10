@@ -1,4 +1,6 @@
 #!/bin/sh
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright 2026 Péter Császár
 # API conformance checks that a C test cannot make:
 #
 #   1. every function the shared library exports has a man page in
