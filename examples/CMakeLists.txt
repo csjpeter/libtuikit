@@ -13,7 +13,7 @@ target_link_libraries(tuikit-demo PRIVATE tuikit::tuikit)
 
 add_executable(test-tuikit-demo test_tuikit_demo.c)
 target_compile_options(test-tuikit-demo PRIVATE -Wall -Wextra)
-target_link_libraries(test-tuikit-demo PRIVATE ptytest::ptytest)
+target_link_libraries(test-tuikit-demo PRIVATE ${TUIKIT_PTYTEST})
 add_dependencies(test-tuikit-demo tuikit-demo)
 
 add_test(NAME pty.test-tuikit-demo

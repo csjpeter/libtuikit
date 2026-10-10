@@ -60,6 +60,11 @@ descriptors; everything else is pure and renders into a `tui_buf`.
 - Source, comments and documentation are in English. C11, libc only.
 - **The owner's private domain is in no file** (`policies/private-names-model.md`;
   `check-private-names` fails on it). Packaging contact is the commit identity.
+- **libptytest comes bundled or as the package** (`WORKSPACE_LIBS=bundled|system|auto`,
+  default bundled: the submodule `deps/libptytest`, pinned to a release tag,
+  never edited in place; a change it needs is a ticket in libptytest, then
+  the pin moves to the new tag). `manage.sh` initialises the submodule itself;
+  the checks of this project skip `deps/`.
 - **Linux is the only target.** No `#ifdef` branch for another platform
   (`check-platform` fails on one); what binds the code to Linux is listed in
   `docs/portability.md`.

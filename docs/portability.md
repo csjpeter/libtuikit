@@ -42,6 +42,7 @@ say what the build and test host is.
 | Dependency | Where | Would need |
 |---|---|---|
 | `libptytest`, built on `openpty(3)` (`-lutil` on older glibc), emulates the terminal | `tests/` | Nothing: the test host is Linux regardless |
+| libptytest as a pinned submodule (`deps/libptytest`, `WORKSPACE_LIBS=bundled`, the default) or as `libptytest-dev` (`system`); both are exercised: the default gates build the first, `tests/functional/workspace_libs.sh` configures, builds and runs a test against the second (and says so when the package is not installed) | `CMakeLists.txt`, `manage.sh`, `tests/functional/workspace_libs.sh` | Nothing: both are Linux-hosted; the consumer gate builds the submodule into a prefix of its own and uses it as a package |
 | Link-time fault injection with `-Wl,--wrap` (GNU ld, lld) | `tests/common/faults.c`, `tests/CMakeLists.txt` | Apple's ld64 does not support `--wrap`; another way to inject faults |
 | AddressSanitizer and UBSan, Valgrind, lcov (`./manage.sh test`, `valgrind`, `coverage`) | `manage.sh`, `CMakeLists.txt` | Nothing: the test host is Linux regardless |
 | CPack `.deb` packages, `dpkg`, `lintian`, `apt` staging | `CMakeLists.txt`, `manage.sh`, `cmake/deb-post-build.cmake` | Nothing: the packages are Debian packages |

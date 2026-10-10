@@ -34,7 +34,7 @@ while IFS= read -r f; do
     first="$(head -5 "$f")"   # not "head | grep -q": under pipefail an early exit of grep reads as a failure (TUI-36)
     [[ "$first" == *"SPDX-License-Identifier: $spdx"* ]] ||
         fail "$f: no 'SPDX-License-Identifier: $spdx' in its first lines"
-done < <(find . \( -path ./build -o -path ./.git \) -prune -o -type f \
+done < <(find . \( -path ./build -o -path ./.git -o -path ./deps \) -prune -o -type f \
               \( -name '*.c' -o -name '*.h' -o -name '*.sh' -o -name '*.cmake' \
                  -o -name '*.in' -o -name CMakeLists.txt -o -name '*.3' -o -name '*.7' \) \
               -print | sort)
@@ -43,7 +43,7 @@ check
 
 # No other identifier anywhere (the generator's template string counts too).
 check
-other="$(grep -rIn 'SPDX-License-Identifier' --exclude-dir=build --exclude-dir=.git . |
+other="$(grep -rIn 'SPDX-License-Identifier' --exclude-dir=build --exclude-dir=.git --exclude-dir=deps . |
          grep -v "SPDX-License-Identifier: $spdx" | grep -v -e 'check_license.sh' -e 'check_headers.sh' || true)"
 [ -z "$other" ] || fail "another licence identifier:
 $other"
@@ -51,7 +51,7 @@ $other"
 # "Or later" is not agreed to in advance (policies/licensing-model.md): the
 # licence text itself offers it, and nothing else says it.
 check
-later="$(grep -rIn -i -E 'or[ -]later|GPL-3\+|any later version' --exclude-dir=build --exclude-dir=.git \
+later="$(grep -rIn -i -E 'or[ -]later|GPL-3\+|any later version' --exclude-dir=build --exclude-dir=.git --exclude-dir=deps \
          --exclude=LICENSE --exclude=check_license.sh . || true)"
 [ -z "$later" ] || fail "'or later' is said:
 $later"

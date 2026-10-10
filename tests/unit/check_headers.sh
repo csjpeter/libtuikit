@@ -47,7 +47,7 @@ while IFS= read -r f; do
             [[ "${h[*]}" != *@* ]] || fail "$f: the header contains an '@' (an e-mail address?)"
             ;;
     esac
-done < <(find . \( -path ./build -o -path ./.git \) -prune -o -type f \
+done < <(find . \( -path ./build -o -path ./.git -o -path ./deps \) -prune -o -type f \
               \( -name '*.c' -o -name '*.h' -o -name '*.sh' -o -name '*.cmake' -o -name '*.in' \
                  -o -name CMakeLists.txt -o -name lintian-overrides \) -print | sed 's@^\./@@' | sort)
 

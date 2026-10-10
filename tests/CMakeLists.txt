@@ -72,7 +72,7 @@ function(project_test _cat _name)
         endif()
         target_include_directories(${_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/common")
         target_compile_options(${_name} PRIVATE -Wall -Wextra -Wshadow)
-        target_link_libraries(${_name} PRIVATE ${T_LIB} ptytest::ptytest)
+        target_link_libraries(${_name} PRIVATE ${T_LIB} ${TUIKIT_PTYTEST})
         if(TUIKIT_UTIL_LIB)
             target_link_libraries(${_name} PRIVATE util)   # openpty() on older glibc
         endif()
@@ -150,3 +150,4 @@ add_dependencies(test-compat-pty compat-harness)
 
 # --- functional: manage.sh itself, with mocks of our own ------------------
 project_test(functional package-output SCRIPT functional/package_output.sh ARGS ${CMAKE_SOURCE_DIR} ${TUIKIT_TEST_TMPDIR} TIMEOUT 900)
+project_test(functional workspace-libs SCRIPT functional/workspace_libs.sh ARGS ${CMAKE_SOURCE_DIR} ${TUIKIT_TEST_TMPDIR} TIMEOUT 900)
