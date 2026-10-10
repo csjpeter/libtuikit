@@ -57,6 +57,10 @@ descriptors; everything else is pure and renders into a `tui_buf`.
   email-cli's and tg-cli's terminal tests over; a change that breaks one
   takes a capability away from them.
 - Source, comments and documentation are in English. C11, libc only.
+- **Every source file and script starts with the workspace header**
+  (`policies/source-header-model.md`): SPDX licence tag, copyright line,
+  `Created:` date, one purpose line. `check-headers` fails without it; the
+  licence declarations are held together by `check-license`.
 - The ABI is versioned by `SOVERSION` (= major version). Within one, no
   public struct changes size and no function disappears: `abi/libtuikit<N>.abi`
   records them and `check-abi` enforces it; a new struct or function is

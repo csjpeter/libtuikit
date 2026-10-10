@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Copyright 2026 Péter Császár
-# Maintenance front end of libtuikit.
-#
+# Copyright (c) 2026 Peter Csaszar (Császár Péter)
+# Created: 2026-10-03
+# Maintenance front end of libtuikit: build, test, check and package.
+
 # Every verb delegates to the real tool -- CMake, CTest, CPack, Valgrind,
 # lcov -- and decides nothing their own configuration should decide.  The
 # vocabulary is the workspace's: see policies/manage-sh-model.md.

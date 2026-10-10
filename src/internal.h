@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copyright 2026 Péter Császár */
+/* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
+/* Created: 2026-10-03 */
+/* Declarations shared between the library's own sources; not installed. */
 
 #ifndef LIBTUIKIT_INTERNAL_H
 #define LIBTUIKIT_INTERNAL_H

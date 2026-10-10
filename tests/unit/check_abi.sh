@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Copyright 2026 Péter Császár
+# Copyright (c) 2026 Peter Csaszar (Császár Péter)
+# Created: 2026-10-09
+# Checks that the ABI of one SOVERSION only grows: struct sizes and exported functions.
+
 #
 # Within one SOVERSION the ABI only grows (TUI-15): no public struct a
 # program allocates changes its size or alignment, and no exported

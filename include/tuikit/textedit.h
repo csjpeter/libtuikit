@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copyright 2026 Péter Császár */
+/* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
+/* Created: 2026-10-05 */
+/* Public API: tui_textedit, the multi-line editor. */
 
 #ifndef LIBTUIKIT_TEXTEDIT_H
 #define LIBTUIKIT_TEXTEDIT_H

@@ -1,6 +1,9 @@
 #!/bin/sh
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Copyright 2026 Péter Császár
+# Copyright (c) 2026 Peter Csaszar (Császár Péter)
+# Created: 2026-10-03
+# API conformance: a man page for every exported function and no groff warning.
+
 # API conformance checks that a C test cannot make:
 #
 #   1. every function the shared library exports has a man page in

@@ -651,6 +651,14 @@ the `.deb` files with lintian: after a run the directory holds exactly that
 run's packages, after a failed run nothing. `tests/functional/package_output.sh`
 checks both on a copy of the tree, with a lintian mock for the failure.
 
+Every source file and script starts with the workspace's file header
+(policies/source-header-model.md): the SPDX licence tag, the copyright line,
+the `Created:` date of the commit that added the file, and one purpose line.
+The generated `src/width_table.c` says that it is generated instead. The unit
+test `check-headers` fails on a file without it, with a copyright line of
+another holder, with an invalid or future date, or with an e-mail address in
+the header; the man pages carry the SPDX tag and the copyright line only.
+
 Within one SOVERSION the ABI only grows. `abi/libtuikit<N>.abi` records,
 for the SOVERSION in force, the size and alignment of every public struct a
 program allocates itself and every exported function; the unit test

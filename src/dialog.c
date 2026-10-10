@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copyright 2026 Péter Császár */
+/* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
+/* Created: 2026-10-03 */
+/* The modal dialogs: message, confirm, prompt, menu, checklist and help. */
 
 #include "tuikit/dialog.h"
 #include "tuikit/text.h"

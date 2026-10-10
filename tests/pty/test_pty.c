@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copyright 2026 Péter Császár */
+/* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
+/* Created: 2026-10-03 */
+/* PTY suite: terminal-mode behaviour of real programs through a pseudo-terminal. */
 
 /*
  * PTY suite: real programs through a real pseudo-terminal, every screen

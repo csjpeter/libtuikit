@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (c) 2026 Peter Csaszar (Császár Péter)
+# Created: 2026-10-03
+# Lintian overrides of the libtuikit packages: the XB- build metadata fields.
+
 # XB-Git-Commit and XB-Build-Date carry the build's identity.  The XB- prefix
 # is Debian's own mechanism for adding a field to a binary package, so the
 # field is correct and lintian simply has no name for it.  It goes beside the

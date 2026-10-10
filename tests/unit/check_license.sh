@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Copyright 2026 Péter Császár
+# Copyright (c) 2026 Peter Csaszar (Császár Péter)
+# Created: 2026-10-10
+# Checks that every licence declaration of the project says the same.
+
 #
 # The licence is declared once and every place says the same (TUI-21,
 # policies/studies/licensing-survey.md): LICENSE is the GPL version 3, each
@@ -39,7 +42,7 @@ check
 # No other identifier anywhere (the generator's template string counts too).
 check
 other="$(grep -rIn 'SPDX-License-Identifier' --exclude-dir=build --exclude-dir=.git . |
-         grep -v "SPDX-License-Identifier: $spdx" | grep -v 'check_license.sh' || true)"
+         grep -v "SPDX-License-Identifier: $spdx" | grep -v -e 'check_license.sh' -e 'check_headers.sh' || true)"
 [ -z "$other" ] || fail "another licence identifier:
 $other"
 

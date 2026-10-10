@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copyright 2026 Péter Császár */
+/* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
+/* Created: 2026-10-03 */
+/* Unit tests of tui_term over a pseudo-terminal pair. */
 
 /*
  * Unit tests of tui_term over a real pseudo-terminal pair.  The session

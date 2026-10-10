@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Copyright 2026 Péter Császár
+# Copyright (c) 2026 Peter Csaszar (Császár Péter)
+# Created: 2026-10-06
+# Checks that every declared test is built where it is expected, and nothing else is.
+
 #
 # Every test declared in tests/CMakeLists.txt is built into
 # <root>/<category>/bin/<name>, and every file there is declared
