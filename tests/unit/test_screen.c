@@ -412,6 +412,37 @@ static void test_last_cell_and_position_after_edge(void) {
     tui_buf_free(&b);
 }
 
+static void test_bidi_controls_are_dropped(void) {
+    static const char *const cases[] = {
+        "A\xe2\x80\xae" "B",       /* U+202E right-to-left override */
+        "A\xe2\x80\xaa" "B",       /* U+202A */
+        "A\xe2\x80\xad" "B",       /* U+202D */
+        "A\xe2\x81\xa6" "B",       /* U+2066 isolate */
+        "A\xe2\x81\xa9" "B",       /* U+2069 */
+        "A\xe2\x80\x8e" "B",       /* U+200E */
+        "A\xe2\x80\x8f" "B",       /* U+200F */
+        "A\xd8\x9c" "B",            /* U+061C */
+        "\xe2\x80\xae" "AB",       /* first in the text: nothing to join */
+    };
+    for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
+        tui_screen *scr = tui_screen_new(1, 6);
+        tui_buf b;
+        tui_buf_init(&b);
+        PtySession *s = pty_open(6, 1);
+        ASSERT(scr && s, "fixtures");
+        ASSERT_EQ_INT(tui_screen_put(scr, 0, 0, 0, cases[i], TUI_STYLE_DEFAULT), 2,
+                      "a bidi control takes no column");
+        render_feed(scr, s, &b);
+        ASSERT_BYTES(b.data, b.len, SYNC_ON CLEAR "AB\033[?25l" SYNC_OFF,
+                     "no byte of the control reaches the terminal");
+        const char *const expect[] = { "AB", NULL };
+        ASSERT_SCREEN_EQ(s, expect);
+        pty_close(s);
+        tui_screen_free(scr);
+        tui_buf_free(&b);
+    }
+}
+
 static void test_failed_buffer(void) {
     tui_screen *scr = tui_screen_new(1, 4);
     tui_buf b;
@@ -441,6 +472,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_cursor),
     TEST_CASE(test_invalidate_and_resize),
     TEST_CASE(test_last_cell_and_position_after_edge),
+    TEST_CASE(test_bidi_controls_are_dropped),
     TEST_CASE(test_failed_buffer),
 };
 

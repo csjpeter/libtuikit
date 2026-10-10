@@ -14,6 +14,7 @@
  * result does not depend on how the terminal treats the space around it.
  */
 
+#include "internal.h"
 #include "tuikit/screen.h"
 #include "tuikit/text.h"
 
@@ -169,6 +170,7 @@ int tui_screen_put(tui_screen *s, int row, int col, int max_cols,
         uint32_t cp;
         int k = tui_utf8_decode(utf8 + i, n - i, &cp);
         i += (size_t)k;
+        if (tui__cp_is_bidi_control(cp)) continue;   /* never drawn */
         cp = tui_cp_sanitize(cp);
         int w = tui_cp_width(cp);
         if (w == 0) {

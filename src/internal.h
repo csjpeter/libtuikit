@@ -27,6 +27,11 @@ int tui__apply_mode(int fd, const struct termios *want);
 /* write(2) of all @p n bytes, retrying on EINTR and polling on EAGAIN. */
 int tui__write_all(int fd, const void *p, size_t n);
 
+/* Whether @p cp is a bidirectional control (U+061C, U+200E/F,
+ * U+202A..202E, U+2066..2069): text drawn from an untrusted source drops
+ * it, as a terminal that implements bidi would reorder what is around it. */
+int tui__cp_is_bidi_control(uint32_t cp);
+
 /* Milliseconds of a monotonic clock. */
 int64_t tui__now_ms(void);
 

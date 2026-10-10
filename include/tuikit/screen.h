@@ -150,7 +150,9 @@ TUI_API void tui_screen_clear(tui_screen *s, tui_style style);
  * @brief Writes UTF-8 text from (@p row, @p col), at most @p max_cols
  *        columns (<= 0: to the right edge), clipped to the screen.
  *
- * Controls are drawn as U+00B7 (tui_cp_sanitize(3)); a wide character
+ * Controls are drawn as U+00B7 (tui_cp_sanitize(3)); the bidirectional
+ * controls (U+061C, U+200E/F, U+202A..202E, U+2066..2069) are dropped, so
+ * that text from an untrusted source cannot reorder what is around it; a wide character
  * that does not fit is not drawn by halves; a combining mark joins the
  * character before it in the same text (a cell keeps two).  Writing over
  * half of a wide character blanks the other half.

@@ -90,6 +90,9 @@ Every character is passed through
 .BR tui_cp_sanitize (3),
 so a control or an escape sequence in the text is drawn as U+00B7 and
 never reaches the terminal.
+The bidirectional controls (U+061C, U+200E, U+200F, U+202A..U+202E and
+U+2066..U+2069) are dropped and take no column, so text from an untrusted
+source cannot make a terminal reorder what is around it.
 A wide character takes two cells and is never drawn by halves; writing
 over half of one blanks its other half.
 A combining mark joins the character before it in the same text (a cell
