@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copyright 2026 Péter Császár */
+/* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
+/* Created: 2026-10-03 */
+/* PTY test of tuikit-demo, which also serves as the consumer check against the installed packages. */
 
 /*
  * The example's own PTY test: tuikit-demo through a real pseudo-terminal,

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copyright 2026 Péter Császár */
+/* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
+/* Created: 2026-10-03 */
+/* Public API: tui_listview, a scrolling list with a selection. */
 
 #ifndef LIBTUIKIT_LISTVIEW_H
 #define LIBTUIKIT_LISTVIEW_H

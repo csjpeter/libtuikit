@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copyright 2026 Péter Császár */
+/* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
+/* Created: 2026-10-05 */
+/* The multi-line editor. */
 
 /*
  * The multi-line editor.  Positions are byte offsets kept on character

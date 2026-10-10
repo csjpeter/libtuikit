@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copyright 2026 Péter Császár */
+/* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
+/* Created: 2026-10-03 */
+/* Public API: tui_tty, descriptor-level terminal helpers. */
 
 #ifndef LIBTUIKIT_TTY_H
 #define LIBTUIKIT_TTY_H

@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copyright 2026 Péter Császár */
+/* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
+/* Created: 2026-10-03 */
+/* The full-screen session: raw mode, screen modes, size, signals and the event wait. */
 
 /*
  * The full-screen session: raw mode, the screen modes around it, size,

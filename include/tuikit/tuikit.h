@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copyright 2026 Péter Császár */
+/* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
+/* Created: 2026-10-03 */
+/* Public API: the umbrella header that includes all of libtuikit. */
 
 #ifndef LIBTUIKIT_TUIKIT_H
 #define LIBTUIKIT_TUIKIT_H

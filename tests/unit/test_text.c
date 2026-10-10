@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copyright 2026 Péter Császár */
+/* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
+/* Created: 2026-10-03 */
+/* Unit tests of tui_text: UTF-8, widths, sanitising and fitting. */
 
 /* Unit tests of tui_text: UTF-8, widths, sanitising, fitting. */
 

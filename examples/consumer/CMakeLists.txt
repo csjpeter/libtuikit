@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Copyright 2026 Péter Császár
+# Copyright (c) 2026 Peter Csaszar (Császár Péter)
+# Created: 2026-10-03
+# A consuming project that builds the example against the installed libtuikit packages.
 
 # A consuming project, as one of the workspace's programs would be:
 # libtuikit through find_package(), libptytest for the PTY test.

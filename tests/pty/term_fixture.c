@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Copyright 2026 Péter Császár */
+/* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
+/* Created: 2026-10-03 */
+/* A program for the PTY suite: a tui_term session that leaves in every way a program can. */
 
 /*
  * A program for the PTY suite: opens a tui_term session, shows the size

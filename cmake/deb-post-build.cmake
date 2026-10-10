@@ -1,5 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Copyright 2026 Péter Császár
+# Copyright (c) 2026 Peter Csaszar (Császár Péter)
+# Created: 2026-10-03
+# Post-processing of each built Debian package, run by CPack.
 
 # Post-processing of each built Debian package, run by CPack after it has
 # written the packages (CPACK_POST_BUILD_SCRIPTS).  Two things CPack cannot
