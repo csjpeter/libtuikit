@@ -74,7 +74,7 @@ rewrite today, and what they learned doing it, is in [survey.md](survey.md).
 **Class: Library** — `libtuikit0` (shared library) and `libtuikit-dev`
 (headers, static library, pkg-config and CMake files, man pages).
 
-**License: GPL-3.0-or-later** (`LICENSE`; SPDX header in every file).
+**License: GPL-3.0-only** (`LICENSE`; SPDX header in every file).
 
 ## 0. The reference implementation: email-cli
 
@@ -696,7 +696,7 @@ All milestones below are done; `./manage.sh check` passes every gate.
 
 ## 10. Open questions
 
-1. ~~License~~ — decided: GPL-3.0-or-later (was BSD-2-Clause until 0.4.0).
+1. ~~License~~ — decided: GPL-3.0-only (the owner, 2026-10-10; BSD-2-Clause until 0.4.0).
 2. **Inline line editing.** mamind and tg-cli's `rl_readline` edit a line
    in a normal (not full-screen) terminal. Should libtuikit also offer an
    inline `tui_readline()` built on `tui_lineedit`, so that those two can

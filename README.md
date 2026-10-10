@@ -124,7 +124,7 @@ library itself shares no code with it.
 
 ## License
 
-GPL-3.0-or-later, see `LICENSE`. Copyright 2026 Péter Császár.
+GPL-3.0-only, see `LICENSE`.
 
 A program that links libtuikit is bound by the GPL when it is distributed. The
 copyright holder may license his own code to others on other terms.

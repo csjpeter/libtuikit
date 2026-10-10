@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-3.0-or-later */
+/* SPDX-License-Identifier: GPL-3.0-only */
 /* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
 /* Created: 2026-10-03 */
 /* Public API: UTF-8, display widths, sanitising and fitting of text. */

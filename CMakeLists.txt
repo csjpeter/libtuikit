@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: GPL-3.0-only
 # Copyright (c) 2026 Peter Csaszar (Császár Péter)
 # Created: 2026-10-03
 # The build, test, install and package definition of libtuikit.
@@ -320,14 +320,13 @@ Upstream-Name: libtuikit
 Source: https://github.com/csjpeter/libtuikit
 
 Files: *
-Copyright: 2026 Péter Császár <peter@csaszar.email>
-License: GPL-3+
+Copyright: 2026 Peter Csaszar (Császár Péter) <peter@csaszar.email>
+License: GPL-3
 
-License: GPL-3+
+License: GPL-3
  This program is free software: you can redistribute it and/or modify it
  under the terms of the GNU General Public License as published by the Free
- Software Foundation, either version 3 of the License, or (at your option)
- any later version.
+ Software Foundation, version 3 of the License.
  .
  This program is distributed in the hope that it will be useful, but WITHOUT
  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -529,7 +528,7 @@ set(CPACK_TUIKIT_GIT_COMMIT "${TUIKIT_GIT_COMMIT}")
 set(CPACK_TUIKIT_BUILD_DATE "${TUIKIT_BUILD_DATE}")
 
 # --- RPM -------------------------------------------------------------------
-set(CPACK_RPM_PACKAGE_LICENSE "GPL-3.0-or-later")
+set(CPACK_RPM_PACKAGE_LICENSE "GPL-3.0-only")
 set(CPACK_RPM_PACKAGE_GROUP   "Development/Libraries")
 set(CPACK_RPM_RUNTIME_PACKAGE_SUMMARY
     "Terminal user interface toolkit for full-screen C programs")
