@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: GPL-3.0-only
 # Copyright (c) 2026 Peter Csaszar (Császár Péter)
 # Created: 2026-10-10
 # Checks that every licence declaration of the project says the same.
@@ -8,14 +8,14 @@
 # The licence is declared once and every place says the same (TUI-21,
 # policies/studies/licensing-survey.md): LICENSE is the GPL version 3, each
 # source, script, build and man page file carries the SPDX identifier
-# GPL-3.0-or-later and no other one, and the places a package or a reader
+# GPL-3.0-only and no other one, and the places a package or a reader
 # looks at (debian/copyright, the RPM field, README.md) agree.
 #
 #   check_license.sh <source directory>
 set -euo pipefail
 
 src="$1"
-spdx="GPL-3.0-or-later"
+spdx="GPL-3.0-only"
 failed=0 run=0
 fail() { failed=$((failed + 1)); echo "FAIL: $1" >&2; }
 check() { run=$((run + 1)); }
@@ -46,8 +46,16 @@ other="$(grep -rIn 'SPDX-License-Identifier' --exclude-dir=build --exclude-dir=.
 [ -z "$other" ] || fail "another licence identifier:
 $other"
 
+# "Or later" is not agreed to in advance (policies/licensing-model.md): the
+# licence text itself offers it, and nothing else says it.
 check
-grep -q '^License: GPL-3+$' CMakeLists.txt || fail "CMakeLists.txt: debian/copyright does not say 'License: GPL-3+'"
+later="$(grep -rIn -i -E 'or[ -]later|GPL-3\+|any later version' --exclude-dir=build --exclude-dir=.git \
+         --exclude=LICENSE --exclude=check_license.sh . || true)"
+[ -z "$later" ] || fail "'or later' is said:
+$later"
+
+check
+grep -q '^License: GPL-3$' CMakeLists.txt || fail "CMakeLists.txt: debian/copyright does not say 'License: GPL-3'"
 check
 grep -q "CPACK_RPM_PACKAGE_LICENSE \"$spdx\"" CMakeLists.txt || fail "CMakeLists.txt: the RPM licence is not $spdx"
 check
