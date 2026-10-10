@@ -310,7 +310,7 @@ add_custom_target(tuikit_man ALL DEPENDS ${TUIKIT_MAN_GZ} ${TUIKIT_MAN_LINKS})
 # Debian documentation: copyright and changelog, which lintian requires in
 # every binary package.
 # ---------------------------------------------------------------------------
-set(TUIKIT_MAINTAINER "Péter Császár <peter@csaszar.email>")
+set(TUIKIT_MAINTAINER "Péter Császár <csjpeter@gmail.com>")
 set(TUIKIT_PKG_RUNTIME "libtuikit${PROJECT_VERSION_MAJOR}")
 set(TUIKIT_PKG_DEV     "libtuikit-dev")
 
@@ -320,7 +320,7 @@ Upstream-Name: libtuikit
 Source: https://github.com/csjpeter/libtuikit
 
 Files: *
-Copyright: 2026 Peter Csaszar (Császár Péter) <peter@csaszar.email>
+Copyright: 2026 Peter Csaszar (Császár Péter)
 License: GPL-3
 
 License: GPL-3
