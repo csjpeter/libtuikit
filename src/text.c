@@ -106,6 +106,14 @@ int tui_cp_width(uint32_t cp) {
     return 1;
 }
 
+/* The characters that make a terminal reorder text around them: the marks
+ * U+200E/F and U+061C, the embeddings and overrides U+202A..202E and the
+ * isolates U+2066..2069.  They are not drawn at all. */
+int tui__cp_is_bidi_control(uint32_t cp) {
+    return cp == 0x061C || cp == 0x200E || cp == 0x200F ||
+           (cp >= 0x202A && cp <= 0x202E) || (cp >= 0x2066 && cp <= 0x2069);
+}
+
 uint32_t tui_cp_sanitize(uint32_t cp) {
     return is_control(cp) ? TUI_CP_SANITIZED : cp;
 }
