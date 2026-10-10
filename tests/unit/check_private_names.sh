@@ -17,11 +17,11 @@ cd "$1"
 a="csasz"; b="ar.em"; c="ail"
 pattern="${a}${b}${c}"
 
-hits="$(grep -rIn -i -F -e "$pattern" --exclude-dir=build --exclude-dir=.git . || true)"
+hits="$(grep -rIn -i -F -e "$pattern" --exclude-dir=build --exclude-dir=.git --exclude-dir=deps . || true)"
 if [ -n "$hits" ]; then
     echo "FAIL: the private domain is in the tree (use example.org, localhost or a configuration value):" >&2
     printf '%s\n' "$hits" | cut -d: -f1,2 >&2
     exit 1
 fi
-files="$(find . \( -path ./build -o -path ./.git \) -prune -o -type f -print | wc -l)"
+files="$(find . \( -path ./build -o -path ./.git -o -path ./deps \) -prune -o -type f -print | wc -l)"
 echo "check_private_names: $files files, the private domain is in none"

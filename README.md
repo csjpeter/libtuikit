@@ -107,8 +107,19 @@ cmake/            package config, pkg-config template, .deb build metadata
 
 ## Development
 
+The tests use `libptytest` as their terminal emulator. It comes in one of two
+ways, chosen by `WORKSPACE_LIBS` (the default is **bundled**, as for any
+open-source project of the workspace):
+
+| `WORKSPACE_LIBS` | libptytest comes from |
+|---|---|
+| `bundled` (default) | the submodule `deps/libptytest`, pinned to a release tag and linked statically: `git clone --recursive`, then `./manage.sh test`; the build initialises the submodule itself |
+| `system` | the installed `libptytest-dev` package, linked dynamically |
+| `auto` | the package when it is installed, else the submodule |
+
 ```sh
-./manage.sh deps        # build and test dependencies (root)
+./manage.sh deps        # build and test dependencies (root; the submodule too)
+WORKSPACE_LIBS=system ./manage.sh test    # the same tests against the package
 ./manage.sh test        # unit tests, ASAN + UBSan
 ./manage.sh pty         # PTY tests, ASAN + UBSan
 ./manage.sh valgrind    # all tests under Valgrind, Release build

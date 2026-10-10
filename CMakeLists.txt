@@ -187,8 +187,53 @@ add_custom_target(regen-width
 # ---------------------------------------------------------------------------
 if(TUIKIT_BUILD_TESTS)
     # The test instrument: a dependency of the tests only, never of the
-    # library (docs/specification.md, section 2).
-    find_package(ptytest 0.1 REQUIRED)
+    # library (docs/specification.md, section 2).  Found in one of the two
+    # ways of policies/dependencies-model.md, chosen by WORKSPACE_LIBS:
+    #   bundled  the submodule deps/libptytest, pinned to a release tag,
+    #            built here and linked statically
+    #   system   the installed libptytest-dev package, linked dynamically
+    #   auto     the package when it is installed, else the submodule
+    set(WORKSPACE_LIBS "bundled" CACHE STRING
+        "How libptytest is found for the tests: bundled, system or auto")
+    set_property(CACHE WORKSPACE_LIBS PROPERTY STRINGS bundled system auto)
+    if(NOT WORKSPACE_LIBS MATCHES "^(bundled|system|auto)$")
+        message(FATAL_ERROR "WORKSPACE_LIBS is '${WORKSPACE_LIBS}'; it is "
+                            "bundled, system or auto")
+    endif()
+    set(_ptytest_way "${WORKSPACE_LIBS}")
+    if(_ptytest_way STREQUAL "auto")
+        find_package(ptytest 0.1 QUIET)
+        if(ptytest_FOUND)
+            set(_ptytest_way system)
+        elseif(EXISTS "${CMAKE_SOURCE_DIR}/deps/libptytest/CMakeLists.txt")
+            set(_ptytest_way bundled)
+        else()
+            message(FATAL_ERROR
+                "libptytest is needed for the tests and found in neither way:\n"
+                "  bundled: the submodule deps/libptytest is missing; run "
+                "./manage.sh deps (git submodule update --init --recursive)\n"
+                "  system:  the libptytest-dev package is not installed\n"
+                "Choose with -DWORKSPACE_LIBS=bundled|system.")
+        endif()
+    endif()
+    if(_ptytest_way STREQUAL "bundled")
+        if(NOT EXISTS "${CMAKE_SOURCE_DIR}/deps/libptytest/CMakeLists.txt")
+            message(FATAL_ERROR
+                "WORKSPACE_LIBS=bundled, but the submodule deps/libptytest "
+                "is missing: run ./manage.sh deps (git submodule update "
+                "--init --recursive), or use -DWORKSPACE_LIBS=system with "
+                "libptytest-dev installed.")
+        endif()
+        # Only the library is built from the submodule: its CMake returns
+        # early when it is not the top level.
+        add_subdirectory(deps/libptytest EXCLUDE_FROM_ALL)
+        set(TUIKIT_PTYTEST ptytest::ptytest_static)
+        message(STATUS "libptytest: bundled, deps/libptytest, static")
+    else()
+        find_package(ptytest 0.1 REQUIRED)
+        set(TUIKIT_PTYTEST ptytest::ptytest)
+        message(STATUS "libptytest: system package ${ptytest_VERSION}, shared")
+    endif()
     enable_testing()
     add_subdirectory(tests)
     add_subdirectory(examples)

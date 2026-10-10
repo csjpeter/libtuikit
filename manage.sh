@@ -29,6 +29,18 @@ COVERAGE_THRESHOLD=100
 
 JOBS="$(nproc)"
 
+# How libptytest, the test instrument, is found (policies/dependencies-model.md):
+#   bundled  the submodule deps/libptytest, pinned to a release tag, built
+#            with the tests and linked statically (the default: this is an
+#            open-source project, and a stranger needs nothing of ours)
+#   system   the installed libptytest-dev package, linked dynamically
+#   auto     the package when it is installed, else the submodule
+WORKSPACE_LIBS="${WORKSPACE_LIBS:-bundled}"
+case "$WORKSPACE_LIBS" in
+    bundled|system|auto) ;;
+    *) echo "WORKSPACE_LIBS is '$WORKSPACE_LIBS'; it is bundled, system or auto" >&2; exit 1 ;;
+esac
+
 usage() {
     cat <<'USAGE'
 Usage: ./manage.sh <command> [args]
@@ -49,6 +61,11 @@ Commands:
   clean                 Remove build/
   help                  This message
 
+libptytest, the test instrument, comes as the submodule deps/libptytest
+(WORKSPACE_LIBS=bundled, the default; deps and the test builds initialise it
+and check that its pin is a release tag) or as the installed libptytest-dev
+(WORKSPACE_LIBS=system); WORKSPACE_LIBS=auto takes the package when present.
+
 One suite, or one test of a suite:
   ./manage.sh test -R test-decoder
   build/tests/unit/bin/test-decoder test_paste    (substring filter; -l lists)
@@ -59,25 +76,86 @@ USAGE
 # Dependencies
 # ---------------------------------------------------------------------------
 
-# libptytest-dev is a test dependency (the PTY test instrument); it comes
-# from the workspace's own apt repository.
+# libptytest, the PTY test instrument, is not in these lists: in the bundled
+# way it is the submodule, and in the system way libptytest-dev comes from the
+# workspace's own apt repository (added below).
 APT_DEPS="build-essential cmake pkg-config git valgrind lcov lintian dpkg-dev
-          rpm file locales groff libptytest-dev"
+          rpm file locales groff"
 DNF_DEPS="gcc make cmake pkgconf-pkg-config git valgrind lcov rpm-build
-          dpkg glibc-langpack-en groff libptytest-devel"
+          dpkg glibc-langpack-en groff"
+
+# libs_mode: the way libptytest is found, "auto" resolved: bundled or system.
+libs_mode() {
+    if [ "$WORKSPACE_LIBS" = auto ]; then
+        if pkg-config --exists libptytest; then echo system; else echo bundled; fi
+    else
+        echo "$WORKSPACE_LIBS"
+    fi
+}
+
+# ensure_libs: libptytest is there in the chosen way, or this says what to do.
+# Bundled: the submodule is initialised when it is missing or not at the
+# commit the superproject pins, and the pin must be a release tag.
+ensure_libs() {
+    local mode sub="$SCRIPT_DIR/deps/libptytest" status tag
+    mode="$(libs_mode)"
+    if [ "$mode" = system ]; then
+        if ! pkg-config --exists libptytest; then
+            echo "libptytest: WORKSPACE_LIBS=system, but libptytest-dev is not installed." >&2
+            echo "  Install it (./manage.sh deps with WORKSPACE_LIBS=system)," >&2
+            echo "  or use the bundled submodule: WORKSPACE_LIBS=bundled." >&2
+            return 1
+        fi
+        return 0
+    fi
+    status="$(git -C "$SCRIPT_DIR" submodule status -- deps/libptytest 2>&1)" || {
+        echo "libptytest: cannot read the submodule state: $status" >&2
+        echo "  This is not a git checkout, or deps/libptytest is not in .gitmodules." >&2
+        echo "  Put libptytest at deps/libptytest, or use WORKSPACE_LIBS=system." >&2
+        return 1
+    }
+    case "$status" in
+        ''|[-+U]*)
+            echo "libptytest: initialising the submodule deps/libptytest"
+            git -C "$SCRIPT_DIR" submodule update --init --recursive -- deps/libptytest || {
+                echo "libptytest: git submodule update failed (no network? no .gitmodules entry?)." >&2
+                echo "  Use WORKSPACE_LIBS=system with libptytest-dev installed instead." >&2
+                return 1
+            }
+            ;;
+    esac
+    tag="$(git -C "$sub" describe --tags --exact-match HEAD)" || {
+        echo "libptytest: the commit deps/libptytest is pinned to is not a release tag." >&2
+        echo "  Pin it to a vX.Y.Z tag of libptytest (policies/dependencies-model.md)." >&2
+        return 1
+    }
+    case "$tag" in
+        v[0-9]*.[0-9]*.[0-9]*) ;;
+        *) echo "libptytest: '$tag' is not a release tag (vX.Y.Z)." >&2; return 1 ;;
+    esac
+}
 
 install_deps() {
+    local apt_deps="$APT_DEPS" dnf_deps="$DNF_DEPS"
+    if [ "$(libs_mode)" = system ]; then
+        apt_deps="$apt_deps libptytest-dev"
+        dnf_deps="$dnf_deps libptytest-devel"
+    fi
     if command -v apt-get >/dev/null; then
         # shellcheck disable=SC2086
-        apt-get update && apt-get install -y $APT_DEPS
+        apt-get update && apt-get install -y $apt_deps
     elif command -v dnf >/dev/null; then
         # shellcheck disable=SC2086
-        dnf install -y $DNF_DEPS
+        dnf install -y $dnf_deps
     else
         echo "deps: no apt-get or dnf; install by hand:" >&2
-        echo "  a C11 compiler, cmake >= 3.20, pkg-config, valgrind, lcov," >&2
-        echo "  lintian, dpkg-deb, rpmbuild, groff, libptytest" >&2
+        echo "  a C11 compiler, cmake >= 3.20, pkg-config, git, valgrind, lcov," >&2
+        echo "  lintian, dpkg-deb, rpmbuild, groff" >&2
         return 1
+    fi
+    # The submodule needs git and network, not root: it is part of deps too.
+    if [ "$(libs_mode)" = bundled ]; then
+        ensure_libs
     fi
 }
 
@@ -101,9 +179,11 @@ build_release() {
 # build_debug_into <dir> [<test bin root>]
 build_debug_into() {
     local dir="$1" bin_root="${2:-$1/tests}"
+    ensure_libs
     cmake -S "$SCRIPT_DIR" -B "$dir" -DCMAKE_BUILD_TYPE=Debug \
           -DENABLE_COVERAGE=OFF -DTUIKIT_ENABLE_ASAN=ON \
           -DTUIKIT_BUILD_TESTS=ON -DTUIKIT_TEST_WRAPPER= \
+          "-DWORKSPACE_LIBS=$(libs_mode)" \
           "-DTUIKIT_TEST_BIN_ROOT=$bin_root"
     cmake --build "$dir" --parallel "$JOBS"
 }
@@ -156,8 +236,10 @@ run_valgrind() {
     # A clean Release build: sanitiser and coverage instrumentation both
     # interfere with Valgrind's own.  Children of the tests (the fixture,
     # cat, sh) are not traced: the library is what is under examination.
+    ensure_libs
     cmake -S "$SCRIPT_DIR" -B "$BUILD_DIR_VALGRIND" -DCMAKE_BUILD_TYPE=Release \
           -DENABLE_COVERAGE=OFF -DTUIKIT_ENABLE_ASAN=OFF -DTUIKIT_BUILD_TESTS=ON \
+          "-DWORKSPACE_LIBS=$(libs_mode)" \
           "-DTUIKIT_TEST_WRAPPER=valgrind;--error-exitcode=1;--leak-check=full;--errors-for-leak-kinds=definite;--track-fds=no;--quiet"
     cmake --build "$BUILD_DIR_VALGRIND" --parallel "$JOBS"
     # Valgrind does not emulate SIGTSTP stops (measured); the one test that
@@ -171,8 +253,10 @@ run_coverage() {
         echo "lcov is not installed; install it with: ./manage.sh deps" >&2
         return 1
     fi
+    ensure_libs
     cmake -S "$SCRIPT_DIR" -B "$BUILD_DIR_COVERAGE" -DCMAKE_BUILD_TYPE=Debug \
           -DENABLE_COVERAGE=ON -DTUIKIT_ENABLE_ASAN=OFF -DTUIKIT_BUILD_TESTS=ON \
+          "-DWORKSPACE_LIBS=$(libs_mode)" \
           -DTUIKIT_TEST_WRAPPER=
     cmake --build "$BUILD_DIR_COVERAGE" --parallel "$JOBS"
     lcov --zerocounters --directory "$BUILD_DIR_COVERAGE"
@@ -295,9 +379,12 @@ run_lintian() {
 # consumer -- the example, built and run against the content of the .deb
 # packages: headers, pkg-config file, CMake package and shared library as a
 # consuming project gets them.  The example's PTY test needs libptytest,
-# which is a test dependency and comes from the system.
+# which is a test dependency: the installed package (WORKSPACE_LIBS=system),
+# or, in the bundled way, the submodule built and installed into a prefix of
+# its own under the consumer tree, so that the example sees it as a package.
 run_consumer() {
     local root="$BUILD_DIR_CONSUMER/root" deb found=0
+    local ptyroot="$BUILD_DIR_CONSUMER/ptytest-root"
     # A fresh tree, so nothing from an earlier package can be picked up.
     if [ -d "$SCRIPT_DIR/build/_consumer" ]; then
         ( cd "$SCRIPT_DIR/build" && rm -rf _consumer )
@@ -317,6 +404,31 @@ run_consumer() {
     libdir="$(dirname "$(find "$root" -name 'libtuikit.so.*' -type f | head -n 1)")"
     local pc_dir="$libdir/pkgconfig"
 
+    # libptytest: pt_cflags, pt_libs, pt_ld (a run-time path) and pt_prefix
+    # (for find_package), from the system or from the submodule.
+    local pt_cflags pt_libs pt_ld="" pt_prefix=""
+    ensure_libs
+    if [ "$(libs_mode)" = bundled ]; then
+        echo "=== libptytest from the submodule ==="
+        cmake -S "$SCRIPT_DIR/deps/libptytest" -B "$BUILD_DIR_CONSUMER/ptytest" \
+              -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr \
+              -DPTYTEST_BUILD_TESTS=OFF -DENABLE_COVERAGE=OFF
+        cmake --build "$BUILD_DIR_CONSUMER/ptytest" --parallel "$JOBS"
+        DESTDIR="$ptyroot" cmake --install "$BUILD_DIR_CONSUMER/ptytest"
+        local pty_pc pty_lib
+        pty_pc="$(dirname "$(find "$ptyroot" -name libptytest.pc | head -n 1)")"
+        pty_lib="$(dirname "$(find "$ptyroot" -name 'libptytest.so.*' -type f | head -n 1)")"
+        pt_cflags="$(PKG_CONFIG_SYSROOT_DIR="$ptyroot" PKG_CONFIG_LIBDIR="$pty_pc" \
+                     pkg-config --cflags libptytest)"
+        pt_libs="$(PKG_CONFIG_SYSROOT_DIR="$ptyroot" PKG_CONFIG_LIBDIR="$pty_pc" \
+                   pkg-config --libs libptytest)"
+        pt_ld=":$pty_lib"
+        pt_prefix=";$ptyroot/usr"
+    else
+        pt_cflags="$(pkg-config --cflags libptytest)"
+        pt_libs="$(pkg-config --libs libptytest)"
+    fi
+
     echo "=== pkg-config ==="
     local cflags libs
     cflags="$(PKG_CONFIG_SYSROOT_DIR="$root" PKG_CONFIG_LIBDIR="$pc_dir" \
@@ -328,18 +440,18 @@ run_consumer() {
     # shellcheck disable=SC2086
     cc -std=c11 -Wall -Wextra -Werror $cflags -o "$BUILD_DIR_CONSUMER/tuikit-demo" \
        "$SCRIPT_DIR/examples/tuikit_demo.c" $libs
-    # shellcheck disable=SC2046
-    cc -std=c11 -Wall -Wextra -Werror $(pkg-config --cflags libptytest) \
+    # shellcheck disable=SC2086
+    cc -std=c11 -Wall -Wextra -Werror $pt_cflags \
        -o "$BUILD_DIR_CONSUMER/test-tuikit-demo" \
-       "$SCRIPT_DIR/examples/test_tuikit_demo.c" $(pkg-config --libs libptytest)
-    LD_LIBRARY_PATH="$libdir" timeout 60 \
+       "$SCRIPT_DIR/examples/test_tuikit_demo.c" $pt_libs
+    LD_LIBRARY_PATH="$libdir$pt_ld" timeout 60 \
         "$BUILD_DIR_CONSUMER/test-tuikit-demo" "$BUILD_DIR_CONSUMER/tuikit-demo"
 
     echo "=== CMake find_package ==="
     cmake -S "$SCRIPT_DIR/examples/consumer" -B "$BUILD_DIR_CONSUMER/cmake" \
-          -DCMAKE_PREFIX_PATH="$root/usr"
+          "-DCMAKE_PREFIX_PATH=$root/usr$pt_prefix"
     cmake --build "$BUILD_DIR_CONSUMER/cmake" --parallel "$JOBS"
-    LD_LIBRARY_PATH="$libdir" timeout 60 \
+    LD_LIBRARY_PATH="$libdir$pt_ld" timeout 60 \
         "$BUILD_DIR_CONSUMER/cmake/test-tuikit-demo" "$BUILD_DIR_CONSUMER/cmake/tuikit-demo"
 }
 

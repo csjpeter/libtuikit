@@ -142,7 +142,8 @@ Non-goals:
    logic with libptytest: not the width table, not the colour encoding, not
    the cell model. If the renderer and the emulator shared a wrong rule, a
    test would pass on the bug. libptytest is a build dependency of the tests
-   only. Where both must implement the same external rule (code-point widths,
+   only, found as the pinned submodule `deps/libptytest` or as the
+   `libptytest-dev` package (`WORKSPACE_LIBS`, see the README). Where both must implement the same external rule (code-point widths,
    SGR), libtuikit derives it from an independent source — glibc's C.UTF-8
    locale for widths, xterm's *ctlseqs* for sequences — and its unit tests
    additionally assert the exact bytes, not only the emulated screen.
