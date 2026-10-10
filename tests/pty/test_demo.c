@@ -125,7 +125,7 @@ static void test_reader_at_rest(void) {
     const char *const moved[] = { "SSSSSSSSSSSSSSSSSSSSSSSS", NULL };
     ASSERT_WAIT_REGION_STYLE(s, PTY_REGION(4, 1, 1, 24), moved, g_legend, 3000);
     const char *const header[] = { " Inbox \xC2\xB7 6 messages", NULL };
-    ASSERT_REGION_EQ(s, PTY_REGION(0, 0, 1, 40), header);
+    ASSERT_WAIT_REGION(s, PTY_REGION(0, 0, 1, 40), header, 3000);
     /* Esc on the top level quits, status 0. */
     pty_send_key(s, PTY_KEY_ESC);
     ASSERT_EXIT_STATUS(s, 0, 3000);
@@ -508,7 +508,7 @@ static void test_too_small_and_resize(void) {
     const char *const big[] = { "┌─ Messages ─────────────────┐", NULL };   /* a third of 90 */
     ASSERT_WAIT_REGION(s, PTY_REGION(1, 0, 1, 30), big, 3000);
     const char *const status[] = { "\xE2\x86\x91\xE2\x86\x93 move  Enter read", NULL };
-    ASSERT_REGION_EQ(s, PTY_REGION(25, 0, 1, 20), status);
+    ASSERT_WAIT_REGION(s, PTY_REGION(25, 0, 1, 20), status, 3000);
     ASSERT_EQ_INT(pty_resize(s, 60, 20), 0, "small again");
     ASSERT_WAIT_FOR(s, "Terminal too small", 3000);
     pty_send_key(s, PTY_KEY_ESC);                /* Esc quits from the notice */
@@ -597,7 +597,7 @@ static void test_compose_and_send(void) {
         ".........SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS.",
         "..........................................", NULL };
     ASSERT_WAIT_REGION_STYLE(s, PTY_REGION(2, 0, 2, 42), drop_map, g_legend, 3000);
-    ASSERT_REGION_EQ(s, PTY_REGION(0, 0, 24, 80), dropdown);
+    ASSERT_WAIT_REGION(s, PTY_REGION(0, 0, 24, 80), dropdown, 3000);
     pty_send_key(s, PTY_KEY_DOWN);
     const char *const drop_map2[] = {
         "..........................................",
@@ -851,7 +851,7 @@ static void test_compose_refusals_and_discard(void) {
     pty_send_key(s, PTY_KEY_ESC);
     ASSERT_WAIT_GONE(s, "Labels", 3000);
     const char *const kept[] = { "To:      zoe", NULL };
-    ASSERT_REGION_EQ(s, PTY_REGION(1, 0, 1, 80), kept);
+    ASSERT_WAIT_REGION(s, PTY_REGION(1, 0, 1, 80), kept, 3000);
     pty_send_key(s, PTY_KEY_ESC);
     const char *const ask[] = {
         "┌─ Discard the message ──────┐",
@@ -868,7 +868,7 @@ static void test_compose_refusals_and_discard(void) {
     ASSERT_REGION_STYLE(s, PTY_REGION(9, 25, 5, 30), ask_map, g_legend);
     pty_send_str(s, "n");                        /* No: back, nothing lost */
     ASSERT_WAIT_GONE(s, "Throw away", 3000);
-    ASSERT_REGION_EQ(s, PTY_REGION(1, 0, 1, 80), kept);
+    ASSERT_WAIT_REGION(s, PTY_REGION(1, 0, 1, 80), kept, 3000);
     pty_send_key(s, PTY_KEY_TAB);
     pty_send_key(s, PTY_KEY_TAB);
     pty_send_key(s, PTY_KEY_ESC);                /* from the body, too */
@@ -876,7 +876,7 @@ static void test_compose_refusals_and_discard(void) {
     pty_send_str(s, "y");
     ASSERT_WAIT_REGION(s, PTY_REGION(23, 0, 1, 80), discarded, 3000);
     const char *const six[] = { " Inbox \xC2\xB7 6 messages", NULL };
-    ASSERT_REGION_EQ(s, PTY_REGION(0, 0, 1, 40), six);
+    ASSERT_WAIT_REGION(s, PTY_REGION(0, 0, 1, 40), six, 3000);
     pty_send_key(s, PTY_KEY_CTRL('c'));
     ASSERT_EXIT_STATUS(s, 0, 3000);
     pty_close(s);
