@@ -73,8 +73,8 @@ descriptors; everything else is pure and renders into a `tui_buf`.
 - **Every source file and script starts with the workspace header**
   (`policies/source-header-model.md`): SPDX licence tag, copyright line,
   `Created:` date, one purpose line. `check-headers` fails without it; the
-  licence declarations (dual: `GPL-3.0-only OR LicenseRef-Proprietary`, package
-  fields `GPL-3.0-only`) are held together by `check-license`.
+  licence declarations (`GPL-3.0-only` everywhere, package
+  fields included) are held together by `check-license`.
 - The ABI is versioned by `SOVERSION` (= major version). Within one, no
   public struct changes size and no function disappears: `abi/libtuikit<N>.abi`
   records them and `check-abi` enforces it; a new struct or function is
