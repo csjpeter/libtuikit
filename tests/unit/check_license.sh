@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# SPDX-License-Identifier: GPL-3.0-only OR LicenseRef-Proprietary
+# SPDX-License-Identifier: GPL-3.0-only
 # Copyright (c) 2026 Peter Csaszar (Császár Péter)
 # Created: 2026-10-10
 # Checks that every licence declaration of the project says the same.
@@ -8,14 +8,14 @@
 # The licence is declared once and every place says the same (TUI-21,
 # policies/studies/licensing-survey.md): LICENSE is the GPL version 3, each
 # source, script, build and man page file carries the SPDX identifier
-# "GPL-3.0-only OR LicenseRef-Proprietary" and no other one, and the places a package or a reader
+# "GPL-3.0-only" and no other one, and the places a package or a reader
 # looks at (debian/copyright, the RPM field, README.md) agree.
 #
 #   check_license.sh <source directory>
 set -euo pipefail
 
 src="$1"
-spdx="GPL-3.0-only OR LicenseRef-Proprietary"   # the tag of every file
+spdx="GPL-3.0-only"   # the tag of every file
 pkg="GPL-3.0-only"                              # what a package field says
 failed=0 run=0
 fail() { failed=$((failed + 1)); echo "FAIL: $1" >&2; }
@@ -58,16 +58,11 @@ $later"
 
 check
 grep -q '^License: GPL-3$' CMakeLists.txt || fail "CMakeLists.txt: debian/copyright does not say 'License: GPL-3'"
-# The dual licence is said in LICENSE and in debian/copyright
-# (policies/licensing-model.md, "What the dual licence is written as").
+# LICENSE is the plain GPL text and names no second licence.
 check
-lic_start="$(head -4 LICENSE | tr '\n' ' ')"
-[[ "$lic_start" == *'Licensed under the GNU GPL version 3 only. The copyright holder also licenses this work, separately, under proprietary terms.'* ]] ||
-    fail "LICENSE does not start with the dual-licence sentence"
-check
-cmake_flat="$(tr '\n' ' ' < CMakeLists.txt | tr -s ' ')"
-[[ "$cmake_flat" == *'The copyright holder also licenses this work, separately, under proprietary terms'* ]] ||
-    fail "CMakeLists.txt: debian/copyright does not say that the holder licenses the work separately"
+! grep -qi 'LicenseRef' LICENSE CMakeLists.txt README.md &&
+! grep -qi 'proprietary' CMakeLists.txt README.md ||
+    fail "a second (proprietary) licence is named in LICENSE, CMakeLists.txt or README.md"
 
 check
 grep -q "CPACK_RPM_PACKAGE_LICENSE \"$pkg\"" CMakeLists.txt || fail "CMakeLists.txt: the RPM licence is not $pkg"
@@ -78,10 +73,6 @@ grep -q "^$pkg, see \`LICENSE\`" README.md || fail "README.md: the licence secti
 check
 grep -q "License: $pkg" docs/specification.md || fail "docs/specification.md: the licence is not $pkg"
 
-# The identifier every tag uses is defined in a file (REUSE: LICENSES/<id>.txt).
-[ -s LICENSES/LicenseRef-Proprietary.txt ] && grep -q 'LicenseRef-Proprietary' LICENSES/LicenseRef-Proprietary.txt ||
-    fail "LICENSES/LicenseRef-Proprietary.txt is missing or empty: LicenseRef-Proprietary must be defined"
-check
 [ -f CONTRIBUTING.md ] && grep -q 'assign the copyright' CONTRIBUTING.md ||
     fail "CONTRIBUTING.md is missing or does not require the assignment of the copyright"
 check
