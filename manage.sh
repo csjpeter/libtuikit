@@ -58,6 +58,8 @@ Commands:
   check                 Every gate, with a summary to compare against CI
   package [deb|rpm|all] Build the packages with CPack into build/packages/ (libtuikit0,
                         libtuikit-dev), lintian-checked; empty on failure
+  timing [KEY-N]        Print the gate line from build/timing.log; with a ticket key,
+                        comment it on that ticket (issue-cli)
   clean                 Remove build/
   help                  This message
 
@@ -505,6 +507,75 @@ run_check() {
     echo "All gates passed."
 }
 
+# ---------------------------------------------------------------------------
+# Timing -- every verb that does work appends one line to build/timing.log:
+#   <UTC ISO time> <verb> <whole seconds>s <ok|fail>
+# The script measures, never the person (policies/manage-sh-model.md).
+# ---------------------------------------------------------------------------
+
+TIMING_LOG="$BUILD_DIR/timing.log"
+TIMING_VERB=""
+TIMING_START=0
+
+# The record is written by an EXIT trap, not by a wrapper around the verb:
+# a function called in an "||" list runs without "set -e", and the verbs
+# rely on it.  The trap sees the exit status of the verb, ok or not.
+timing_record() {
+    local rc=$? secs state=ok
+    trap - EXIT
+    secs=$(( $(date +%s) - TIMING_START ))
+    [ "$rc" -eq 0 ] || state=fail
+    mkdir -p "$BUILD_DIR"
+    printf '%s %s %ss %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$TIMING_VERB" \
+           "$secs" "$state" >> "$TIMING_LOG"
+    exit "$rc"
+}
+
+# timed <verb>: from here to the end of the script, the run is timed.
+timed() {
+    TIMING_VERB="$1"
+    TIMING_START="$(date +%s)"
+    trap timing_record EXIT
+}
+
+# timing_line: the gate line from the latest successful run of each verb of
+# the gate (check, package, install); a part that did not run through this
+# script is left out.  Prints "Gate: not measured" and fails without any.
+timing_line() {
+    local line=""
+    if [ -s "$TIMING_LOG" ]; then
+        line="$(awk '
+            $4 == "ok" { v = $2; s = $3; sub("s$", "", s); last[v] = s }
+            END {
+                n = split("check package install", order, " ")
+                total = 0; parts = ""; found = 0
+                for (i = 1; i <= n; i++) {
+                    v = order[i]
+                    if (v in last) {
+                        total += last[v]; found = 1
+                        parts = parts (parts == "" ? "" : ", ") v " " last[v] "s"
+                    }
+                }
+                if (found) printf "Gate: %ds (%s)\n", total, parts
+            }' "$TIMING_LOG")"
+    fi
+    if [ -z "$line" ]; then
+        echo "Gate: not measured"
+        return 1
+    fi
+    echo "$line"
+}
+
+do_timing() {
+    local key="${1:-}" line rc=0
+    line="$(timing_line)" || rc=$?
+    echo "$line"
+    [ "$rc" -eq 0 ] || return "$rc"
+    if [ -n "$key" ]; then
+        issue-cli issue comment "$key" "$line"
+    fi
+}
+
 clean() {
     # Enter the directory, then delete a literal name: a recursive delete
     # never takes a bare variable.  The guard matters: "cd ''" succeeds and
@@ -521,16 +592,17 @@ cmd="${1:-help}"
 [ $# -gt 0 ] && shift
 case "$cmd" in
     deps)      install_deps ;;
-    build)     build_release ;;
-    debug)     build_debug ;;
-    test)      run_unit "$@" ;;
-    pty)       run_pty "$@" ;;
-    functional) run_functional "$@" ;;
-    coverage)  run_coverage ;;
-    valgrind)  run_valgrind ;;
-    consumer)  run_consumer ;;
-    check)     run_check ;;
-    package)   do_package "${1:-deb}" ;;
+    build)     timed build; build_release ;;
+    debug)     timed debug; build_debug ;;
+    test)      timed test; run_unit "$@" ;;
+    pty)       timed pty; run_pty "$@" ;;
+    functional) timed functional; run_functional "$@" ;;
+    coverage)  timed coverage; run_coverage ;;
+    valgrind)  timed valgrind; run_valgrind ;;
+    consumer)  timed consumer; run_consumer ;;
+    check)     timed check; run_check ;;
+    package)   timed package; do_package "${1:-deb}" ;;
+    timing)    do_timing "$@" ;;
     clean)     clean ;;
     help|-h|--help) usage ;;
     *)

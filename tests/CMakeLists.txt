@@ -151,3 +151,4 @@ add_dependencies(test-compat-pty compat-harness)
 # --- functional: manage.sh itself, with mocks of our own ------------------
 project_test(functional package-output SCRIPT functional/package_output.sh ARGS ${CMAKE_SOURCE_DIR} ${TUIKIT_TEST_TMPDIR} TIMEOUT 900)
 project_test(functional workspace-libs SCRIPT functional/workspace_libs.sh ARGS ${CMAKE_SOURCE_DIR} ${TUIKIT_TEST_TMPDIR} TIMEOUT 900)
+project_test(functional timing SCRIPT functional/timing.sh ARGS ${CMAKE_SOURCE_DIR} ${TUIKIT_TEST_TMPDIR} TIMEOUT 300)
