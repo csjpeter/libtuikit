@@ -124,7 +124,7 @@ static const PtyStyleKey legend[] = {
     { '.', PTY_ATTR_NONE, 0, 0 },
     /* The palette's roles (policies/tui-interface-model.md). */
     { 'A', PTY_ATTR_BOLD, PTY_FG_CYAN, PTY_BG_DEFAULT },     /* accent: the focused label */
-    { 'S', PTY_ATTR_BOLD, PTY_FG_BLACK, PTY_BG_CYAN },       /* selection */
+    { 'S', PTY_ATTR_BOLD | PTY_ATTR_REVERSE, 0, 0 },       /* selection */
     { 'E', PTY_ATTR_BOLD, PTY_FG_RED, PTY_BG_DEFAULT },      /* error */
     { 0, 0, 0, 0 } };
 

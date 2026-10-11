@@ -164,7 +164,7 @@ static void test_palette(void) {
     ASSERT_BYTES(b.data, b.len,
                  CLEAR ""
                  "\033[0;1;37;44mH"
-                 "\033[0;1;30;46mS"
+                 "\033[0;1;7mS"
                  "\033[0;1;36mA"
                  "\033[0;1;32mO"
                  "\033[0;1;31mE"
@@ -175,7 +175,7 @@ static void test_palette(void) {
     static const PtyStyleKey legend[] = {
         { '.', PTY_ATTR_NONE, 0, 0 },
         { 'H', PTY_ATTR_BOLD, PTY_FG_WHITE, PTY_BG_BLUE },
-        { 'S', PTY_ATTR_BOLD, PTY_FG_BLACK, PTY_BG_CYAN },
+        { 'S', PTY_ATTR_BOLD | PTY_ATTR_REVERSE, 0, 0 },
         { 'A', PTY_ATTR_BOLD, PTY_FG_CYAN, PTY_BG_DEFAULT },
         { 'O', PTY_ATTR_BOLD, PTY_FG_GREEN, PTY_BG_DEFAULT },
         { 'E', PTY_ATTR_BOLD, PTY_FG_RED, PTY_BG_DEFAULT },

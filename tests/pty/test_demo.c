@@ -44,7 +44,7 @@ static PtySession *start_demo(int cols, int rows) {
 static const PtyStyleKey g_legend[] = {
     { '.', PTY_ATTR_NONE, PTY_FG_DEFAULT, PTY_BG_DEFAULT },
     { 'H', PTY_ATTR_BOLD, PTY_FG_WHITE, PTY_BG_BLUE },      /* header bar */
-    { 'S', PTY_ATTR_BOLD, PTY_FG_BLACK, PTY_BG_CYAN },      /* selection */
+    { 'S', PTY_ATTR_BOLD | PTY_ATTR_REVERSE, 0, 0 },      /* selection */
     { 'A', PTY_ATTR_BOLD, PTY_FG_CYAN, PTY_BG_DEFAULT },    /* accent */
     { 'B', PTY_ATTR_BOLD, PTY_FG_DEFAULT, PTY_BG_DEFAULT }, /* bold, no colour */
     { 'Y', PTY_ATTR_NONE, PTY_FG_YELLOW, PTY_BG_DEFAULT },  /* hints */

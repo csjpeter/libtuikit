@@ -424,8 +424,8 @@ typedef uint32_t tui_color;    /* TUI_COLOR_DEFAULT, TUI_COLOR_16(n),
 typedef struct { tui_color fg, bg; uint16_t attrs; } tui_style;
 
 /* The palette of policies/tui-interface-model.md, the widgets' defaults:
- * TUI_STYLE_HEADER (bold white on blue), TUI_STYLE_SELECTION (bold black
- * on cyan), TUI_STYLE_ACCENT (bold cyan), TUI_STYLE_OK (bold green),
+ * TUI_STYLE_HEADER (bold white on blue), TUI_STYLE_SELECTION (bold reverse
+ * video on the default colours), TUI_STYLE_ACCENT (bold cyan), TUI_STYLE_OK (bold green),
  * TUI_STYLE_ERROR (bold red), TUI_STYLE_HINT (yellow),
  * TUI_STYLE_PROGRESS (italic yellow). */
 

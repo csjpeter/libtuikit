@@ -82,8 +82,8 @@ typedef struct tui_style {
  */
 /** @brief The header bar: bold white on blue. */
 #define TUI_STYLE_HEADER    ((tui_style){ TUI_WHITE, TUI_BLUE, TUI_ATTR_BOLD })
-/** @brief The row or choice under the cursor: bold black on cyan. */
-#define TUI_STYLE_SELECTION ((tui_style){ TUI_BLACK, TUI_CYAN, TUI_ATTR_BOLD })
+/** @brief The row or choice under the cursor: bold reverse video. */
+#define TUI_STYLE_SELECTION ((tui_style){ TUI_COLOR_DEFAULT, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD | TUI_ATTR_REVERSE })
 /** @brief The active tab, a modal's frame, the focused field's label: bold cyan. */
 #define TUI_STYLE_ACCENT    ((tui_style){ TUI_CYAN, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD })
 /** @brief The message after a write that worked: bold green. */

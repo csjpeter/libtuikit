@@ -62,7 +62,7 @@ static void test_first_screen_and_quit(void) {
         { '.', PTY_ATTR_NONE, 0, 0 },
         { 'H', PTY_ATTR_BOLD, PTY_FG_WHITE, PTY_BG_BLUE },
         { 'A', PTY_ATTR_BOLD, PTY_FG_CYAN, PTY_BG_DEFAULT },
-        { 'S', PTY_ATTR_BOLD, PTY_FG_BLACK, PTY_BG_CYAN },
+        { 'S', PTY_ATTR_BOLD | PTY_ATTR_REVERSE, 0, 0 },
         { 'Y', PTY_ATTR_NONE, PTY_FG_YELLOW, PTY_BG_DEFAULT },
         { 0, 0, 0, 0 } };
     const char *const header[] = { "HHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH", NULL };
