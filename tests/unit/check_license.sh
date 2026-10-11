@@ -78,6 +78,14 @@ grep -q "^$pkg, see \`LICENSE\`" README.md || fail "README.md: the licence secti
 check
 grep -q "License: $pkg" docs/specification.md || fail "docs/specification.md: the licence is not $pkg"
 
+# The identifier every tag uses is defined in a file (REUSE: LICENSES/<id>.txt).
+[ -s LICENSES/LicenseRef-Proprietary.txt ] && grep -q 'LicenseRef-Proprietary' LICENSES/LicenseRef-Proprietary.txt ||
+    fail "LICENSES/LicenseRef-Proprietary.txt is missing or empty: LicenseRef-Proprietary must be defined"
+check
+[ -f CONTRIBUTING.md ] && grep -q 'assign the copyright' CONTRIBUTING.md ||
+    fail "CONTRIBUTING.md is missing or does not require the assignment of the copyright"
+check
+
 if [ "$failed" -ne 0 ]; then
     echo "check_license: $failed of $run checks failed" >&2
     exit 1
