@@ -143,6 +143,9 @@ Linux (Debian) is the only target. What binds the code to it is listed in
 
 GPL-3.0-only, see `LICENSE`. The copyright holder also licenses it, separately,
 under proprietary terms for his own proprietary projects.
+What `LicenseRef-Proprietary` in the source tags names is defined in
+`LICENSES/LicenseRef-Proprietary.txt`. Contributions are accepted under the
+terms of `CONTRIBUTING.md`.
 
 A program that links libtuikit is bound by the GPL when it is distributed. The
 copyright holder may license his own code to others on other terms.
