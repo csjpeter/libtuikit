@@ -56,6 +56,10 @@ Added after the first implementation (2026-10-03):
 - `tui_tty_read_password()` turns echo off before writing the prompt, and
   restores the terminal if SIGINT/SIGTERM/SIGHUP/SIGQUIT ends the process
   during it (survey defect 7; TG-6, EMAIL-5).
+- `tui_lineedit_run()` and `tui_readline()` read the terminal one byte at a
+  time, like email-cli's input line and `tui_tty_read_key()`: their decoder
+  ends with the call, so keys that arrived with the one that ended the line
+  stay in the descriptor for the next reader (TUI-45, for EMAIL-28).
 - `tui_tty_read_password_masked()` is the field email-cli shows on a terminal
   (EMAIL-9): echo, signal keys and flow control off, type-ahead discarded,
   one `*` per character, Backspace and Ctrl-U erase it, escape sequences,

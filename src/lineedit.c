@@ -426,10 +426,12 @@ static int read_event(int fd, tui_decoder *d, tui_event *ev,
             return -1;
         }
         if (r == 0) continue;
-        char buf[64];
-        size_t room = sizeof(d->in) - (d->in_len - d->in_pos);
-        if (room > sizeof(buf)) room = sizeof(buf);
-        ssize_t n = read(fd, buf, room);
+        /* One byte at a time, as email-cli's input line and
+         * tui_tty_read_key() do: the decoder ends with the call, so
+         * whatever it read ahead of the key that ended the line would be
+         * lost to the next reader. */
+        char buf[1];
+        ssize_t n = read(fd, buf, sizeof(buf));
         if (n < 0 && (errno == EINTR || errno == EAGAIN)) continue;
         if (n == 0 || (n < 0 && errno == EIO)) {
             /* The end of input: a key held for its ESC delay first. */
