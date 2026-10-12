@@ -3,7 +3,8 @@
 .TH TUI_TTY_IS 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
 .SH NAME
 tui_tty_is, tui_tty_cols, tui_tty_rows, tui_tty_raw_enter, tui_tty_raw_exit,
-tui_tty_wait, tui_tty_read_key, tui_tty_read_password \- terminal helpers that need no
+tui_tty_wait, tui_tty_read_key, tui_tty_read_password,
+tui_tty_read_password_masked \- terminal helpers that need no
 session
 .SH SYNOPSIS
 .nf
@@ -21,6 +22,8 @@ session
 .BI "int  tui_tty_read_key(int " fd ", tui_event *" ev );
 .BI "int  tui_tty_read_password(int " in_fd ", int " out_fd ", const char *" prompt ,
 .BI "                           char *" buf ", size_t " size );
+.BI "int  tui_tty_read_password_masked(int " in_fd ", int " out_fd ,
+.BI "                                  const char *" prompt ", char *" buf ", size_t " size );
 .fi
 .SH DESCRIPTION
 For a program that is not full-screen all the time: one that sizes a
@@ -129,6 +132,33 @@ bytes are kept, NUL-terminated.
 While echo is off, SIGINT, SIGTERM, SIGHUP and SIGQUIT \(em those that
 still have their default action \(em restore the terminal before they end
 the process: Ctrl-C at the prompt does not leave the shell without echo.
+.PP
+.BR tui_tty_read_password_masked ()
+is the same prompt for a field that acknowledges what is typed, as
+email-cli's
+.BR terminal_read_password ()
+shows it on a terminal.
+It puts the terminal in a mode with no echo, no signal keys and no flow
+control, discards what was typed before the prompt, and reads key by key
+through
+.BR tui_tty_read_key (3).
+A printable character adds one
+.RB \(dq * \(dq
+(one per character, not per byte).
+Backspace removes the last character and its
+.RB \(dq * \(dq ;
+Ctrl\-U clears the field; Enter ends the line.
+Escape sequences (arrow keys, Home, function keys), Ctrl and Alt
+combinations and pastes are dropped.
+When the field is full the bell sounds and the character is dropped.
+Ctrl\-C (shown as
+.RB \(dq ^C \(dq )
+and Ctrl\-D end the prompt: the buffer is wiped and \-1 is returned.
+When
+.I in_fd
+is not a terminal it reads one line, with no prompt and no mask.
+Signals are treated as for
+.BR tui_tty_read_password ().
 .SH RETURN VALUE
 .BR tui_tty_raw_enter ()
 returns the saved state, or NULL with
@@ -156,6 +186,11 @@ returns 1 when a read will not block, 0 on timeout, \-1 with
 .BR tui_tty_read_password ()
 returns the length of the password, or \-1 at the end of the input or on
 error.
+.BR tui_tty_read_password_masked ()
+returns the length of the password in bytes, or \-1 at the end of the
+input, on Ctrl\-C or Ctrl\-D, and on error; in the last case with
+.IR errno ,
+and the buffer is wiped.
 .SH SEE ALSO
 .BR tui_term_open (3),
 .BR tui_decoder_init (3),

@@ -317,3 +317,104 @@ int tui_tty_read_password(int in_fd, int out_fd, const char *prompt,
     return n;
 }
 
+
+int tui_tty_read_password_masked(int in_fd, int out_fd, const char *prompt,
+                                 char *buf, size_t size) {
+    if (!buf || size == 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    buf[0] = '\0';
+    if (!isatty(in_fd)) return read_line(in_fd, buf, size);
+
+    struct termios saved, quiet;
+    if (tcgetattr(in_fd, &saved) != 0) return -1;
+    quiet = saved;
+    quiet.c_lflag &= ~(tcflag_t)(ECHO | ECHONL | ICANON | ISIG | IEXTEN);
+    /* Ctrl-S/Ctrl-Q are keys here, and Enter arrives as CR. */
+    quiet.c_iflag &= ~(tcflag_t)(IXON | ICRNL);
+    quiet.c_cc[VMIN] = 1;
+    quiet.c_cc[VTIME] = 0;
+    pw_install(in_fd, &saved);
+    /* TCSAFLUSH: what was typed ahead was echoed by the previous, canonical
+     * field and must not become part of the password.  Echo is off before
+     * the prompt appears. */
+    if (tcsetattr(in_fd, TCSAFLUSH, &quiet) != 0) {
+        int e = errno;
+        pw_remove();
+        errno = e;
+        return -1;
+    }
+    int rc = -1;
+    int e = 0;
+    size_t len = 0;     /* bytes in buf */
+    int masks = 0;      /* mask characters on the screen */
+    if (prompt && (tui__write_all(out_fd, prompt, strlen(prompt)) != 0 ||
+                   tui__write_all(out_fd, ": ", 2) != 0)) {
+        e = errno;
+    } else {
+        for (;;) {
+            tui_event ev;
+            int r = tui_tty_read_key(in_fd, &ev);
+            if (r < 0) {
+                e = errno;
+                break;
+            }
+            if (r == 0) break;                              /* end of input */
+            if (ev.type != TUI_EV_KEY) continue;
+            if (ev.key == TUI_KEY_ENTER) {
+                rc = (int)len;
+                break;
+            }
+            if (TUI_EV_IS_CTRL(&ev, 'c')) {
+                tui__write_all(out_fd, "^C", 2);
+                break;
+            }
+            if (TUI_EV_IS_CTRL(&ev, 'd')) break;
+            if (TUI_EV_IS_CTRL(&ev, 'u')) {                 /* clear the field */
+                int failed = 0;
+                for (; masks > 0 && !failed; masks--) {
+                    failed = tui__write_all(out_fd, "\b \b", 3) != 0;
+                }
+                if (failed) {
+                    e = errno;
+                    break;
+                }
+                len = 0;
+                continue;
+            }
+            if (ev.key == TUI_KEY_BACKSPACE) {              /* one character */
+                if (len == 0) continue;
+                do { len--; } while (len > 0 && ((unsigned char)buf[len] & 0xC0) == 0x80);
+                masks--;
+                if (tui__write_all(out_fd, "\b \b", 3) != 0) {
+                    e = errno;
+                    break;
+                }
+                continue;
+            }
+            if (ev.key != TUI_KEY_CHAR || (ev.mods & (TUI_MOD_CTRL | TUI_MOD_ALT))) continue;
+            size_t n = strlen(ev.utf8);
+            if (len + n >= size) {                          /* the field is full */
+                tui__write_all(out_fd, "\a", 1);
+                continue;
+            }
+            memcpy(buf + len, ev.utf8, n);
+            len += n;
+            masks++;
+            if (tui__write_all(out_fd, "*", 1) != 0) {
+                e = errno;
+                break;
+            }
+        }
+    }
+    buf[len] = '\0';
+    tcsetattr(in_fd, TCSANOW, &saved);
+    pw_remove();
+    if (rc < 0) {
+        memset(buf, 0, size);
+        errno = e;
+    }
+    if (tui__write_all(out_fd, "\n", 1) != 0 && rc >= 0) return -1;
+    return rc;
+}

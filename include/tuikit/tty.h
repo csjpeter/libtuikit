@@ -112,6 +112,27 @@ TUI_API int tui_tty_read_key(int fd, tui_event *ev);
 TUI_API int tui_tty_read_password(int in_fd, int out_fd, const char *prompt,
                                   char *buf, size_t size);
 
+/**
+ * @brief Asks for a password with one '*' on the screen per character, as
+ *        email-cli's terminal_read_password() does on a terminal.
+ *
+ * Like tui_tty_read_password(), but the field acknowledges what is typed:
+ * a printable character adds one '*' (one per character, not per byte);
+ * Backspace removes the last character and its '*'; Ctrl-U clears the
+ * field; an escape sequence (arrow keys, Home, F-keys), Ctrl or Alt
+ * combinations and a paste are dropped, and the bell sounds when the
+ * field is full.  Enter ends the line.  Keys typed before the prompt are
+ * discarded.  Ctrl-C (shown as "^C") and Ctrl-D (end of input) end the
+ * prompt with -1 and the buffer wiped.
+ *
+ * When @p in_fd is not a terminal, it reads one line with no prompt and no
+ * mask, as tui_tty_read_password() does.  Signals are treated as there.
+ * @return The length of the password in bytes, or -1 at end of input, on
+ *         Ctrl-C/Ctrl-D and on error (errno).
+ */
+TUI_API int tui_tty_read_password_masked(int in_fd, int out_fd, const char *prompt,
+                                         char *buf, size_t size);
+
 #ifdef __cplusplus
 }
 #endif

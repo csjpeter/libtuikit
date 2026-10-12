@@ -381,6 +381,62 @@ static void test_tty_failures(void) {
     ASSERT_EQ_INT(tui_tty_read_password(t.slave, t.slave, NULL, pw, sizeof(pw)), -1,
                   "the final newline cannot be written");
     fault_reset();
+
+    /* The masked field: the same failures, and one for each echo it writes. */
+    fault_arm(F_TCGETATTR, 0, 1, EIO);
+    ASSERT_EQ_INT(tui_tty_read_password_masked(t.slave, t.slave, "P", pw, sizeof(pw)), -1, "masked: tcgetattr");
+    fault_reset();
+    fault_arm(F_TCSETATTR, 0, 1, EIO);
+    ASSERT_EQ_INT(tui_tty_read_password_masked(t.slave, t.slave, "P", pw, sizeof(pw)), -1, "masked: tcsetattr");
+    fault_reset();
+    fault_arm(F_WRITE, 0, 1, EIO);
+    ASSERT_EQ_INT(tui_tty_read_password_masked(t.slave, t.slave, "P", pw, sizeof(pw)), -1, "masked: prompt");
+    fault_reset();
+    tcgetattr(t.slave, &m);
+    ASSERT(m.c_lflag & ECHO, "masked: echo back on after every failure");
+    ASSERT(m.c_lflag & ICANON, "masked: canonical mode back on");
+    sigaction(SIGINT, NULL, &now);
+    ASSERT(now.sa_handler == SIG_DFL, "masked: no handler left behind");
+    {
+        pid_t typist = tpair_type_when_raw(&t, "a");
+        fault_arm(F_READ, 0, 1, EBADF);
+        ASSERT_EQ_INT(tui_tty_read_password_masked(t.slave, t.slave, NULL, pw, sizeof(pw)), -1,
+                      "masked: read error");
+        ASSERT_EQ_INT(errno, EBADF, "masked: the error of read");
+        fault_reset();
+        int st = 0;
+        waitpid(typist, &st, 0);
+        tcflush(t.slave, TCIFLUSH);
+    }
+    static const struct { const char *keys; int skip; const char *what; } echo[] = {
+        { "a",      0, "the mask of a character" },
+        { "a\x7f",  1, "the erasure by Backspace" },
+        { "ab\x15", 2, "the erasure by Ctrl-U" },
+    };
+    for (size_t i = 0; i < sizeof(echo) / sizeof(echo[0]); i++) {
+        pid_t typist = tpair_type_when_raw(&t, echo[i].keys);
+        fault_arm(F_WRITE, echo[i].skip, 1, EIO);
+        memset(pw, 'x', sizeof(pw));
+        ASSERT_EQ_INT(tui_tty_read_password_masked(t.slave, t.slave, NULL, pw, sizeof(pw)), -1,
+                      echo[i].what);
+        ASSERT_EQ_INT(errno, EIO, "the error of write");
+        ASSERT_EQ_INT(pw[0], 0, "the buffer is wiped");
+        fault_reset();
+        int st = 0;
+        waitpid(typist, &st, 0);
+        tcflush(t.slave, TCIFLUSH);
+    }
+    tcgetattr(t.slave, &m);
+    ASSERT(m.c_lflag & ECHO, "masked: mode restored after the echo failures");
+    /* The terminal is gone: end of input. */
+    {
+        TPair gone;
+        ASSERT(tpair_open(&gone, 4, 40) == 0, "openpty");
+        tpair_close_master(&gone);
+        ASSERT_EQ_INT(tui_tty_read_password_masked(gone.slave, gone.slave, NULL, pw, sizeof(pw)), -1,
+                      "masked: hang-up");
+        tpair_close(&gone);
+    }
     tpair_close(&t);
 }
 
