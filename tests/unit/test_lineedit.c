@@ -365,6 +365,67 @@ static void test_run(void) {
     tpair_close(&p);
 }
 
+/* Keys that arrived with the one that ends the line belong to whoever
+ * reads next, as with email-cli's input line, which read byte by byte
+ * (TUI-45): nothing is lost with the decoder. */
+static void test_keys_typed_ahead_survive(void) {
+    TPair p;
+    ASSERT(tpair_open(&p, 5, 30) == 0, "openpty");
+    tui_tty_raw *raw = tui_tty_raw_enter(p.slave, 0);
+    ASSERT(raw != NULL, "raw mode");
+    char buf[32];
+    char out[256];
+    tui_event ev;
+    tui_lineedit le;
+
+    tui_lineedit_init(&le, buf, sizeof(buf), NULL);
+    tpair_type(&p, "hi\rxy");
+    ASSERT_EQ_INT(tui_lineedit_run(&le, p.slave, p.slave, 1, 1, "> "), 1, "Enter");
+    ASSERT_EQ_STR(buf, "hi", "the line");
+    ASSERT_EQ_INT(tui_tty_read_key(p.slave, &ev), 1, "first key typed ahead");
+    ASSERT(TUI_EV_IS_CHAR(&ev, 'x'), "x");
+    ASSERT_EQ_INT(tui_tty_read_key(p.slave, &ev), 1, "second key typed ahead");
+    ASSERT(TUI_EV_IS_CHAR(&ev, 'y'), "y");
+    tui_lineedit_free(&le);
+
+    /* An arrow key right after Esc-less Enter, and a cancelled line. */
+    tui_lineedit_init(&le, buf, sizeof(buf), NULL);
+    tpair_type(&p, "a\r\x1b[Bq");
+    ASSERT_EQ_INT(tui_lineedit_run(&le, p.slave, p.slave, 1, 1, "> "), 1, "Enter");
+    ASSERT_EQ_INT(tui_tty_read_key(p.slave, &ev), 1, "the Down key");
+    ASSERT_EQ_INT(ev.key, TUI_KEY_DOWN, "Down");
+    ASSERT_EQ_INT(tui_tty_read_key(p.slave, &ev), 1, "the key after it");
+    ASSERT(TUI_EV_IS_CHAR(&ev, 'q'), "q");
+    tui_lineedit_free(&le);
+    tpair_read_all(&p, out, sizeof(out), 30);
+    tui_tty_raw_exit(&raw);
+    tpair_close(&p);
+}
+
+static void test_readline_keys_typed_ahead_survive(void) {
+    TPair p;
+    ASSERT(tpair_open(&p, 3, 40) == 0, "openpty");
+    tui_readline_opts o;
+    tui_readline_opts_init(&o);
+    o.in_fd = o.out_fd = p.slave;
+    char buf[32];
+    pid_t typer = tpair_type_when_raw(&p, "ab\rxy");
+    ASSERT(typer > 0, "typist");
+    ASSERT_EQ_INT(tui_readline("> ", buf, sizeof(buf), &o), 2, "length");
+    ASSERT_EQ_STR(buf, "ab", "the line");
+    int st = 0;
+    waitpid(typer, &st, 0);
+    tui_tty_raw *raw = tui_tty_raw_enter(p.slave, 0);
+    ASSERT(raw != NULL, "raw mode");
+    tui_event ev;
+    ASSERT_EQ_INT(tui_tty_read_key(p.slave, &ev), 1, "first key typed ahead");
+    ASSERT(TUI_EV_IS_CHAR(&ev, 'x'), "x");
+    ASSERT_EQ_INT(tui_tty_read_key(p.slave, &ev), 1, "second key typed ahead");
+    ASSERT(TUI_EV_IS_CHAR(&ev, 'y'), "y");
+    tui_tty_raw_exit(&raw);
+    tpair_close(&p);
+}
+
 /* ── tui_readline(): tg-cli's rl_readline(), mamind's line_editor_read() ── */
 
 static void test_readline_tty(void) {
@@ -506,6 +567,8 @@ static const TestCase tests[] = {
     TEST_CASE(test_hooks),
     TEST_CASE(test_render_scrolls),
     TEST_CASE(test_run),
+    TEST_CASE(test_keys_typed_ahead_survive),
+    TEST_CASE(test_readline_keys_typed_ahead_survive),
     TEST_CASE(test_readline_tty),
     TEST_CASE(test_readline_sigint),
     TEST_CASE(test_readline_not_a_tty),
