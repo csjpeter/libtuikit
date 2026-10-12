@@ -260,6 +260,7 @@ set(TUIKIT_MAN3_ALIASES
     tui_tty_cols:tui_tty_is tui_tty_rows:tui_tty_is
     tui_tty_raw_enter:tui_tty_is tui_tty_raw_exit:tui_tty_is
     tui_tty_read_key:tui_tty_is tui_tty_read_password:tui_tty_is
+    tui_tty_read_password_masked:tui_tty_is
     tui_decoder_free:tui_decoder_init tui_decoder_feed:tui_decoder_init
     tui_decoder_next:tui_decoder_init tui_decoder_pending:tui_decoder_init
     tui_decoder_timeout:tui_decoder_init tui_event_name:tui_decoder_init

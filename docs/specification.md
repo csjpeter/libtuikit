@@ -56,6 +56,11 @@ Added after the first implementation (2026-10-03):
 - `tui_tty_read_password()` turns echo off before writing the prompt, and
   restores the terminal if SIGINT/SIGTERM/SIGHUP/SIGQUIT ends the process
   during it (survey defect 7; TG-6, EMAIL-5).
+- `tui_tty_read_password_masked()` is the field email-cli shows on a terminal
+  (EMAIL-9): echo, signal keys and flow control off, type-ahead discarded,
+  one `*` per character, Backspace and Ctrl-U erase it, escape sequences,
+  Ctrl/Alt keys and pastes are dropped, Ctrl-C/Ctrl-D end it with -1 and the
+  buffer wiped (TUI-44, for EMAIL-28). Off a terminal it is the plain line.
 - A lone ESC held for its delay is delivered before the end of input or a
   hang-up, on every reading path.
 - email-cli's 34 `input_line` unit cases and its PTY scenarios, and tg-cli's
@@ -335,6 +340,8 @@ void tui_tty_raw_exit(tui_tty_raw **state);               /* NULL-safe, sets NUL
 int  tui_tty_read_key(int fd, tui_event *ev);     /* blocking, one key; 1 / -1 */
 int  tui_tty_read_password(int in_fd, int out_fd, const char *prompt,
                            char *buf, size_t size);   /* echo off; non-TTY: plain line */
+int  tui_tty_read_password_masked(int in_fd, int out_fd, const char *prompt,
+                                  char *buf, size_t size);   /* one * per character */
 ```
 
 `tui_tty_raw_enter` applies the same termios changes as `tui_term_open`

@@ -261,6 +261,155 @@ static void test_read_password_not_a_tty(void) {
     close(in[0]);
 }
 
+/* One masked prompt on a terminal pair: @p ahead is typed before the
+ * prompt, @p typed once the terminal is in raw mode.  @p screen receives
+ * everything the terminal showed, prompt included. */
+static void masked(int *rc_out, const char *ahead, const char *typed, char *pw, size_t size,
+                  char *screen, size_t screen_size) {
+    TPair p;
+    ASSERT(tpair_open(&p, 24, 80) == 0, "openpty");
+    if (ahead) tpair_type(&p, ahead);
+    pid_t typist = tpair_type_when_raw(&p, typed);
+    ASSERT(typist > 0, "typist");
+    int rc = tui_tty_read_password_masked(p.slave, p.slave, "Password", pw, size);
+    *rc_out = rc;
+    int st = 0;
+    waitpid(typist, &st, 0);
+    ASSERT(WIFEXITED(st) && WEXITSTATUS(st) == 0, "the typist saw raw mode");
+    screen[0] = '\0';
+    size_t n = tpair_read_all(&p, screen, screen_size - 1, 150);
+    screen[n] = '\0';
+    tpair_close(&p);
+}
+
+/* Everything the field does on a terminal, as email-cli's masked field
+ * does it (EMAIL-9). */
+static void test_read_password_masked(void) {
+    char pw[32], screen[256];
+    int rc;
+
+    masked(&rc, NULL, "secret\r", pw, sizeof(pw), screen, sizeof(screen));
+    ASSERT_EQ_INT(rc, 6, "length");
+    ASSERT_EQ_STR(pw, "secret", "password");
+    ASSERT_EQ_STR(screen, "Password: ******\r\n", "one * per character, newline after");
+
+    /* One mask per character, not per byte. */
+    masked(&rc, NULL, "\xc3\xa9x\xe2\x82\xac\r", pw, sizeof(pw), screen, sizeof(screen));
+    ASSERT_EQ_INT(rc, 6, "length in bytes");
+    ASSERT_EQ_STR(pw, "\xc3\xa9x\xe2\x82\xac", "UTF-8 kept");
+    ASSERT_EQ_STR(screen, "Password: ***\r\n", "three characters, three masks");
+
+    /* Backspace removes the last character and its mask. */
+    masked(&rc, NULL, "ab\x7f" "c\r", pw, sizeof(pw), screen, sizeof(screen));
+    ASSERT_EQ_INT(rc, 2, "after Backspace");
+    ASSERT_EQ_STR(pw, "ac", "Backspace removed b");
+    ASSERT_EQ_STR(screen, "Password: **\b \b*\r\n", "its mask erased");
+    masked(&rc, NULL, "\xc3\xa9\x7fz\r", pw, sizeof(pw), screen, sizeof(screen));
+    ASSERT_EQ_INT(rc, 1, "a whole multi-byte character is removed");
+    ASSERT_EQ_STR(pw, "z", "Backspace over UTF-8");
+    masked(&rc, NULL, "\x7f" "a\r", pw, sizeof(pw), screen, sizeof(screen));
+    ASSERT_EQ_STR(pw, "a", "Backspace on an empty field");
+    ASSERT_EQ_STR(screen, "Password: *\r\n", "nothing erased on an empty field");
+
+    /* Ctrl-U clears the field. */
+    masked(&rc, NULL, "abc\x15" "d\r", pw, sizeof(pw), screen, sizeof(screen));
+    ASSERT_EQ_INT(rc, 1, "after Ctrl-U");
+    ASSERT_EQ_STR(pw, "d", "Ctrl-U cleared the field");
+    ASSERT_EQ_STR(screen, "Password: ***\b \b\b \b\b \b*\r\n", "all masks erased");
+
+    /* Escape sequences, Ctrl and Alt combinations are not part of it. */
+    masked(&rc, NULL, "a\x1b[Ab\x1bOHc\x01\x1b" "xd\r", pw, sizeof(pw), screen, sizeof(screen));
+    ASSERT_EQ_STR(pw, "abcd", "escape sequences and Ctrl/Alt keys dropped");
+    ASSERT_EQ_STR(screen, "Password: ****\r\n", "and not shown");
+    masked(&rc, NULL, "a\x13" "b\x11" "c\r", pw, sizeof(pw), screen, sizeof(screen));
+    ASSERT_EQ_STR(pw, "abc", "Ctrl-S and Ctrl-Q are keys, not flow control");
+
+    /* A full field rings the bell and drops the character. */
+    char small[4];
+    masked(&rc, NULL, "abcde\r", small, sizeof(small), screen, sizeof(screen));
+    ASSERT_EQ_INT(rc, 3, "size - 1 bytes");
+    ASSERT_EQ_STR(small, "abc", "truncated");
+    ASSERT_EQ_STR(screen, "Password: ***\a\a\r\n", "a bell for each dropped character");
+
+    /* What was typed before the prompt is not part of the password. */
+    masked(&rc, "old\n", "x\r", pw, sizeof(pw), screen, sizeof(screen));
+    ASSERT_EQ_INT(rc, 1, "type-ahead discarded");
+    ASSERT_EQ_STR(pw, "x", "only what was typed at the prompt");
+
+    /* Ctrl-C and Ctrl-D end it with the buffer wiped. */
+    memset(pw, 'z', sizeof(pw));
+    masked(&rc, NULL, "ab\x03", pw, sizeof(pw), screen, sizeof(screen));
+    ASSERT_EQ_INT(rc, -1, "Ctrl-C");
+    ASSERT(memcmp(pw, "\0\0\0\0\0\0\0\0", 8) == 0, "buffer wiped");
+    ASSERT_EQ_STR(screen, "Password: **^C\r\n", "^C shown");
+    masked(&rc, NULL, "ab\x04", pw, sizeof(pw), screen, sizeof(screen));
+    ASSERT_EQ_INT(rc, -1, "Ctrl-D");
+    ASSERT_EQ_STR(pw, "", "buffer wiped");
+}
+
+/* While it reads: no echo, no canonical mode, no signal keys, no flow
+ * control, no CR to LF; afterwards the mode is as it was. */
+static void test_read_password_masked_mode(void) {
+    TPair p;
+    ASSERT(tpair_open(&p, 24, 80) == 0, "openpty");
+    struct termios before;
+    tcgetattr(p.slave, &before);
+    int res[2];
+    ASSERT_EQ_INT(pipe(res), 0, "result pipe");
+    pid_t pid = fork();
+    ASSERT(pid >= 0, "fork");
+    if (pid == 0) {
+        close(res[0]);
+        char buf[16];
+        int n = tui_tty_read_password_masked(p.slave, p.slave, "Password", buf, sizeof(buf));
+        char out[32];
+        int len = snprintf(out, sizeof(out), "%d|%s", n, buf);
+        ssize_t w = write(res[1], out, (size_t)len);
+        (void)w;
+        exit(0);    /* exit, not _exit: coverage data is written */
+    }
+    close(res[1]);
+    char seen[128];
+    ASSERT(tpair_read_until(&p, "Password: ", seen, sizeof(seen), 3000) == 0, "prompt");
+    struct termios t;
+    tcgetattr(p.slave, &t);
+    ASSERT_EQ_INT(t.c_lflag & (ECHO | ICANON | ISIG | IEXTEN), 0, "echo, canonical, signals, extensions off");
+    ASSERT_EQ_INT(t.c_iflag & (IXON | ICRNL), 0, "flow control and CR translation off");
+    tpair_type(&p, "pw\r");
+    char out[32] = {0};
+    ASSERT(read(res[0], out, sizeof(out) - 1) > 0, "child reported");
+    ASSERT_EQ_STR(out, "2|pw", "result");
+    int st = 0;
+    waitpid(pid, &st, 0);
+    close(res[0]);
+    tcgetattr(p.slave, &t);
+    ASSERT_EQ_INT(t.c_lflag & (ECHO | ICANON | ISIG | IEXTEN),
+                  before.c_lflag & (ECHO | ICANON | ISIG | IEXTEN), "lflag restored");
+    ASSERT_EQ_INT(t.c_iflag & (IXON | ICRNL), before.c_iflag & (IXON | ICRNL), "iflag restored");
+    tpair_close(&p);
+}
+
+static void test_read_password_masked_not_a_tty(void) {
+    int in[2], out[2];
+    ASSERT_EQ_INT(pipe(in), 0, "input pipe");
+    ASSERT_EQ_INT(pipe(out), 0, "output pipe");
+    ASSERT_EQ_INT(write(in[1], "pw\r\nnext\n", 9), 9, "write");
+    char buf[16];
+    ASSERT_EQ_INT(tui_tty_read_password_masked(in[0], out[1], "Password", buf, sizeof(buf)), 2, "length");
+    ASSERT_EQ_STR(buf, "pw", "CR LF removed");
+    ASSERT_EQ_INT(tui_tty_read_password_masked(in[0], out[1], "Password", buf, sizeof(buf)), 4, "second line");
+    close(in[1]);
+    ASSERT_EQ_INT(tui_tty_read_password_masked(in[0], out[1], "Password", buf, sizeof(buf)), -1, "end of input");
+    close(out[1]);
+    char c;
+    ASSERT_EQ_INT(read(out[0], &c, 1), 0, "no prompt and no mask when input is not a terminal");
+    ASSERT_EQ_INT(tui_tty_read_password_masked(in[0], -1, NULL, NULL, 4), -1, "NULL buffer");
+    ASSERT_EQ_INT(errno, EINVAL, "EINVAL");
+    ASSERT_EQ_INT(tui_tty_read_password_masked(in[0], -1, NULL, buf, 0), -1, "zero size");
+    close(in[0]);
+    close(out[0]);
+}
+
 static const TestCase tests[] = {
     TEST_CASE(test_is_tty),
     TEST_CASE(test_size_and_fallbacks),
@@ -272,6 +421,9 @@ static const TestCase tests[] = {
     TEST_CASE(test_read_key_from_pipe),
     TEST_CASE(test_read_password_tty),
     TEST_CASE(test_read_password_not_a_tty),
+    TEST_CASE(test_read_password_masked),
+    TEST_CASE(test_read_password_masked_mode),
+    TEST_CASE(test_read_password_masked_not_a_tty),
 };
 
 int main(int argc, char **argv) {

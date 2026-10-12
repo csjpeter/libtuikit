@@ -164,6 +164,7 @@ symbol tui_tty_raw_enter
 symbol tui_tty_raw_exit
 symbol tui_tty_read_key
 symbol tui_tty_read_password
+symbol tui_tty_read_password_masked
 symbol tui_tty_rows
 symbol tui_tty_wait
 symbol tui_utf8_decode
