@@ -44,7 +44,9 @@ static PtySession *start_demo(int cols, int rows) {
 static const PtyStyleKey g_legend[] = {
     { '.', PTY_ATTR_NONE, PTY_FG_DEFAULT, PTY_BG_DEFAULT },
     { 'H', PTY_ATTR_BOLD, PTY_FG_WHITE, PTY_BG_BLUE },      /* header bar */
-    { 'S', PTY_ATTR_BOLD | PTY_ATTR_REVERSE, 0, 0 },      /* selection */
+    { 'S', PTY_ATTR_BOLD | PTY_ATTR_REVERSE, 0, 0 },      /* a button, a focused tab */
+    { 'D', PTY_ATTR_NONE, 97, PTY_COLOR_IDX(17) },        /* the selection of a menu or a drop-down */
+    { 'M', PTY_ATTR_BOLD, 97, PTY_COLOR_IDX(17) },        /* its '>' */
     { 'A', PTY_ATTR_BOLD, PTY_FG_CYAN, PTY_BG_DEFAULT },    /* accent */
     { 'B', PTY_ATTR_BOLD, PTY_FG_DEFAULT, PTY_BG_DEFAULT }, /* bold, no colour */
     { 'Y', PTY_ATTR_NONE, PTY_FG_YELLOW, PTY_BG_DEFAULT },  /* hints */
@@ -562,8 +564,8 @@ static void test_compose_and_send(void) {
     const char *const dropdown[] = {
         " New message                                                        tuikit-demo",
         "To:      al",
-        "         ▶ alice@example.com  Alice Smith",
-        "         ▶ albert@example.org  Albert",
+        "           alice@example.com  Alice Smith",
+        "           albert@example.org  Albert",
         "Subject:",
         "",
         "",
@@ -594,15 +596,22 @@ static void test_compose_and_send(void) {
     pty_send_key(s, PTY_KEY_TAB);                /* nothing more is shared: no change */
     pty_send_key(s, PTY_KEY_DOWN);
     const char *const drop_map[] = {
-        ".........SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS.",
+        ".........MDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD",
         "..........................................", NULL };
     ASSERT_WAIT_REGION_STYLE(s, PTY_REGION(2, 0, 2, 42), drop_map, g_legend, 3000);
-    ASSERT_WAIT_REGION(s, PTY_REGION(0, 0, 24, 80), dropdown, 3000);
+    const char *const first[] = { "To:      al",
+        "         > alice@example.com  Alice Smith",
+        "           albert@example.org  Albert", NULL };
+    ASSERT_WAIT_REGION(s, PTY_REGION(1, 0, 3, 41), first, 3000);
     pty_send_key(s, PTY_KEY_DOWN);
     const char *const drop_map2[] = {
         "..........................................",
-        ".........SSSSSSSSSSSSSSSSSSSSSSSSSSSS.....", NULL };
+        ".........MDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD", NULL };
     ASSERT_WAIT_REGION_STYLE(s, PTY_REGION(2, 0, 2, 42), drop_map2, g_legend, 3000);
+    const char *const second_text[] = { "To:      al",
+        "           alice@example.com  Alice Smith",
+        "         > albert@example.org  Albert", NULL };
+    ASSERT_WAIT_REGION(s, PTY_REGION(1, 0, 3, 41), second_text, 3000);
     pty_send_key(s, PTY_KEY_ENTER);              /* Enter takes the chosen one */
     const char *const accepted[] = {
         " New message                                                        tuikit-demo",
@@ -635,7 +644,7 @@ static void test_compose_and_send(void) {
     const char *const second[] = {
         " New message                                                        tuikit-demo",
         "To:      albert@example.org; bo",
-        "         ▶ bob@example.net  Bob",
+        "           bob@example.net  Bob",
         "Subject:",
         "",
         "",
@@ -715,9 +724,9 @@ static void test_compose_and_send(void) {
         "────────────────────────────────────────────────────────────────────────────────",
         "Line one",
         "Line two        end            ┌─ Labels ───────┐",
-        "                               │ [ ] Work       │",
-        "                               │ [ ] Personal   │",
-        "                               │ [ ] Urgent     │",
+        "                               │ > [ ] Work     │",
+        "                               │   [ ] Personal │",
+        "                               │   [ ] Urgent   │",
         "                               └────────────────┘",
         "",
         "",
@@ -732,7 +741,7 @@ static void test_compose_and_send(void) {
         NULL };
     const char *const labels_map[] = {
         "AAAAAAAAAAAAAAAAAA",
-        "A.SSSSSSSSSSSSSS.A",
+        "A.MDDDDDDDDDDDDD.A",
         "A................A",
         "A................A",
         "AAAAAAAAAAAAAAAAAA",
@@ -752,9 +761,9 @@ static void test_compose_and_send(void) {
         "────────────────────────────────────────────────────────────────────────────────",
         "Line one",
         "Line two        end            ┌─ Labels ───────┐",
-        "                               │ [ ] Work       │",
-        "                               │ [x] Personal   │",
-        "                               │ [ ] Urgent     │",
+        "                               │   [ ] Work     │",
+        "                               │ > [x] Personal │",
+        "                               │   [ ] Urgent   │",
         "                               └────────────────┘",
         "",
         "",
@@ -770,7 +779,7 @@ static void test_compose_and_send(void) {
     const char *const ticked_map[] = {
         "AAAAAAAAAAAAAAAAAA",
         "A................A",
-        "A.SSSSSSSSSSSSSS.A",
+        "A.MDDDDDDDDDDDDD.A",
         "A................A",
         "AAAAAAAAAAAAAAAAAA",
         NULL };

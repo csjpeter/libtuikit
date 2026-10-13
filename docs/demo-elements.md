@@ -55,5 +55,5 @@ policies/tui-interface-model.md. Every full screen is also a position check.
 
 - **Colours on a terminal without colour.** libptytest emulates a colour
   terminal; that every state also differs by an attribute or a glyph is
-  checked through the maps (bold selection, bold frames, `[x]`, `▶`), not on
+  checked through the maps (bold selection, bold frames, `[x]`, `>`), not on
   a monochrome emulator.

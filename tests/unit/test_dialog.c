@@ -61,7 +61,9 @@ static void fx_close(Fx *f) {
 static const PtyStyleKey legend[] = {
     { '.', PTY_ATTR_NONE, 0, 0 },
     { 'A', PTY_ATTR_BOLD, PTY_FG_CYAN, PTY_BG_DEFAULT },
-    { 'S', PTY_ATTR_BOLD | PTY_ATTR_REVERSE, 0, 0 },
+    { 'S', PTY_ATTR_BOLD | PTY_ATTR_REVERSE, 0, 0 },     /* a button */
+    { 'B', PTY_ATTR_NONE, 97, PTY_COLOR_IDX(17) },         /* a menu row: 256 colours */
+    { 'M', PTY_ATTR_BOLD, 97, PTY_COLOR_IDX(17) },         /* its '>' */
     { 0, 0, 0, 0 } };
 
 static void test_message(void) {
@@ -184,14 +186,20 @@ static void test_menu(void) {
     const char *const expect[] = {
         "", "",
         "        ┌─ File ─────┐",
-        "        │ Open       │",
-        "        │ Save as…   │",
-        "        │ Quit       │",
+        "        │   Open     │",
+        "        │ > Save as… │",
+        "        │   Quit     │",
         "        └────────────┘",
         "", "", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
-    const char *const map[] = { "A............A", "A.SSSSSSSSSS.A", "A............A", NULL };
+    /* TUI-49: the table's selection: the whole row on the dark blue, the
+     * text colour white, '>' in bold in the first column. */
+    const char *const map[] = { "A............A", "A.MBBBBBBBBB.A", "A............A", NULL };
     ASSERT_REGION_STYLE(f.s, PTY_REGION(3, 8, 3, 14), map, legend);
+    ASSERT_EQ_INT(pty_cell_bg(f.s, 4, 10), PTY_COLOR_IDX(17), "'>' on the dark blue");
+    ASSERT_EQ_INT(pty_cell_bg(f.s, 4, 19), PTY_COLOR_IDX(17), "to the end of the row");
+    ASSERT_EQ_INT(pty_cell_bg(f.s, 3, 12), PTY_COLOR_DEFAULT, "the other rows have none");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 4, 10), ">", "the marker");
     send(&d, "\x1b[B");
     ASSERT_EQ_INT(d.answer, 2, "Down");
     send(&d, "\x1b[B");
@@ -224,14 +232,14 @@ static void test_checklist(void) {
     const char *const expect[] = {
         "",
         "    ┌─ Status ──────────┐",
-        "    │ [x] NEW           │",
-        "    │ [x] APPROVED      │",
-        "    │ [x] DEVELOPMENT   │",
-        "    │ [ ] CLOSED        │",
+        "    │ > [x] NEW         │",
+        "    │   [x] APPROVED    │",
+        "    │   [x] DEVELOPMENT │",
+        "    │   [ ] CLOSED      │",
         "    └───────────────────┘",
         "", "", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
-    const char *const map[] = { "A.SSSSSSSSSSSSSSSSS.A", "A...................A", NULL };
+    const char *const map[] = { "A.MBBBBBBBBBBBBBBBB.A", "A...................A", NULL };
     ASSERT_REGION_STYLE(f.s, PTY_REGION(2, 4, 2, 21), map, legend);
 
     ASSERT_EQ_INT(send(&d, "\x1b[B "), TUI_DIALOG_OPEN, "Down, Space");
@@ -239,8 +247,8 @@ static void test_checklist(void) {
     ASSERT_EQ_INT(send(&d, "\x1b[B\x1b[B "), TUI_DIALOG_OPEN, "to CLOSED, Space");
     ASSERT_EQ_INT(tui_dialog_is_checked(&d, 3), 1, "CLOSED ticked");
     fx_draw(&f, &d);
-    const char *const rows[] = { "│ [x] NEW           │", "│ [ ] APPROVED      │",
-                                 "│ [x] DEVELOPMENT   │", "│ [x] CLOSED        │", NULL };
+    const char *const rows[] = { "│   [x] NEW         │", "│   [ ] APPROVED    │",
+                                 "│   [x] DEVELOPMENT │", "│ > [x] CLOSED      │", NULL };
     ASSERT_REGION_EQ(f.s, PTY_REGION(2, 4, 4, 21), rows);
     ASSERT_EQ_INT(send(&d, "\r"), TUI_DIALOG_OK, "Enter confirms");
     ASSERT_EQ_INT(d.answer, 3, "answer: the row Enter was pressed on");
@@ -429,7 +437,63 @@ static void test_help(void) {
     fx_close(&f);
 }
 
+static void set_env(const char *name, const char *value) {
+    if (value) setenv(name, value, 1);
+    else unsetenv(name);
+}
+
+/* TUI-49: the selection of a menu follows the colour depth like the
+ * table's, and a focus style the program set is its own choice. */
+static void test_menu_selection_depth_and_own_style(void) {
+    static const char *const items[] = { "Open", "Quit" };
+    const char *oterm = getenv("TERM"), *oct = getenv("COLORTERM");
+    char saveterm[64] = "", savect[64] = "";
+    int hadterm = oterm != NULL, hadct = oct != NULL;
+    if (oterm) snprintf(saveterm, sizeof(saveterm), "%s", oterm);
+    if (oct) snprintf(savect, sizeof(savect), "%s", oct);
+    Fx f;
+    ASSERT(fx_open(&f, 6, 30) == 0, "fixtures");
+    tui_dialog d;
+
+    set_env("COLORTERM", NULL);
+    set_env("TERM", "screen");                       /* 16 colours */
+    tui_dialog_menu(&d, "M", items, 2, 0);
+    fx_draw(&f, &d);
+    char desc[160];
+    ASSERT_EQ_INT(pty_cell_bg(f.s, 2, 12), PTY_BG_BLUE, "16 colours: blue background");
+    ASSERT_EQ_INT(pty_cell_bg(f.s, 3, 12), PTY_BG_DEFAULT, "other row: none");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 2, 14), "O", "text from the third column");
+    tui_dialog_free(&d);
+
+    set_env("TERM", "linux");                        /* 8 colours: bold only */
+    tui_dialog_menu(&d, "M", items, 2, 1);
+    fx_draw(&f, &d);
+    ASSERT_EQ_INT(pty_cell_bg(f.s, 3, 14), PTY_BG_DEFAULT, "8 colours: no background");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 3, 12), ">", "the marker is the selection");
+    pty_cell_describe(f.s, 3, 14, desc, sizeof(desc));
+    ASSERT(strstr(desc, "bold") != NULL, "8 colours: bold");
+    ASSERT(strstr(desc, "reverse") == NULL, "8 colours: not reverse video");
+    tui_dialog_free(&d);
+
+    /* The program's own focus style is kept, with the same layout. */
+    set_env("TERM", "xterm-256color");
+    tui_dialog_menu(&d, "M", items, 2, 0);
+    d.focus = tui_style_make(TUI_RED, TUI_COLOR_DEFAULT, TUI_ATTR_UNDERLINE);
+    fx_draw(&f, &d);
+    pty_cell_describe(f.s, 2, 14, desc, sizeof(desc));
+    ASSERT(strstr(desc, "underline") != NULL, "own style: underline");
+    ASSERT(strstr(desc, "red") != NULL, "own style: red");
+    ASSERT_EQ_INT(pty_cell_bg(f.s, 2, 14), PTY_BG_DEFAULT, "own style: no dark blue");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 2, 12), ">", "own style: same marker");
+    tui_dialog_free(&d);
+
+    set_env("TERM", hadterm ? saveterm : NULL);
+    set_env("COLORTERM", hadct ? savect : NULL);
+    fx_close(&f);
+}
+
 static const TestCase tests[] = {
+    TEST_CASE(test_menu_selection_depth_and_own_style),
     TEST_CASE(test_message),
     TEST_CASE(test_confirm),
     TEST_CASE(test_prompt),
@@ -440,5 +504,7 @@ static const TestCase tests[] = {
 };
 
 int main(int argc, char **argv) {
+    setenv("TERM", "xterm-256color", 1);   /* the depth the picture tests expect */
+    unsetenv("COLORTERM");
     return RUN_SUITE("dialog", tests, 50, 60);
 }

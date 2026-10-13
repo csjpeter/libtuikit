@@ -82,7 +82,11 @@ typedef struct tui_style {
  */
 /** @brief The header bar: bold white on blue. */
 #define TUI_STYLE_HEADER    ((tui_style){ TUI_WHITE, TUI_BLUE, TUI_ATTR_BOLD })
-/** @brief The row or choice under the cursor: bold reverse video. */
+/** @brief The row or choice under the cursor.  As a style value it is bold
+ *  reverse video, which is what the buttons of a dialog use; tui_table,
+ *  the menus of tui_dialog and the candidate lists of tui_fieldset draw it
+ *  as the one selection of the policy (a dark blue row for the colour
+ *  depth, '>' in the first column) when a style is left at this value. */
 #define TUI_STYLE_SELECTION ((tui_style){ TUI_COLOR_DEFAULT, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD | TUI_ATTR_REVERSE })
 /** @brief The active tab, a modal's frame, the focused field's label: bold cyan. */
 #define TUI_STYLE_ACCENT    ((tui_style){ TUI_CYAN, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD })

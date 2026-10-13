@@ -228,10 +228,27 @@ typedef struct {
     tui_dialog *d;
 } menu_ctx;
 
+/* A menu or checklist row: the palette's selection is the table's (the
+ * whole row in it, '>' in the first column, the text from the third); a
+ * style the program set in focus is its own choice and is kept.  The two
+ * columns are there on every row, and the item width counts them. */
 static void draw_item(void *ctx, tui_canvas row, int index, int selected) {
     tui_dialog *d = ((menu_ctx *)ctx)->d;
-    tui_style st = selected ? d->focus : d->fill;
+    tui_style st = d->fill;
+    if (selected) {
+        if (tui__is_default_selection(d->focus))
+            st = tui__selection_compose(tui__selection_base(tui__colors_from_env()), d->fill,
+                                        TUI_STYLE_DEFAULT, 1);
+        else
+            st = d->focus;
+    }
     tui_canvas_clear(row, st);
+    if (selected) {
+        tui_style mark = st;
+        mark.attrs = (uint16_t)(mark.attrs | TUI_ATTR_BOLD);
+        tui_canvas_put(row, 0, 0, ">", mark);
+    }
+    row = tui_canvas_sub(row, tui_rect_make(0, 2, 1, tui_canvas_cols(row) - 2));
     if (d->kind == TUI_DIALOG_CHECKLIST) {
         tui_canvas_put(row, 0, 0, d->checked[index] ? "[x] " : "[ ] ", st);
         row = tui_canvas_sub(row, tui_rect_make(0, 4, 1, tui_canvas_cols(row) - 4));

@@ -4,7 +4,7 @@
 # The build, test, install and package definition of libtuikit.
 
 cmake_minimum_required(VERSION 3.20)
-project(libtuikit VERSION 0.6.0 LANGUAGES C)
+project(libtuikit VERSION 0.6.1 LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Version
@@ -128,6 +128,7 @@ set(TUIKIT_SOURCES
     src/lineedit.c
     src/listview.c
     src/screen.c
+    src/selection.c
     src/table.c
     src/term.c
     src/text.c

@@ -115,29 +115,8 @@ static void cell_describe(const tui_table *t, int index, int col, tui_table_cell
 
 void tui_table_set_colors(tui_table *t, int colors) {
     if (!t) return;
-    if (colors >= 256) {
-        t->colors = 256;
-        t->selection = tui_style_make(TUI_COLOR_DEFAULT, TUI_COLOR_256(17), 0);
-    } else if (colors >= 16) {
-        t->colors = 16;
-        t->selection = tui_style_make(TUI_COLOR_DEFAULT, TUI_BLUE, 0);
-    } else {
-        t->colors = 8;
-        t->selection = tui_style_attrs(TUI_ATTR_BOLD);
-    }
-}
-
-static int colors_from_env(void) {
-    const char *ct = getenv("COLORTERM");
-    const char *term = getenv("TERM");
-    if (ct && *ct) return 256;
-    if (!term || !*term) return 8;
-    size_t n = strlen(term);
-    if (n >= 8 && strcmp(term + n - 8, "256color") == 0) return 256;
-    if (strcmp(term, "dumb") == 0 || strcmp(term, "linux") == 0 ||
-        strcmp(term, "ansi") == 0 || strncmp(term, "vt", 2) == 0)
-        return 8;
-    return 16;
+    t->colors = colors >= 256 ? 256 : colors >= 16 ? 16 : 8;
+    t->selection = tui__selection_base(t->colors);
 }
 
 void tui_table_init(tui_table *t, const tui_table_col *cols, int ncols,
@@ -150,7 +129,7 @@ void tui_table_init(tui_table *t, const tui_table_col *cols, int ncols,
     if (model) t->model = *model;
     t->header = tui_style_attrs(TUI_ATTR_BOLD);
     t->message_style = tui_style_attrs(TUI_ATTR_DIM);
-    tui_table_set_colors(t, colors_from_env());
+    tui_table_set_colors(t, tui__colors_from_env());
 }
 
 void tui_table_set_total(tui_table *t, int total) {
@@ -288,34 +267,9 @@ int tui_table_widths(const tui_table *t, int cols, int *widths) {
 
 /* ── Styles ────────────────────────────────────────────────────────── */
 
-/* The style of a span: the row's under the cell's own, and on the
- * selected row the selection's background (a row's own background gives
- * way to it, a cell's own does not); text that has no colour of its
- * own is white on it, so that it reads on a light theme too, and a colour
- * that would be lost on the dark blue is its bright variant, in bold: the
- * hue, and so the meaning, stays. */
+/* The style of a span: see tui__selection_compose(). */
 static tui_style compose(const tui_table *t, tui_style row, tui_style span, int selected) {
-    tui_style s;
-    if (selected) row.bg = TUI_COLOR_DEFAULT;  /* the selection's is the one */
-    s.fg = span.fg != TUI_COLOR_DEFAULT ? span.fg : row.fg;
-    s.bg = span.bg != TUI_COLOR_DEFAULT ? span.bg : row.bg;
-    s.attrs = (uint16_t)(row.attrs | span.attrs);
-    if (!selected) return s;
-    s.attrs = (uint16_t)(s.attrs | t->selection.attrs);
-    if (s.bg != TUI_COLOR_DEFAULT || t->selection.bg == TUI_COLOR_DEFAULT) return s;
-    s.bg = t->selection.bg;
-    if (s.fg == TUI_COLOR_DEFAULT) {
-        s.fg = TUI_BRIGHT_WHITE;
-    } else if ((s.fg & 0xFF000000u) == 0x01000000u) {
-        unsigned n = s.fg & 0x0Fu;
-        if (n == 0) {
-            s.fg = TUI_WHITE;
-        } else if (n < 8) {
-            s.fg = TUI_COLOR_16(n + 8);
-            s.attrs = (uint16_t)(s.attrs | TUI_ATTR_BOLD);
-        }
-    }
-    return s;
+    return tui__selection_compose(t->selection, row, span, selected);
 }
 
 /* The base of the whole selected row: the background and the attributes. */

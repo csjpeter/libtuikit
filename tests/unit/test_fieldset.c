@@ -124,7 +124,8 @@ static const PtyStyleKey legend[] = {
     { '.', PTY_ATTR_NONE, 0, 0 },
     /* The palette's roles (policies/tui-interface-model.md). */
     { 'A', PTY_ATTR_BOLD, PTY_FG_CYAN, PTY_BG_DEFAULT },     /* accent: the focused label */
-    { 'S', PTY_ATTR_BOLD | PTY_ATTR_REVERSE, 0, 0 },       /* selection */
+    { 'B', PTY_ATTR_NONE, 97, PTY_COLOR_IDX(17) },        /* selection, 256 colours */
+    { 'M', PTY_ATTR_BOLD, 97, PTY_COLOR_IDX(17) },        /* its '>' */
     { 'E', PTY_ATTR_BOLD, PTY_FG_RED, PTY_BG_DEFAULT },      /* error */
     { 0, 0, 0, 0 } };
 
@@ -190,8 +191,8 @@ static void test_completion(void) {
     ASSERT_EQ_INT(fx_draw(&x, &c.f, 8), 6, "fields and drop-down rows");
     const char *const expect[] = {
         "To:      al",
-        "         \xE2\x96\xB6 alice@example.com  Alice Smith",
-        "         \xE2\x96\xB6 albert@example.org  Albert",
+        "           alice@example.com  Alice Smith",
+        "           albert@example.org  Albert",
         "Cc:", "Subject:", "Type:    Bug", "", "", NULL };
     ASSERT_SCREEN_EQ(x.s, expect);
     /* TUI-17: nothing is chosen when the drop-down opens. */
@@ -206,8 +207,13 @@ static void test_completion(void) {
     send(&c.f, "\x1b[B");
     ASSERT_EQ_INT(c.f.cand_sel, 0, "Down moves onto the first candidate");
     fx_draw(&x, &c.f, 8);
-    const char *const chosen[] = { "", ".........SSSS", ".............", NULL };
+    /* TUI-49: the table's selection: '>' in bold, the item row on dark blue. */
+    const char *const chosen[] = { "", ".........MBBB", ".............", NULL };
     ASSERT_REGION_STYLE(x.s, PTY_REGION(0, 0, 3, 13), chosen, legend);
+    ASSERT_EQ_STR(pty_cell_text(x.s, 1, 9), ">", "the marker");
+    ASSERT_EQ_STR(pty_cell_text(x.s, 1, 11), "a", "the text from the third column");
+    ASSERT_EQ_INT(pty_cell_bg(x.s, 1, 49), PTY_COLOR_IDX(17), "the whole item row");
+    ASSERT_EQ_INT(pty_cell_bg(x.s, 2, 49), PTY_COLOR_DEFAULT, "the others have none");
     send(&c.f, "\x1b[B\x1b[B");
     ASSERT_EQ_INT(c.f.cand_sel, 1, "Down at the last");
     send(&c.f, "\x1b[A\x1b[A");
@@ -246,6 +252,55 @@ static void test_completion(void) {
     ASSERT_EQ_INT(c.f.ncand, 0, "an empty token: no candidates");
     ASSERT_EQ_INT(send(&c.f, "\x1b"), TUI_DIALOG_CANCELLED, "Esc without a list cancels");
     ASSERT_EQ_INT(send(&c.f, "a"), TUI_DIALOG_CANCELLED, "closed stays closed");
+    tui_fieldset_free(&c.f);
+    fx_close(&x);
+}
+
+static void set_env(const char *name, const char *value) {
+    if (value) setenv(name, value, 1);
+    else unsetenv(name);
+}
+
+/* TUI-49: the candidate selection follows the colour depth, and a
+ * cand_sel_style the program set is its own choice. */
+static void test_candidate_selection_depth_and_own_style(void) {
+    compose c;
+    compose_init(&c);
+    Fx x;
+    ASSERT(fx_open(&x, 8, 50) == 0, "fixtures");
+    const char *oterm = getenv("TERM"), *oct = getenv("COLORTERM");
+    char saveterm[64] = "", savect[64] = "";
+    int hadterm = oterm != NULL, hadct = oct != NULL;
+    if (oterm) snprintf(saveterm, sizeof(saveterm), "%s", oterm);
+    if (oct) snprintf(savect, sizeof(savect), "%s", oct);
+    char desc[160];
+
+    send(&c.f, "al\x1b[B");
+    set_env("COLORTERM", NULL);
+    set_env("TERM", "screen");                       /* 16 colours */
+    fx_draw(&x, &c.f, 8);
+    ASSERT_EQ_INT(pty_cell_bg(x.s, 1, 20), PTY_BG_BLUE, "16 colours: blue");
+    ASSERT_EQ_INT(pty_cell_bg(x.s, 2, 20), PTY_BG_DEFAULT, "the other candidate: none");
+    set_env("TERM", "linux");                        /* 8 colours */
+    fx_draw(&x, &c.f, 8);
+    ASSERT_EQ_INT(pty_cell_bg(x.s, 1, 20), PTY_BG_DEFAULT, "8 colours: no background");
+    pty_cell_describe(x.s, 1, 11, desc, sizeof(desc));
+    ASSERT(strstr(desc, "bold") != NULL, "8 colours: bold");
+    ASSERT(strstr(desc, "reverse") == NULL, "8 colours: not reverse video");
+    ASSERT_EQ_STR(pty_cell_text(x.s, 1, 9), ">", "the marker");
+
+    set_env("TERM", "xterm-256color");
+    c.f.cand_sel_style = tui_style_make(TUI_GREEN, TUI_COLOR_DEFAULT, TUI_ATTR_UNDERLINE);
+    fx_draw(&x, &c.f, 8);
+    pty_cell_describe(x.s, 1, 11, desc, sizeof(desc));
+    ASSERT(strstr(desc, "underline") != NULL, "own style kept: underline");
+    ASSERT(strstr(desc, "green") != NULL, "own style kept: green");
+    ASSERT_EQ_INT(pty_cell_bg(x.s, 1, 20), PTY_BG_DEFAULT, "own style: no dark blue");
+    ASSERT_EQ_STR(pty_cell_text(x.s, 1, 9), ">", "own style: the marker");
+    ASSERT_EQ_STR(pty_cell_text(x.s, 2, 9), " ", "the others: blanks");
+
+    set_env("TERM", hadterm ? saveterm : NULL);
+    set_env("COLORTERM", hadct ? savect : NULL);
     tui_fieldset_free(&c.f);
     fx_close(&x);
 }
@@ -472,6 +527,7 @@ static void test_lineedit_replace(void) {
 static const TestCase tests[] = {
     TEST_CASE(test_layout_and_focus),
     TEST_CASE(test_completion),
+    TEST_CASE(test_candidate_selection_depth_and_own_style),
     TEST_CASE(test_tab_common_prefix),
     TEST_CASE(test_validation_and_submit),
     TEST_CASE(test_render_limits_and_edges),
@@ -480,5 +536,7 @@ static const TestCase tests[] = {
 };
 
 int main(int argc, char **argv) {
+    setenv("TERM", "xterm-256color", 1);   /* the depth the picture tests expect */
+    unsetenv("COLORTERM");
     return RUN_SUITE("fieldset", tests, 80, 60);
 }

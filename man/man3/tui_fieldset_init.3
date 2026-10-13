@@ -106,8 +106,12 @@ Every other key goes to the focused text field's editor.
 draws from the top of a canvas: a row per field with the labels in a
 column (by default the focused label in
 .BR TUI_STYLE_ACCENT ,
-the others plain, the chosen candidate in
-.BR TUI_STYLE_SELECTION ,
+the others plain, the chosen candidate in the selection of
+.BR tui_table_init (3)
+(the item row on a dark blue background, a bold \(aq>\(aq before it where the
+others have blanks; a different
+.I cand_sel_style
+is the program\(aqs own choice and is used as it is),
 the message in
 .BR TUI_STYLE_ERROR ),
 the value

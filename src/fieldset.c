@@ -11,6 +11,7 @@
  */
 
 #include "tuikit/fieldset.h"
+#include "internal.h"
 #include "tuikit/text.h"
 
 #include <string.h>
@@ -273,11 +274,20 @@ int tui_fieldset_render(tui_fieldset *f, tui_canvas c) {
                 r++;
                 tui_canvas line = tui_canvas_sub(c, tui_rect_make(r, 0, 1, cols));
                 tui_canvas_clear(line, f->value_style);
-                tui_style st = k == f->cand_sel ? f->cand_sel_style : f->cand_style;
+                int chosen = k == f->cand_sel;
+                tui_style st = chosen ? f->cand_sel_style : f->cand_style;
+                /* The palette's selection is the table's: dark blue over
+                 * the item row and '>' where the others have blanks. */
+                if (chosen && tui__is_default_selection(st))
+                    st = tui__selection_compose(tui__selection_base(tui__colors_from_env()),
+                                                f->value_style, TUI_STYLE_DEFAULT, 1);
                 const char *shown = f->cand[k].label ? f->cand[k].label : f->cand[k].text;
                 tui_canvas item = tui_canvas_sub(line, tui_rect_make(0, label_w, 1, cols - label_w));
-                int w = tui_canvas_put(item, 0, 0, "\xE2\x96\xB6 ", st);   /* ▶ */
-                tui_canvas_put(item, 0, w, shown ? shown : "", st);
+                tui_canvas_clear(item, st);
+                tui_style mark = st;
+                if (chosen) mark.attrs = (uint16_t)(mark.attrs | TUI_ATTR_BOLD);
+                tui_canvas_put(item, 0, 0, chosen ? ">" : " ", mark);
+                tui_canvas_put(item, 0, 2, shown ? shown : "", st);
             }
         }
     }
