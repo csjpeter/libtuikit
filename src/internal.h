@@ -36,6 +36,30 @@ int tui__cp_is_bidi_control(uint32_t cp);
 int64_t tui__now_ms(void);
 
 #include "tuikit/event.h"
+#include "tuikit/screen.h"
+
+/* The one selection of the library (policies/tui-interface-model.md,
+ * "Palette" and "Lists"), drawn by the table, the dialog menus and the
+ * fieldset's candidate lists alike (src/selection.c). */
+
+/* The colour depth the terminal advertises: 256, 16 or 8, from COLORTERM
+ * and TERM. */
+int tui__colors_from_env(void);
+
+/* The selection's base for a colour depth: a dark blue background at 256
+ * and 16 colours, bold at 8. */
+tui_style tui__selection_base(int colors);
+
+/* The style of a span: the row's under the span's own, and when
+ * @p selected, the selection's @p sel background (a row's own background
+ * gives way to it, a span's own does not); text that has no colour of its
+ * own is white on it, and a colour that would be lost on the dark blue is
+ * its bright variant, in bold: the hue, and so the meaning, stays. */
+tui_style tui__selection_compose(tui_style sel, tui_style row, tui_style span, int selected);
+
+/* Whether @p st is the palette's TUI_STYLE_SELECTION, the default of the
+ * widgets' selection styles; any other style is the program's own choice. */
+int tui__is_default_selection(tui_style st);
 
 /* The movement key an event stands for in a list or a text view: the
  * arrows, the page keys and Home/End themselves, and the workspace's

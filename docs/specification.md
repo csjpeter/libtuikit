@@ -43,6 +43,14 @@ Added after the first implementation (2026-10-03):
   keeps newlines and tabs -- issue-manager's `tui_textarea`, generalised to
   display widths and tab stops, with a one-line summary for form rows.  (Not
   `tui_textarea`: issue-manager keeps that name for its own, §3.)
+- Menu and checklist rows (TUI-49) are drawn in the table's selection: the
+  whole row on the dark blue of the colour depth (taken from COLORTERM and
+  TERM at render time, so no struct changes), the text keeping its
+  colour, `>` in bold in the first column and the text from the third (the
+  item width already counted them, so the dialog is as wide as before).
+  A `focus` style other than `TUI_STYLE_SELECTION` is the program's own
+  and is used as it is, with the same layout.  The buttons ([ OK ],
+  [ Yes ], [ No ]) keep `focus` as a style (bold reverse video by default).
 - `tui_dialog_checklist()` (TUI-1): a menu in which several rows are ticked
   with Space; the set is read back on OK, and `answer` is the row Enter was
   pressed on -- issue-manager's status filter.
@@ -435,8 +443,10 @@ typedef uint32_t tui_color;    /* TUI_COLOR_DEFAULT, TUI_COLOR_16(n),
 typedef struct { tui_color fg, bg; uint16_t attrs; } tui_style;
 
 /* The palette of policies/tui-interface-model.md, the widgets' defaults:
- * TUI_STYLE_HEADER (bold white on blue), TUI_STYLE_SELECTION (bold reverse
- * video on the default colours), TUI_STYLE_ACCENT (bold cyan), TUI_STYLE_OK (bold green),
+ * TUI_STYLE_HEADER (bold white on blue), TUI_STYLE_SELECTION (the
+ * selection of tui_table, drawn by it, tui_dialog menus and tui_fieldset
+ * candidate lists for the colour depth of COLORTERM/TERM; bold reverse
+ * video is its value as a style), TUI_STYLE_ACCENT (bold cyan), TUI_STYLE_OK (bold green),
  * TUI_STYLE_ERROR (bold red), TUI_STYLE_HINT (yellow),
  * TUI_STYLE_PROGRESS (italic yellow). */
 
@@ -576,7 +586,8 @@ and Tab or Enter accepted it.
   anywhere in an address or a name). At most `TUI_FIELDSET_CAND_MAX` (16)
   are kept.
 - **When the drop-down is open.** After every edit that leaves the token
-  with candidates; it lists them under the field, one row each, marked `▶`.
+  with candidates; it lists them under the field, one row each, with two
+  blanks in front (`> ` on the chosen one, TUI-49).
   Typing asks again; an empty token has none.
 - **Nothing is chosen when it opens** (`cand_sel` is -1): the cursor stays
   in the field, and no row is in the selection style.
@@ -596,8 +607,13 @@ and Tab or Enter accepted it.
   everywhere in a form.
 - **Esc** (and Ctrl-C) closes the drop-down and keeps the text; only an Esc
   with no drop-down open cancels the form.
-- **Looks.** The chosen row in `TUI_STYLE_SELECTION`, the others plain; the
-  focused field's label in `TUI_STYLE_ACCENT`.
+- **Looks.** The chosen row in the table's selection (TUI-49: the item row
+  on the dark blue of the colour depth, the text keeping its colour, `>` in
+  bold where the others have blanks), the others plain; the focused
+  field's label in `TUI_STYLE_ACCENT`.  The selection is the one function
+  of `src/selection.c` the table uses too; a `cand_sel_style` other than
+  `TUI_STYLE_SELECTION` is the program's own choice and is drawn as it
+  is, with the same layout.
 
 `tui_lineedit` keeps email-cli's own completion hooks (`tab_fn`,
 `shift_tab_fn`, `render_below`) for programs that draw in place with

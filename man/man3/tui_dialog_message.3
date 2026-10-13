@@ -129,6 +129,18 @@ the inside plain, the focus in
 see
 .BR tui_screen_new (3))
 and may be changed after the constructor.
+The buttons are drawn in the focus style as it is.
+A menu or checklist row is drawn, when the focus is
+.BR TUI_STYLE_SELECTION ,
+in the selection of
+.BR tui_table_init (3):
+the whole row on a dark blue background (256 or 16 colours, from
+.B COLORTERM
+and
+.BR TERM ;
+bold only on an 8 colour terminal), the text keeping its colour, and a
+bold \(aq>\(aq in the first column with the text from the third.
+Any other focus style is the program\(aqs own and is used as it is.
 .PP
 .BR tui_dialog_free ()
 releases what the dialog allocated; call it when the dialog is done.
