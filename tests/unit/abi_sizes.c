@@ -34,6 +34,9 @@ int main(void) {
     SHOW(tui_readline_opts);
     SHOW(tui_rect);
     SHOW(tui_style);
+    SHOW(tui_table);
+    SHOW(tui_table_col);
+    SHOW(tui_table_model);
     SHOW(tui_term_opts);
     SHOW(tui_textedit);
     SHOW(tui_textview);
