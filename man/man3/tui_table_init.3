@@ -1,0 +1,171 @@
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_TABLE_INIT 3 2026-10-13 "libtuikit 0.1" "libtuikit Manual"
+.SH NAME
+tui_table_init, tui_table_set_colors, tui_table_set_count,
+tui_table_set_total, tui_table_set_message, tui_table_select,
+tui_table_selected, tui_table_first_visible, tui_table_last_visible,
+tui_table_handle, tui_table_widths, tui_table_render,
+tui_table_render_header, tui_table_render_row, tui_table_format_row,
+tui_table_format_header, tui_table_row_kind, tui_table_row_style,
+tui_table_row_mark, tui_table_row_text, tui_table_cell_prefix,
+tui_table_cell_put \- a table with columns, a header and a selection
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/table.h>
+.PP
+.BI "void tui_table_init(tui_table *" t ", const tui_table_col *" cols ", int " ncols ,
+.BI "                    const tui_table_model *" model );
+.BI "void tui_table_set_colors(tui_table *" t ", int " colors );
+.BI "void tui_table_set_count(tui_table *" t ", int " count );
+.BI "void tui_table_set_total(tui_table *" t ", int " total );
+.BI "void tui_table_set_message(tui_table *" t ", const char *" message ", tui_style " st );
+.BI "void tui_table_select(tui_table *" t ", int " index );
+.BI "int  tui_table_selected(const tui_table *" t );
+.BI "int  tui_table_first_visible(const tui_table *" t );
+.BI "int  tui_table_last_visible(const tui_table *" t );
+.BI "int  tui_table_handle(tui_table *" t ", const tui_event *" ev );
+.BI "int  tui_table_widths(const tui_table *" t ", int " cols ", int *" widths );
+.PP
+.BI "void tui_table_render(tui_table *" t ", tui_canvas " c ", tui_style " blank );
+.BI "void tui_table_render_header(tui_table *" t ", tui_canvas " c );
+.BI "int  tui_table_render_row(tui_table *" t ", tui_canvas " c ", int " index );
+.BI "int  tui_table_format_row(const tui_table *" t ", int " cols ", int " index ,
+.BI "                         char *" out ", size_t " outsz );
+.BI "int  tui_table_format_header(const tui_table *" t ", int " cols ,
+.BI "                            char *" out ", size_t " outsz );
+.PP
+.BI "void tui_table_row_kind(tui_table_row *" r ", tui_row_kind " kind );
+.BI "void tui_table_row_style(tui_table_row *" r ", tui_style " st );
+.BI "void tui_table_row_mark(tui_table_row *" r ", const char *" glyph ", tui_style " st );
+.BI "void tui_table_row_text(tui_table_row *" r ", const char *" text );
+.BI "void tui_table_cell_prefix(tui_table_cell *" c ", const char *" utf8 ", tui_style " st );
+.BI "void tui_table_cell_put(tui_table_cell *" c ", const char *" utf8 ", tui_style " st );
+.fi
+.SH DESCRIPTION
+A table draws what a program would otherwise draw row by row: the columns,
+the header and the selection.
+The program gives the number of rows, the column definitions and a
+callback that fills the cells; it never paints a row, so the cursor looks
+the same in every program of the suite.
+Navigation is that of
+.BR tui_listview_init (3).
+.PP
+A column is a
+.I tui_table_col
+with a
+.IR title ,
+a
+.I width
+in cells, a
+.I weight
+(0: fixed; greater: it shares what is left, and
+.I width
+is its minimum), an alignment, a
+.I hide_below
+terminal width under which it is dropped, a
+.I sort
+marker in the header (1 shows
+.RB \(dq \(ua \(dq ,
+\-1
+.RB \(dq \(da \(dq )
+and
+.BR TUI_COL_CUT_START ,
+which cuts the beginning of a cell that is too long, as an address wants.
+Columns are one blank cell apart, after a gutter of two cells.
+Text is cut by display width, at a character boundary, and the cut shows as
+.RB \(dq \[u2026] \(dq .
+.PP
+The callbacks of the
+.I tui_table_model
+get an opaque row or cell to describe.
+A cell is any number of spans:
+.BR tui_table_cell_put ()
+appends text in its own style (a status column of single glyphs, each in
+its colour).
+.BR tui_table_cell_prefix ()
+is text that is never cut (a tree's glyphs, an indent): the rest is cut,
+not it.
+A row has a kind,
+.B TUI_ROW_DATA
+or
+.BR TUI_ROW_SECTION ;
+a section row is a heading with a rule across the whole width
+.RB ( tui_table_row_text ())
+and the selection skips it.
+.BR tui_table_row_style ()
+is a style under the whole row (a colour, dim); a cell's own style goes on
+top.
+.BR tui_table_row_mark ()
+is one glyph beside the cursor, which stays visible on the selected row.
+The row callback may be called at any time, also for a row that is not
+drawn, and has no effect of its own.
+Only the rows in view are asked for, so a table of tens of thousands of
+rows costs a screenful.
+.PP
+The selected row has a dark blue background, the text keeping its own
+colour, and a
+.RB \(dq > \(dq
+in the first column (policies/tui-interface-model.md).
+Text without a colour is bright white on it, so that it reads on a light
+terminal theme too, and one of the eight basic colours is shown in its
+bright variant and bold: the hue, and so what it says, stays.
+This is the one mapping, in the library, and the colours are given by
+.BR tui_table_set_colors ():
+256 colours use background 17, 16 colours blue, and 8 colours no
+background at all (the
+.RB \(dq > \(dq
+and bold carry the selection).
+.BR tui_table_init ()
+chooses from
+.B COLORTERM
+and
+.BR TERM .
+The styles of the header and of the selection are fields of the table.
+.PP
+.BR tui_table_render ()
+draws the header (and, with
+.BR TUI_TABLE_RULER ,
+a row of
+.RB \(dq \(eq \(dq
+under it), then the rows from the top of the viewport, in the canvas.
+.BR tui_table_render_header ()
+and
+.BR tui_table_render_row ()
+draw one of them only: a program that fetches its rows over the network
+draws each when it arrives, and redraws one changed row without
+repainting the table.
+The widget never reads input.
+.PP
+.BR tui_table_set_message ()
+shows a text instead of the header and the rows: an empty list's
+explanation, or the error that kept it from being read.
+.BR tui_table_set_total ()
+is the number of rows the program has in all, for a window of a larger set;
+.BR tui_table_first_visible ()
+and
+.BR tui_table_last_visible ()
+give the range on the screen for a title's \(dqa\-b of N\(dq.
+.PP
+.BR tui_table_format_row ()
+and
+.BR tui_table_format_header ()
+give the same columns as plain text, for a list printed to a pipe;
+.I cols
+of 0 or less means no cut and no padding, the full strings.
+.SH RETURN VALUE
+.BR tui_table_handle ()
+returns 1 when the key was a movement key, 0 otherwise.
+.BR tui_table_selected ()
+returns the row, or \-1.
+.BR tui_table_widths ()
+returns the number of columns shown and sets the width of each.
+.BR tui_table_render_row ()
+returns 1 when the row was drawn, 0 when it is not in view.
+The format functions return the bytes written, or \-1 when
+.I outsz
+was too small.
+.SH SEE ALSO
+.BR tui_listview_init (3),
+.BR tui_canvas_of (3),
+.BR libtuikit (7)

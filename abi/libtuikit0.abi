@@ -28,6 +28,9 @@ size tui_listview 16 4
 size tui_readline_opts 32 8
 size tui_rect 16 4
 size tui_style 12 4
+size tui_table 152 8
+size tui_table_col 32 8
+size tui_table_model 24 8
 size tui_term_opts 16 4
 size tui_textedit 56 8
 size tui_textview 64 8
@@ -127,6 +130,28 @@ symbol tui_str_fit
 symbol tui_str_fit_ellipsis
 symbol tui_str_width
 symbol tui_strn_width
+symbol tui_table_cell_prefix
+symbol tui_table_cell_put
+symbol tui_table_first_visible
+symbol tui_table_format_header
+symbol tui_table_format_row
+symbol tui_table_handle
+symbol tui_table_init
+symbol tui_table_last_visible
+symbol tui_table_render
+symbol tui_table_render_header
+symbol tui_table_render_row
+symbol tui_table_row_kind
+symbol tui_table_row_mark
+symbol tui_table_row_style
+symbol tui_table_row_text
+symbol tui_table_select
+symbol tui_table_selected
+symbol tui_table_set_colors
+symbol tui_table_set_count
+symbol tui_table_set_message
+symbol tui_table_set_total
+symbol tui_table_widths
 symbol tui_term_close
 symbol tui_term_fd
 symbol tui_term_flush_buf

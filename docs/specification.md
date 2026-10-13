@@ -196,7 +196,7 @@ Non-goals:
   tui_term ──► tui_decoder ──► tui_event     tui_canvas ──► tui_screen ──► tui_buf ──► fd
    (fds, termios,  (bytes → keys)          (clipped rect)  (cells, diff)  (bytes)
     signals, size)
-                         widgets: tui_listview  tui_textview  tui_lineedit  tui_dialog
+                         widgets: tui_listview  tui_table  tui_textview  tui_lineedit  tui_dialog
                          helpers: tui_text (UTF-8, width, sanitise)  tui_rect (layout)
 ```
 
@@ -212,6 +212,7 @@ Non-goals:
 | `tuikit/screen.h` | cells, styles, diff renderer | yes | M3 |
 | `tuikit/canvas.h` | `tui_rect`, layout splits, clipped drawing, boxes | yes | M4 |
 | `tuikit/listview.h` | scroll + selection, row rendering | yes | M4 |
+| `tuikit/table.h` | columns, header, the selection the widget owns | yes | TUI-48 |
 | `tuikit/textview.h` | wrapped, scrollable text | yes | M4 |
 | `tuikit/lineedit.h` | single-line editor model, history | yes | M5 |
 | `tuikit/dialog.h` | message, confirm, prompt, menu | yes | M6 |
@@ -503,6 +504,43 @@ widget the program routes events to first.
   plus `tui_listview_handle(lv, ev)` for the standard keys and
   `tui_listview_render(lv, canvas, draw_row_cb, ctx)` which calls back per
   visible row with the row's canvas and whether it is selected.
+- **`tui_table`** (TUI-48) — columns, a header and the selection, so that a
+  program supplies data and column definitions and never paints a row
+  (`policies/tui-interface-model.md`, "Lists"). The requirement set is the
+  union of email-tui's lists (the reference), issue-tui's, pki-manager's
+  and tg-cli's, collected on the ticket; each point below has a test.
+  - *Columns*: fixed or weighted width (the width is the minimum of a
+    weighted one), left/centre/right, hidden below a terminal width, a sort
+    marker (`▲`/`▼`) at the column's right edge, `TUI_COL_CUT_START` for an
+    address that keeps its tail. Text is cut by display width at a character
+    boundary and the cut shows as `…`; a wide character is cut whole. A
+    prefix (`tui_table_cell_prefix`: tree glyphs, an indent) is never cut.
+  - *Cells* are any number of styled spans (`tui_table_cell_put`), so a
+    status column of single glyphs keeps one colour each. The row callback
+    gives the row a kind (data, or a section row that is a heading and a
+    rule across all columns and never takes the selection), a style under
+    the whole row, and one mark glyph beside the cursor.
+  - *Selection*: a dark blue background (256 colours: 17, 16 colours: blue,
+    8 colours: none, where the `>` and bold carry it), the text keeping its
+    colour, and `>` in the first column; set once, in `compose()`. On the
+    dark blue, text without a colour is bright white (so a light terminal
+    theme reads it) and one of the eight basic colours is its bright
+    variant in bold, black is white: the hue, hence the meaning, stays. A
+    colour of 256/RGB and a cell's own background are kept. A row's own
+    background gives way to the selection's. The mapping is one function and
+    is tested for selected and unselected cells.
+  - *States*: `tui_table_set_message` replaces header and rows by one line
+    (an empty list's text, a read error); the header is not drawn over it.
+  - *Rows come from the program*: only the visible rows are asked for
+    (tens of thousands of rows cost a screenful); `tui_table_render_row`
+    draws one row at its place without a pass over the table, so rows
+    arriving over the network are drawn one by one; the widget never reads
+    input. `first_visible`/`last_visible` and `total` serve a title's
+    "a-b of N".
+  - *Plain text*: `tui_table_format_row`/`_header` give the same columns for
+    a pipe (width 0: no cut, no padding), so a CLI list and the TUI cannot
+    drift.
+  - Navigation is `tui_listview`'s (and its letters), skipping section rows.
 - **`tui_textview`** — word-wrapped, scrollable text (message history, mail
   body, issue description): set text, wrap to width on render, scroll by
   line/page, "at end" query for follow-the-tail.

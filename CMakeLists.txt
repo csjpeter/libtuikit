@@ -4,7 +4,7 @@
 # The build, test, install and package definition of libtuikit.
 
 cmake_minimum_required(VERSION 3.20)
-project(libtuikit VERSION 0.5.0 LANGUAGES C)
+project(libtuikit VERSION 0.6.0 LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Version
@@ -128,6 +128,7 @@ set(TUIKIT_SOURCES
     src/lineedit.c
     src/listview.c
     src/screen.c
+    src/table.c
     src/term.c
     src/text.c
     src/textedit.c
@@ -289,6 +290,17 @@ set(TUIKIT_MAN3_ALIASES
     tui_listview_end:tui_listview_init tui_listview_reveal_selected:tui_listview_init
     tui_listview_is_visible:tui_listview_init tui_listview_handle:tui_listview_init
     tui_listview_render:tui_listview_init
+    tui_table_row_kind:tui_table_init tui_table_row_style:tui_table_init
+    tui_table_row_mark:tui_table_init tui_table_row_text:tui_table_init
+    tui_table_cell_prefix:tui_table_init tui_table_cell_put:tui_table_init
+    tui_table_set_colors:tui_table_init tui_table_set_count:tui_table_init
+    tui_table_set_total:tui_table_init tui_table_set_message:tui_table_init
+    tui_table_select:tui_table_init tui_table_selected:tui_table_init
+    tui_table_first_visible:tui_table_init tui_table_last_visible:tui_table_init
+    tui_table_handle:tui_table_init tui_table_widths:tui_table_init
+    tui_table_render:tui_table_init tui_table_render_header:tui_table_init
+    tui_table_render_row:tui_table_init tui_table_format_row:tui_table_init
+    tui_table_format_header:tui_table_init
     tui_textview_free:tui_textview_init tui_textview_set_text:tui_textview_init
     tui_textview_append:tui_textview_init tui_textview_wrap:tui_textview_init
     tui_textview_lines:tui_textview_init tui_textview_scroll:tui_textview_init
