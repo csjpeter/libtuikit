@@ -125,7 +125,9 @@ static void layout_hints(const tui_statusline *sl, int avail, line *ln) {
 }
 
 static void layout(const tui_statusline *sl, int cols, int hints_only, line *ln) {
-    char tmp[1024], out[1024], pos[256];
+    /* out holds tmp plus the progress suffix (up to 47 bytes): sized so that
+     * the concatenation can never be truncated. */
+    char tmp[1024], out[1024 + 48], pos[256];
     ln->n = 0;
     ln->used = 0;
     ln->shown = 0;
