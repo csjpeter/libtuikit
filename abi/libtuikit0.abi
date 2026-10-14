@@ -27,6 +27,7 @@ size tui_lineedit 104 8
 size tui_listview 16 4
 size tui_readline_opts 32 8
 size tui_rect 16 4
+size tui_statusline 920 8
 size tui_style 12 4
 size tui_table 152 8
 size tui_table_col 32 8
@@ -126,6 +127,26 @@ symbol tui_screen_resize
 symbol tui_screen_rows
 symbol tui_screen_set_cursor
 symbol tui_screen_set_sync
+symbol tui_statusline_begin_prompt
+symbol tui_statusline_clear_message
+symbol tui_statusline_clear_wait
+symbol tui_statusline_format
+symbol tui_statusline_free
+symbol tui_statusline_handle
+symbol tui_statusline_hint_at
+symbol tui_statusline_hint_count
+symbol tui_statusline_hints_fit
+symbol tui_statusline_init
+symbol tui_statusline_message
+symbol tui_statusline_prompt_active
+symbol tui_statusline_prompt_text
+symbol tui_statusline_render
+symbol tui_statusline_set_help
+symbol tui_statusline_set_hints
+symbol tui_statusline_set_message
+symbol tui_statusline_set_position
+symbol tui_statusline_set_position_index
+symbol tui_statusline_set_wait
 symbol tui_str_fit
 symbol tui_str_fit_ellipsis
 symbol tui_str_width

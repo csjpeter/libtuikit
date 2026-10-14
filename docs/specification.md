@@ -204,7 +204,7 @@ Non-goals:
   tui_term ──► tui_decoder ──► tui_event     tui_canvas ──► tui_screen ──► tui_buf ──► fd
    (fds, termios,  (bytes → keys)          (clipped rect)  (cells, diff)  (bytes)
     signals, size)
-                         widgets: tui_listview  tui_table  tui_textview  tui_lineedit  tui_dialog
+                         widgets: tui_listview  tui_table  tui_statusline  tui_textview  tui_lineedit  tui_dialog
                          helpers: tui_text (UTF-8, width, sanitise)  tui_rect (layout)
 ```
 
@@ -221,6 +221,7 @@ Non-goals:
 | `tuikit/canvas.h` | `tui_rect`, layout splits, clipped drawing, boxes | yes | M4 |
 | `tuikit/listview.h` | scroll + selection, row rendering | yes | M4 |
 | `tuikit/table.h` | columns, header, the selection the widget owns | yes | TUI-48 |
+| `tuikit/statusline.h` | the one bottom line: hints that fit, message, wait, position, prompt | yes | TUI-51 |
 | `tuikit/textview.h` | wrapped, scrollable text | yes | M4 |
 | `tuikit/lineedit.h` | single-line editor model, history | yes | M5 |
 | `tuikit/dialog.h` | message, confirm, prompt, menu | yes | M6 |
@@ -560,6 +561,37 @@ widget the program routes events to first.
     iterates the indices in the list. The widget draws a bold `*` beside
     `>` (over the row's own mark glyph) in the row's colours, selected or
     not. `tui_table_free` releases the set.
+- **`tui_statusline`** (TUI-51) — the one status line of
+  `policies/tui-interface-model.md` ("One status line", "The hints fit",
+  "Waiting is shown"), drawn on the last row of a canvas in reverse video;
+  the terminal's own background is kept on every other row.
+  - *What it shows*, in this order: the prompt while one is open, the
+    message, the waiting text, the hints. A message replaces the hints
+    until the next key or paste reaches `tui_statusline_handle` (a resize
+    does not clear it); a program that must not lose the message uses a
+    modal.
+  - *Hints* are `(key, label, priority)` entries the program owns, shown
+    in the given order, two blanks apart. What does not fit is dropped
+    whole, lowest priority first (the earlier of equals is kept); the help
+    hint (`?` `help`, `tui_statusline_set_help`) is always reserved and is
+    cut only when it alone does not fit. `tui_statusline_hint_at` gives the
+    full set for the help screen, `tui_statusline_hints_fit` how many fit a
+    width. Below 80 columns hints are dropped; nothing wraps or scrolls.
+  - *Message*: set with a style (`TUI_STYLE_ERROR`, `_OK`, default for
+    information), the bar takes its colour and stays reverse and bold
+    where the style has it, so it is told apart without colour. Cut with
+    `…` at a display-width boundary (a wide character whole). Controls
+    become spaces.
+  - *Position* (`[3/120]`, `page 2/7`) is right-aligned and kept; the left
+    side is cut to make room for it.
+  - *Wait* text in the progress style with an optional ` done/total`: the
+    text is cut, the numbers stay. It shows until cleared and is set by the
+    program's loop without a key press.
+  - *Prompt*: a `tui_lineedit` on the row; Enter is `ACCEPT`, Esc and
+    Ctrl-D on an empty line `CANCEL`, both return to the hints; the text
+    stays readable.
+  - *Plain text*: `tui_statusline_format` lays the line out exactly as
+    `render` for any width, so a CLI and a test see the same.
 - **`tui_textview`** — word-wrapped, scrollable text (message history, mail
   body, issue description): set text, wrap to width on render, scroll by
   line/page, "at end" query for follow-the-tail.
