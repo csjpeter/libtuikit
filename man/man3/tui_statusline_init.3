@@ -1,0 +1,155 @@
+'\" t
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_STATUSLINE_INIT 3 2026-10-14 "libtuikit 0.8" "libtuikit Manual"
+.SH NAME
+tui_statusline_init, tui_statusline_free, tui_statusline_set_hints,
+tui_statusline_set_help, tui_statusline_hint_count, tui_statusline_hint_at,
+tui_statusline_hints_fit, tui_statusline_set_message,
+tui_statusline_clear_message, tui_statusline_message, tui_statusline_set_wait,
+tui_statusline_clear_wait, tui_statusline_set_position,
+tui_statusline_set_position_index, tui_statusline_begin_prompt,
+tui_statusline_prompt_active, tui_statusline_prompt_text,
+tui_statusline_handle, tui_statusline_render, tui_statusline_format \-
+the status line: key hints that fit, a message, a wait text, a position, a prompt
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/statusline.h>
+.PP
+.BI "void tui_statusline_init(tui_statusline *" sl );
+.BI "void tui_statusline_free(tui_statusline *" sl );
+.BI "int  tui_statusline_set_hints(tui_statusline *" sl ", const tui_statusline_hint *" hints ", int " n );
+.BI "void tui_statusline_set_help(tui_statusline *" sl ", const char *" key ", const char *" label );
+.BI "int  tui_statusline_hint_count(const tui_statusline *" sl );
+.BI "const tui_statusline_hint *tui_statusline_hint_at(const tui_statusline *" sl ", int " i );
+.BI "int  tui_statusline_hints_fit(const tui_statusline *" sl ", int " cols );
+.BI "void tui_statusline_set_message(tui_statusline *" sl ", const char *" text ", tui_style " style );
+.BI "void tui_statusline_clear_message(tui_statusline *" sl );
+.BI "const char *tui_statusline_message(const tui_statusline *" sl );
+.BI "void tui_statusline_set_wait(tui_statusline *" sl ", const char *" text ", int " done ", int " total );
+.BI "void tui_statusline_clear_wait(tui_statusline *" sl );
+.BI "void tui_statusline_set_position(tui_statusline *" sl ", const char *" text );
+.BI "void tui_statusline_set_position_index(tui_statusline *" sl ", int " cur ", int " total );
+.BI "void tui_statusline_begin_prompt(tui_statusline *" sl ", const char *" prompt ", const char *" initial );
+.BI "int  tui_statusline_prompt_active(const tui_statusline *" sl );
+.BI "const char *tui_statusline_prompt_text(const tui_statusline *" sl );
+.BI "tui_statusline_result tui_statusline_handle(tui_statusline *" sl ", const tui_event *" ev );
+.BI "void tui_statusline_render(tui_statusline *" sl ", tui_canvas " c );
+.BI "int  tui_statusline_format(const tui_statusline *" sl ", int " cols ", char *" out ", size_t " outsz );
+.fi
+.SH DESCRIPTION
+.B tui_statusline
+is the one bottom line of a program: a pure model drawn on the last row of a
+canvas in reverse video, so that the terminal's own background is kept
+elsewhere.
+It is one line, never wrapped.
+What it shows, in this order: the prompt while one is open, the message, the
+waiting text, the key hints.
+The position text is right-aligned and always kept; the rest is cut to make
+room for it.
+.PP
+.BR tui_statusline_init ()
+makes an empty line with the help hint "? help".
+The struct must not be copied afterwards.
+.BR tui_statusline_free ()
+frees the prompt editor's memory.
+.PP
+.BR tui_statusline_set_hints ()
+sets the hints of the view, an array of
+.I "{ key, label, priority }"
+the program keeps alive (it is not copied).
+At most
+.B TUI_STATUSLINE_HINTS_MAX
+(64) entries; more fails with
+.BR EINVAL .
+The hints are shown in the given order, two blanks apart.
+When they do not fit, the entry of the lowest priority is dropped whole, then
+the next, never cut in the middle; of equal priority the earlier is kept.
+The help hint is reserved first and stays; it is cut only when it alone does
+not fit.
+.BR tui_statusline_set_help ()
+changes it; a NULL
+.I key
+turns it off.
+.BR tui_statusline_hint_count ()
+and
+.BR tui_statusline_hint_at ()
+give the full set, which is what the program's help screen lists;
+.BR tui_statusline_hints_fit ()
+how many of them are shown on a line of
+.I cols
+columns.
+.PP
+.BR tui_statusline_set_message ()
+sets a transient message in
+.I style
+.RB ( TUI_STYLE_ERROR ", " TUI_STYLE_OK ", " TUI_STYLE_DEFAULT
+for information).
+The whole bar takes the style's colours, with reverse video added.
+It replaces the hints until a key or a paste reaches
+.BR tui_statusline_handle (),
+or
+.BR tui_statusline_clear_message ()
+is called.
+A long message is cut with an ellipsis at a display-width boundary, a wide
+character whole; controls become spaces.
+.PP
+.BR tui_statusline_set_wait ()
+sets a waiting text such as "Syncing INBOX ..." in
+.BR TUI_STYLE_PROGRESS ,
+with " done/total" after it when
+.I total
+is above zero.
+It shows until
+.BR tui_statusline_clear_wait ()
+and may be set again from a loop that has no key press.
+A message goes before it.
+.PP
+.BR tui_statusline_set_position ()
+sets the right-aligned segment;
+.BR tui_statusline_set_position_index ()
+formats "[cur/total]" and clears it when
+.I total
+is below 1.
+.PP
+.BR tui_statusline_begin_prompt ()
+opens a one-line input (a filter, a search) on the status row, with the given
+prompt text and initial text.
+While it is open
+.BR tui_statusline_handle ()
+gives it every event as
+.BR tui_lineedit_handle ()
+does and returns
+.B TUI_STATUSLINE_ACCEPT
+on Enter or
+.B TUI_STATUSLINE_CANCEL
+on Esc, Ctrl-C and Ctrl-D on an empty line; both return the line to the hints,
+and
+.BR tui_statusline_prompt_text ()
+still gives the text.
+Otherwise a key or a paste clears the message
+.RB ( TUI_STATUSLINE_CHANGED )
+and the event is the program's
+.RB ( TUI_STATUSLINE_IGNORED
+for the line).
+A resize does not clear the message.
+.PP
+.BR tui_statusline_render ()
+draws the line on the last row of the canvas; the layout follows from its
+width, so a resize needs only the next render.
+.BR tui_statusline_format ()
+writes the same line as plain text for a line of
+.I cols
+columns, without trailing blanks, for a CLI or a test; it returns the length,
+or \-1 when
+.I outsz
+was too small (the text is then cut at a character).
+.SH RETURN VALUES
+.BR tui_statusline_set_hints ()
+returns 0, or \-1 with
+.BR errno .
+.SH SEE ALSO
+.BR libtuikit (7),
+.BR tui_lineedit_init (3),
+.BR tui_table_init (3),
+.BR tui_screen_new (3)

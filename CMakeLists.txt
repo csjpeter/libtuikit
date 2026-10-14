@@ -4,7 +4,7 @@
 # The build, test, install and package definition of libtuikit.
 
 cmake_minimum_required(VERSION 3.20)
-project(libtuikit VERSION 0.7.0 LANGUAGES C)
+project(libtuikit VERSION 0.8.0 LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Version
@@ -129,6 +129,7 @@ set(TUIKIT_SOURCES
     src/listview.c
     src/screen.c
     src/selection.c
+    src/statusline.c
     src/table.c
     src/term.c
     src/text.c
@@ -307,6 +308,22 @@ set(TUIKIT_MAN3_ALIASES
     tui_table_toggle_mark:tui_table_init tui_table_mark_all:tui_table_init
     tui_table_invert_marks:tui_table_init tui_table_clear_marks:tui_table_init
     tui_table_next_marked:tui_table_init tui_table_free:tui_table_init
+    tui_statusline_begin_prompt:tui_statusline_init
+    tui_statusline_clear_message:tui_statusline_init
+    tui_statusline_clear_wait:tui_statusline_init
+    tui_statusline_format:tui_statusline_init tui_statusline_free:tui_statusline_init
+    tui_statusline_handle:tui_statusline_init tui_statusline_hint_at:tui_statusline_init
+    tui_statusline_hint_count:tui_statusline_init
+    tui_statusline_hints_fit:tui_statusline_init
+    tui_statusline_message:tui_statusline_init
+    tui_statusline_prompt_active:tui_statusline_init
+    tui_statusline_prompt_text:tui_statusline_init
+    tui_statusline_render:tui_statusline_init tui_statusline_set_help:tui_statusline_init
+    tui_statusline_set_hints:tui_statusline_init
+    tui_statusline_set_message:tui_statusline_init
+    tui_statusline_set_position:tui_statusline_init
+    tui_statusline_set_position_index:tui_statusline_init
+    tui_statusline_set_wait:tui_statusline_init
     tui_textview_free:tui_textview_init tui_textview_set_text:tui_textview_init
     tui_textview_append:tui_textview_init tui_textview_wrap:tui_textview_init
     tui_textview_lines:tui_textview_init tui_textview_scroll:tui_textview_init

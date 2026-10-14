@@ -20,6 +20,7 @@
 #include "tuikit/lineedit.h"
 #include "tuikit/listview.h"
 #include "tuikit/screen.h"
+#include "tuikit/statusline.h"
 #include "tuikit/table.h"
 #include "tuikit/term.h"
 #include "tuikit/text.h"
