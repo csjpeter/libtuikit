@@ -15,9 +15,12 @@
  * cuts the text by display width, draws the header and the selection and
  * scrolls.  The selection (a dark blue row background, the cells' own
  * colours kept, a ">" in the first column) is drawn in this one place;
- * a program never paints a row.  Navigation is tui_listview's.
+ * a program never paints a row.  Navigation is tui_listview's.  The set
+ * of marked rows (a "*" beside the ">") is the widget's too.
  * See tui_table_init(3).
  */
+
+#include <stdint.h>
 
 #include "tuikit/api.h"
 #include "tuikit/canvas.h"
@@ -95,7 +98,9 @@ typedef struct tui_table_model {
 /** @brief Table flags. */
 enum {
     TUI_TABLE_RULER = 1,     /**< a row of "═" under the header */
-    TUI_TABLE_NO_HEADER = 2  /**< no header, whatever the titles */
+    TUI_TABLE_NO_HEADER = 2, /**< no header, whatever the titles */
+    TUI_TABLE_MARKS = 4      /**< Space in tui_table_handle() toggles the mark of
+                                  the cursor row and moves down */
 };
 
 /** @brief Table state.  The fields may be read; change them through the
@@ -156,8 +161,56 @@ TUI_API int tui_table_last_visible(const tui_table *t);
 
 /** @brief Applies Up, Down, PgUp, PgDn, Home, End (and j, k, g, G,
  *         Ctrl-F, Ctrl-B) as tui_listview_handle(); section rows are
- *         skipped.  1 when the key was a movement key. */
+ *         skipped.  With TUI_TABLE_MARKS, Space toggles the mark of the
+ *         cursor row and moves down.  1 when the key was handled. */
 TUI_API int tui_table_handle(tui_table *t, const tui_event *ev);
+
+/**
+ * @brief Gives the table a stable identity for each row: @p id returns a
+ *        number that is the same for the same row after a reload, a sort
+ *        or a filter (a mail's UID, an issue's number).  The marks are
+ *        kept by it.  Without it the row index is the identity, and the
+ *        marks past a smaller count are dropped by tui_table_set_count().
+ *        Changing the callback clears the marks.
+ */
+TUI_API void tui_table_set_row_id(tui_table *t, uint64_t (*id)(void *ctx, int index),
+                                  void *ctx);
+
+/** @brief 1 when row @p index is marked.  A section row never is. */
+TUI_API int tui_table_marked(const tui_table *t, int index);
+
+/** @brief The size of the set of marks.  With a row id callback it
+ *         includes marked rows the list does not hold at the moment (a
+ *         filter hides them, the marks stay). */
+TUI_API int tui_table_marked_count(const tui_table *t);
+
+/** @brief Marks (@p on 1) or unmarks row @p index.  A section row is left
+ *         alone.  @return 0, or -1 with errno EINVAL (no such row) or
+ *         ENOMEM. */
+TUI_API int tui_table_set_marked(tui_table *t, int index, int on);
+
+/** @brief Toggles the mark of row @p index; the return as
+ *         tui_table_set_marked(). */
+TUI_API int tui_table_toggle_mark(tui_table *t, int index);
+
+/** @brief Marks every data row of the list.  @return 0, or -1 (ENOMEM). */
+TUI_API int tui_table_mark_all(tui_table *t);
+
+/** @brief Marks the unmarked data rows and unmarks the marked ones; marks
+ *         of rows the list does not hold are kept.  @return 0, or -1. */
+TUI_API int tui_table_invert_marks(tui_table *t);
+
+/** @brief Drops every mark. */
+TUI_API void tui_table_clear_marks(tui_table *t);
+
+/** @brief The index of the first marked row after @p after (-1 to start),
+ *         or -1: @code for (i = tui_table_next_marked(t, -1); i >= 0;
+ *         i = tui_table_next_marked(t, i)) @endcode */
+TUI_API int tui_table_next_marked(const tui_table *t, int after);
+
+/** @brief Releases what the table holds (the marks).  Safe on a table
+ *         that never had any; the table can be initialised again. */
+TUI_API void tui_table_free(tui_table *t);
 
 /** @brief The widths the columns get on a table @p cols cells wide:
  *         @p widths[i] is 0 for a hidden column.  @p widths has
