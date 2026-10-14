@@ -12,6 +12,7 @@
 #include "test_helpers.h"
 #include "tuikit/table.h"
 
+#include <errno.h>
 #include <stdlib.h>
 
 int g_tests_run = 0;
@@ -757,6 +758,171 @@ static void test_table_colour_depth_from_the_environment(void) {
     set_env("COLORTERM", hadct ? savect : NULL);
 }
 
+/* ── Marked rows ────────────────────────────────────────────────────── */
+
+typedef struct { int ids[8]; } IdMap;
+
+static uint64_t id_of(void *ctx, int index) {
+    return (uint64_t)((IdMap *)ctx)->ids[index];
+}
+
+static void space(tui_event *ev) {
+    memset(ev, 0, sizeof(*ev));
+    ev->type = TUI_EV_KEY;
+    ev->key = TUI_KEY_CHAR;
+    ev->cp = ' ';
+    ev->utf8[0] = ' ';
+}
+
+static void test_table_marks_space_and_iteration(void) {
+    static const Item items[] = {
+        { "",  "head", "", 0, 1, NULL, { 0, 0, 0 } },   /* 0 section */
+        { "a", "a", "", 1, 0, NULL, { 0, 0, 0 } },
+        { "b", "b", "", 2, 0, NULL, { 0, 0, 0 } },
+        { "",  "mid", "", 0, 1, NULL, { 0, 0, 0 } },   /* 3 section */
+        { "c", "c", "", 3, 0, NULL, { 0, 0, 0 } },
+    };
+    tui_table_model m = { model_row, model_cell, (void *)items };
+    tui_table t;
+    tui_table_init(&t, g_cols, 4, &m);
+    tui_table_set_count(&t, 5);
+    tui_event ev;
+    space(&ev);
+    ASSERT_EQ_INT(tui_table_handle(&t, &ev), 0, "Space is not ours without the flag");
+    ASSERT_EQ_INT(tui_table_marked_count(&t), 0, "nothing marked");
+    t.flags |= TUI_TABLE_MARKS;
+    ASSERT_EQ_INT(tui_table_handle(&t, &ev), 1, "Space handled");
+    ASSERT_EQ_INT(tui_table_marked(&t, 1), 1, "row 1 marked");
+    ASSERT_EQ_INT(tui_table_selected(&t), 2, "and the cursor moved down");
+    tui_table_handle(&t, &ev);
+    ASSERT_EQ_INT(tui_table_selected(&t), 4, "down passes the section");
+    tui_table_handle(&t, &ev);
+    ASSERT_EQ_INT(tui_table_selected(&t), 4, "at the last row it stays");
+    ASSERT_EQ_INT(tui_table_marked(&t, 4), 1, "marked");
+    tui_table_handle(&t, &ev);
+    ASSERT_EQ_INT(tui_table_marked(&t, 4), 0, "Space again unmarks");
+    ASSERT_EQ_INT(tui_table_marked_count(&t), 2, "count");
+    int seen[4], n = 0;
+    for (int i = tui_table_next_marked(&t, -1); i >= 0; i = tui_table_next_marked(&t, i))
+        seen[n++] = i;
+    ASSERT_EQ_INT(n, 2, "two marked rows iterated");
+    ASSERT_EQ_INT(seen[0], 1, "first");
+    ASSERT_EQ_INT(seen[1], 2, "second");
+    ASSERT_EQ_INT(tui_table_next_marked(&t, 2), -1, "none after the last");
+    ASSERT_EQ_INT(tui_table_marked(&t, 0), 0, "a section row is not marked");
+    ASSERT_EQ_INT(tui_table_set_marked(&t, 0, 1), 0, "marking a section row is a no-op");
+    ASSERT_EQ_INT(tui_table_marked_count(&t), 2, "still two");
+    ASSERT_EQ_INT(tui_table_marked(&t, -1), 0, "out of range");
+    ASSERT_EQ_INT(tui_table_marked(&t, 99), 0, "out of range");
+    ASSERT_EQ_INT(tui_table_marked(NULL, 1), 0, "NULL table");
+    errno = 0;
+    ASSERT_EQ_INT(tui_table_set_marked(&t, 99, 1), -1, "no such row");
+    ASSERT_EQ_INT(errno, EINVAL, "EINVAL");
+    ASSERT_EQ_INT(tui_table_toggle_mark(&t, -1), -1, "toggle: no such row");
+    ASSERT_EQ_INT(tui_table_set_marked(NULL, 1, 1), -1, "NULL table");
+
+    tui_table_invert_marks(&t);
+    ASSERT_EQ_INT(tui_table_marked_count(&t), 1, "inverted: only row 4");
+    ASSERT_EQ_INT(tui_table_marked(&t, 4), 1, "row 4");
+    tui_table_mark_all(&t);
+    ASSERT_EQ_INT(tui_table_marked_count(&t), 3, "all data rows, no section row");
+    ASSERT_EQ_INT(tui_table_set_marked(&t, 2, 0), 0, "unmark");
+    ASSERT_EQ_INT(tui_table_set_marked(&t, 2, 0), 0, "unmark again: no change");
+    ASSERT_EQ_INT(tui_table_marked_count(&t), 2, "two");
+    tui_table_clear_marks(&t);
+    ASSERT_EQ_INT(tui_table_marked_count(&t), 0, "cleared");
+    ASSERT_EQ_INT(tui_table_next_marked(&t, -1), -1, "none");
+    tui_table_clear_marks(NULL);
+    ASSERT_EQ_INT(tui_table_next_marked(NULL, -1), -1, "NULL");
+    ASSERT_EQ_INT(tui_table_marked_count(NULL), 0, "NULL");
+    ASSERT_EQ_INT(tui_table_mark_all(NULL), -1, "NULL");
+
+    /* Keyed by index: a smaller list drops the marks past its end. */
+    tui_table_set_marked(&t, 1, 1);
+    tui_table_set_marked(&t, 4, 1);
+    tui_table_set_count(&t, 3);
+    ASSERT_EQ_INT(tui_table_marked_count(&t), 1, "the mark of row 4 went with the row");
+    tui_table_set_count(&t, 5);
+    ASSERT_EQ_INT(tui_table_marked(&t, 4), 0, "and does not come back");
+    tui_table_free(&t);
+    tui_table_free(&t);
+    tui_table_free(NULL);
+}
+
+static void test_table_marks_follow_the_row_id(void) {
+    static const Item items[] = {
+        { "a", "a", "", 1, 0, NULL, { 0, 0, 0 } },
+        { "b", "b", "", 2, 0, NULL, { 0, 0, 0 } },
+        { "c", "c", "", 3, 0, NULL, { 0, 0, 0 } },
+    };
+    IdMap map = { { 10, 20, 30 } };
+    tui_table_model m = { model_row, model_cell, (void *)items };
+    tui_table t;
+    tui_table_init(&t, g_cols, 4, &m);
+    tui_table_set_row_id(&t, id_of, &map);
+    tui_table_set_count(&t, 3);
+    tui_table_set_marked(&t, 0, 1);  /* id 10 */
+    tui_table_set_marked(&t, 2, 1);  /* id 30 */
+    /* A reload in another order: 30 first, then 20, then 10. */
+    map.ids[0] = 30; map.ids[1] = 20; map.ids[2] = 10;
+    ASSERT_EQ_INT(tui_table_marked(&t, 0), 1, "id 30 is row 0 now");
+    ASSERT_EQ_INT(tui_table_marked(&t, 1), 0, "id 20 is not marked");
+    ASSERT_EQ_INT(tui_table_marked(&t, 2), 1, "id 10 is row 2 now");
+    /* A filter that leaves one row: the other marks stay in the set. */
+    map.ids[0] = 20;
+    tui_table_set_count(&t, 1);
+    ASSERT_EQ_INT(tui_table_marked_count(&t), 2, "hidden marks are counted");
+    ASSERT_EQ_INT(tui_table_next_marked(&t, -1), -1, "none of the listed rows");
+    tui_table_invert_marks(&t);
+    ASSERT_EQ_INT(tui_table_marked_count(&t), 3, "the listed row joins, hidden stay");
+    ASSERT_EQ_INT(tui_table_marked(&t, 0), 1, "row 0");
+    /* The same callback again keeps the marks, another one drops them. */
+    tui_table_set_row_id(&t, id_of, &map);
+    ASSERT_EQ_INT(tui_table_marked_count(&t), 3, "unchanged callback keeps them");
+    IdMap other = map;
+    tui_table_set_row_id(&t, id_of, &other);
+    ASSERT_EQ_INT(tui_table_marked_count(&t), 0, "another callback starts empty");
+    /* Equal ids of two rows are one mark. */
+    map.ids[0] = 5;
+    other.ids[0] = 5; other.ids[1] = 5;
+    tui_table_set_count(&t, 2);
+    tui_table_mark_all(&t);
+    ASSERT_EQ_INT(tui_table_marked_count(&t), 1, "duplicate ids collapse");
+    tui_table_set_row_id(NULL, id_of, NULL);
+    tui_table_free(&t);
+}
+
+static void test_table_marks_drawn(void) {
+    Fx f;
+    ASSERT(fx_open(&f, 5, 40) == 0, "fixtures");
+    tui_table t;
+    make_table(&t, 256);
+    t.flags |= TUI_TABLE_MARKS;
+    tui_table_set_marked(&t, 0, 1);
+    tui_table_set_marked(&t, 3, 1);   /* has its own mark glyph "*" in red */
+    tui_table_select(&t, 1);
+    tui_table_render(&t, tui_canvas_of(f.scr), TUI_STYLE_DEFAULT);
+    fx_show(&f);
+    char w[128];
+    want(w, sizeof(w), " *", "A-1", "Short", "5", "NEW");
+    ASSERT_EQ_STR(rowtext(f.s, 1), w, "a marked row: the star beside the gutter");
+    ASSERT_EQ_INT(strncmp(rowtext(f.s, 2), "> A-2", 5), 0, "the cursor row, unmarked");
+    ASSERT_EQ_INT(pty_cell_attr(f.s, 1, 1) & PTY_ATTR_BOLD, PTY_ATTR_BOLD, "the star is bold");
+    ASSERT_EQ_INT(pty_cell_bg(f.s, 1, 1), 0, "an unselected marked row has no background");
+    ASSERT_EQ_INT(rowtext(f.s, 4)[0] == ' ' && rowtext(f.s, 4)[1] == '*', 1, "row 3 star");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 4, 1), "*", "row 3 has the star");
+    ASSERT(pty_cell_fg(f.s, 4, 1) != PTY_COLOR_IDX(1), "it replaces the red glyph");
+    /* Marked and selected: the star sits on the selection background. */
+    tui_table_select(&t, 0);
+    tui_table_render(&t, tui_canvas_of(f.scr), TUI_STYLE_DEFAULT);
+    fx_show(&f);
+    ASSERT_EQ_INT(rowtext(f.s, 1)[0] == '>' && rowtext(f.s, 1)[1] == '*', 1, ">* together");
+    ASSERT_EQ_INT(pty_cell_bg(f.s, 1, 1) == LEGEND_SEL_BG, 1, "star on the selection");
+    ASSERT_EQ_INT(pty_cell_bg(f.s, 1, 0) == LEGEND_SEL_BG, 1, "and the '>'");
+    tui_table_free(&t);
+    fx_close(&f);
+}
+
 static const TestCase tests[] = {
     TEST_CASE(test_table_widths),
     TEST_CASE(test_table_render_256),
@@ -770,6 +936,9 @@ static const TestCase tests[] = {
     TEST_CASE(test_table_plain_text),
     TEST_CASE(test_table_limits),
     TEST_CASE(test_table_colour_depth_from_the_environment),
+    TEST_CASE(test_table_marks_space_and_iteration),
+    TEST_CASE(test_table_marks_follow_the_row_id),
+    TEST_CASE(test_table_marks_drawn),
 };
 
 int main(int argc, char **argv) {

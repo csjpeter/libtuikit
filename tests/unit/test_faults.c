@@ -623,10 +623,47 @@ static void test_password_sigint(void) {
     tpair_close(&t);
 }
 
+/* ── tui_table: the set of marks ─────────────────────────────────────── */
+
+static void test_table_marks_failures(void) {
+    fault_reset();
+    tui_table t;
+    tui_table_init(&t, NULL, 0, NULL);
+    tui_table_set_count(&t, 4);
+    fault_arm(F_CALLOC, 0, 1, ENOMEM);
+    ASSERT_EQ_INT(tui_table_set_marked(&t, 0, 1), -1, "marks: the set cannot be created");
+    fault_reset();
+    fault_arm(F_CALLOC, 0, 1, ENOMEM);
+    ASSERT_EQ_INT(tui_table_mark_all(&t), -1, "mark_all: the set cannot be created");
+    fault_reset();
+    fault_arm(F_CALLOC, 0, 1, ENOMEM);
+    tui_table_set_row_id(&t, NULL, NULL);   /* survives */
+    fault_reset();
+    ASSERT_EQ_INT(tui_table_set_marked(&t, 0, 1), 0, "works again");
+    fault_arm(F_MALLOC, 0, 1, ENOMEM);
+    ASSERT_EQ_INT(tui_table_mark_all(&t), -1, "mark_all: the row keys");
+    fault_reset();
+    fault_arm(F_MALLOC, 1, 1, ENOMEM);
+    ASSERT_EQ_INT(tui_table_invert_marks(&t), -1, "invert: the merged set");
+    fault_reset();
+    ASSERT_EQ_INT(tui_table_marked_count(&t), 1, "the set is as it was");
+    tui_table_free(&t);
+    tui_table_init(&t, NULL, 0, NULL);
+    tui_table_set_count(&t, 40);
+    tui_table_set_marked(&t, 0, 1);
+    fault_arm(F_REALLOC, 0, 1, ENOMEM);
+    for (int i = 1; i < 40; i++)
+        if (tui_table_set_marked(&t, i, 1) != 0) break;
+    ASSERT(tui_table_marked_count(&t) <= 40, "growth failure is reported");
+    fault_reset();
+    tui_table_free(&t);
+}
+
 static const TestCase tests[] = {
     TEST_CASE(test_buf_failures),
     TEST_CASE(test_screen_failures),
     TEST_CASE(test_textview_failures),
+    TEST_CASE(test_table_marks_failures),
     TEST_CASE(test_dialog_and_decoder_failures),
     TEST_CASE(test_lineedit_failures),
     TEST_CASE(test_lineedit_run_failures),

@@ -551,6 +551,15 @@ widget the program routes events to first.
     a pipe (width 0: no cut, no padding), so a CLI list and the TUI cannot
     drift.
   - Navigation is `tui_listview`'s (and its letters), skipping section rows.
+  - *Marked rows* (TUI-50): the widget owns a set of marked rows (a sorted
+    array in `reserved[0]`, so no public struct changes size). With
+    `TUI_TABLE_MARKS`, Space in `tui_table_handle` toggles the cursor row
+    and moves down. Keys are the program's row id (`tui_table_set_row_id`),
+    else the index, so marks survive reload, sort and filter. Count is the
+    size of the set (hidden marked rows included); `tui_table_next_marked`
+    iterates the indices in the list. The widget draws a bold `*` beside
+    `>` (over the row's own mark glyph) in the row's colours, selected or
+    not. `tui_table_free` releases the set.
 - **`tui_textview`** — word-wrapped, scrollable text (message history, mail
   body, issue description): set text, wrap to width on render, scroll by
   line/page, "at end" query for follow-the-tail.

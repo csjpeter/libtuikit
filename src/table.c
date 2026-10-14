@@ -7,6 +7,8 @@
 #include "tuikit/text.h"
 #include "internal.h"
 
+#include <errno.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -111,6 +113,59 @@ static void cell_describe(const tui_table *t, int index, int col, tui_table_cell
     if (t->model.cell) t->model.cell(t->model.ctx, index, col, c);
 }
 
+/* ── Marked rows ───────────────────────────────────────────────────── */
+
+/* The set of marked keys, owned by the table (tui_table.reserved[0]): a
+ * sorted array.  A key is the program's row id, or the row index when it
+ * gave no id callback. */
+typedef struct marks {
+    uint64_t (*id)(void *ctx, int index);
+    void      *ctx;
+    uint64_t  *keys;
+    size_t     n, cap;
+} marks;
+
+static marks *marks_of(const tui_table *t) {
+    return (marks *)t->reserved[0];
+}
+
+static marks *marks_get(tui_table *t) {
+    marks *m = marks_of(t);
+    if (!m) {
+        m = calloc(1, sizeof(*m));
+        t->reserved[0] = m;
+    }
+    return m;
+}
+
+static uint64_t row_key(const tui_table *t, int index) {
+    const marks *m = marks_of(t);
+    return m && m->id ? m->id(m->ctx, index) : (uint64_t)index;
+}
+
+/* The position of @p key in the set, or where it would go. */
+static size_t marks_find(const marks *m, uint64_t key, int *found) {
+    size_t lo = 0, hi = m->n;
+    while (lo < hi) {
+        size_t mid = lo + (hi - lo) / 2;
+        if (m->keys[mid] < key) lo = mid + 1;
+        else hi = mid;
+    }
+    *found = lo < m->n && m->keys[lo] == key;
+    return lo;
+}
+
+static int selectable(const tui_table *t, int index);
+
+static int row_marked(const tui_table *t, int index) {
+    const marks *m = marks_of(t);
+    if (!m || m->n == 0 || index < 0 || index >= t->lv.count || !selectable(t, index))
+        return 0;
+    int found;
+    marks_find(m, row_key(t, index), &found);
+    return found;
+}
+
 /* ── State ─────────────────────────────────────────────────────────── */
 
 void tui_table_set_colors(tui_table *t, int colors) {
@@ -130,6 +185,14 @@ void tui_table_init(tui_table *t, const tui_table_col *cols, int ncols,
     t->header = tui_style_attrs(TUI_ATTR_BOLD);
     t->message_style = tui_style_attrs(TUI_ATTR_DIM);
     tui_table_set_colors(t, tui__colors_from_env());
+}
+
+void tui_table_free(tui_table *t) {
+    if (!t) return;
+    marks *m = marks_of(t);
+    if (m) free(m->keys);
+    free(m);
+    t->reserved[0] = NULL;
 }
 
 void tui_table_set_total(tui_table *t, int total) {
@@ -165,6 +228,10 @@ void tui_table_set_count(tui_table *t, int count) {
     if (!t) return;
     tui_listview_set_count(&t->lv, count);
     if (t->total < t->lv.count) t->total = t->lv.count;
+    marks *m = marks_of(t);
+    if (m && !m->id) {  /* keyed by index: marks past the end are gone */
+        while (m->n > 0 && m->keys[m->n - 1] >= (uint64_t)t->lv.count) m->n--;
+    }
     if (t->lv.count > 0) {
         int s = settle(t, t->lv.selected, 1);
         t->lv.selected = s;
@@ -214,6 +281,12 @@ int tui_table_last_visible(const tui_table *t) {
 int tui_table_handle(tui_table *t, const tui_event *ev) {
     if (!t || !ev) return 0;
     tui_key k = tui__nav_key(ev);
+    if ((t->flags & TUI_TABLE_MARKS) && TUI_EV_IS_CHAR(ev, ' ')) {
+        /* Space marks the row under the cursor and goes down one. */
+        if (t->lv.count <= 0) return 1;
+        if (t->lv.selected >= 0) tui_table_toggle_mark(t, t->lv.selected);
+        k = TUI_KEY_DOWN;
+    }
     int cur = t->lv.selected;
     int page = t->lv.rows_visible > 1 ? t->lv.rows_visible : 1;
     int target, dir;
@@ -234,6 +307,132 @@ int tui_table_handle(tui_table *t, const tui_event *ev) {
     int s = settle(t, target, dir);
     if (s >= 0) tui_listview_select(&t->lv, s);
     return 1;
+}
+
+/* ── Marked rows: the public side ──────────────────────────────────── */
+
+void tui_table_set_row_id(tui_table *t, uint64_t (*id)(void *ctx, int index), void *ctx) {
+    if (!t) return;
+    marks *m = marks_get(t);
+    if (!m) return;
+    if (m->id != id || m->ctx != ctx) m->n = 0;  /* the keys mean something else now */
+    m->id = id;
+    m->ctx = ctx;
+}
+
+int tui_table_marked(const tui_table *t, int index) {
+    return t ? row_marked(t, index) : 0;
+}
+
+int tui_table_marked_count(const tui_table *t) {
+    const marks *m = t ? marks_of(t) : NULL;
+    return m ? (int)m->n : 0;
+}
+
+int tui_table_set_marked(tui_table *t, int index, int on) {
+    if (!t || index < 0 || index >= t->lv.count) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (!selectable(t, index)) return 0;  /* a section row is never marked */
+    marks *m = marks_get(t);
+    if (!m) return -1;
+    uint64_t key = row_key(t, index);
+    int found;
+    size_t pos = marks_find(m, key, &found);
+    if (found == !!on) return 0;
+    if (!on) {
+        memmove(m->keys + pos, m->keys + pos + 1, (m->n - pos - 1) * sizeof(*m->keys));
+        m->n--;
+        return 0;
+    }
+    if (m->n == m->cap) {
+        size_t cap = m->cap ? m->cap * 2 : 16;
+        uint64_t *k = realloc(m->keys, cap * sizeof(*k));
+        if (!k) return -1;
+        m->keys = k;
+        m->cap = cap;
+    }
+    memmove(m->keys + pos + 1, m->keys + pos, (m->n - pos) * sizeof(*m->keys));
+    m->keys[pos] = key;
+    m->n++;
+    return 0;
+}
+
+int tui_table_toggle_mark(tui_table *t, int index) {
+    if (!t || index < 0 || index >= t->lv.count) {
+        errno = EINVAL;
+        return -1;
+    }
+    return tui_table_set_marked(t, index, !row_marked(t, index));
+}
+
+static int cmp_u64(const void *a, const void *b) {
+    uint64_t x = *(const uint64_t *)a, y = *(const uint64_t *)b;
+    return x < y ? -1 : x > y;
+}
+
+/* Combines the set with the keys of every data row now in the list:
+ * @p invert 0 adds them, 1 gives the symmetric difference. */
+static int marks_combine(tui_table *t, int invert) {
+    if (!t) return -1;
+    marks *m = marks_get(t);
+    if (!m) return -1;
+    size_t cnt = t->lv.count > 0 ? (size_t)t->lv.count : 0;
+    uint64_t *rows = malloc((cnt ? cnt : 1) * sizeof(*rows));
+    uint64_t *out = malloc((cnt + m->n + 1) * sizeof(*out));
+    if (!rows || !out) {
+        free(rows);
+        free(out);
+        return -1;
+    }
+    size_t nr = 0;
+    for (size_t i = 0; i < cnt; i++)
+        if (selectable(t, (int)i)) rows[nr++] = row_key(t, (int)i);
+    qsort(rows, nr, sizeof(*rows), cmp_u64);
+    size_t w = 0;
+    for (size_t i = 0; i < nr; i++)
+        if (w == 0 || rows[w - 1] != rows[i]) rows[w++] = rows[i];
+    nr = w;
+    size_t a = 0, b = 0, n = 0;
+    while (a < m->n || b < nr) {
+        if (b >= nr || (a < m->n && m->keys[a] < rows[b])) {
+            out[n++] = m->keys[a++];
+        } else if (a >= m->n || rows[b] < m->keys[a]) {
+            out[n++] = rows[b++];
+        } else {
+            if (!invert) out[n++] = m->keys[a];
+            a++;
+            b++;
+        }
+    }
+    free(rows);
+    free(m->keys);
+    m->cap = cnt + m->n + 1;
+    m->keys = out;
+    m->n = n;
+    return 0;
+}
+
+int tui_table_mark_all(tui_table *t) {
+    return marks_combine(t, 0);
+}
+
+int tui_table_invert_marks(tui_table *t) {
+    return marks_combine(t, 1);
+}
+
+void tui_table_clear_marks(tui_table *t) {
+    marks *m = t ? marks_of(t) : NULL;
+    if (m) m->n = 0;
+}
+
+int tui_table_next_marked(const tui_table *t, int after) {
+    const marks *m = t ? marks_of(t) : NULL;
+    if (!m || m->n == 0) return -1;
+    for (int i = after < 0 ? 0 : after + 1; i < t->lv.count; i++)
+        if (row_marked(t, i)) return i;
+    return -1;
 }
 
 /* ── Layout ────────────────────────────────────────────────────────── */
@@ -360,12 +559,16 @@ static void draw_cell(const tui_table *t, tui_canvas cv, const tui_table_cell *c
 }
 
 static void draw_gutter(const tui_table *t, tui_canvas row, tui_style rowst, int selected,
-                        const tui_table_row *r) {
+                        const tui_table_row *r, int marked) {
     if (selected) {
         tui_style st = compose(t, rowst, tui_style_attrs(TUI_ATTR_BOLD), 1);
         tui_canvas_put(row, 0, 0, ">", st);
     }
-    if (r->mark[0]) {
+    if (marked) {
+        /* The widget's own mark, in the cell the row's glyph would take. */
+        tui_style st = compose(t, rowst, tui_style_attrs(TUI_ATTR_BOLD), selected);
+        tui_canvas_put(row, 0, 1, "*", st);
+    } else if (r->mark[0]) {
         tui_style st = compose(t, rowst, r->mark_style, selected);
         tui_canvas_put(row, 0, 1, r->mark, st);
     }
@@ -398,7 +601,7 @@ static void draw_row(const tui_table *t, tui_canvas row, int index, int selected
         draw_section(t, row, &r);
         return;
     }
-    draw_gutter(t, row, r.style, sel, &r);
+    draw_gutter(t, row, r.style, sel, &r, row_marked(t, index));
     int widths[64];
     int n = t->ncols < 64 ? t->ncols : 64;
     tui_table tt = *t;

@@ -9,7 +9,10 @@ tui_table_handle, tui_table_widths, tui_table_render,
 tui_table_render_header, tui_table_render_row, tui_table_format_row,
 tui_table_format_header, tui_table_row_kind, tui_table_row_style,
 tui_table_row_mark, tui_table_row_text, tui_table_cell_prefix,
-tui_table_cell_put \- a table with columns, a header and a selection
+tui_table_cell_put, tui_table_set_row_id, tui_table_marked,
+tui_table_marked_count, tui_table_set_marked, tui_table_toggle_mark,
+tui_table_mark_all, tui_table_invert_marks, tui_table_clear_marks,
+tui_table_next_marked, tui_table_free \- a table with columns, a header and a selection
 .SH SYNOPSIS
 .nf
 .B #include <tuikit/table.h>
@@ -41,6 +44,18 @@ tui_table_cell_put \- a table with columns, a header and a selection
 .BI "void tui_table_row_text(tui_table_row *" r ", const char *" text );
 .BI "void tui_table_cell_prefix(tui_table_cell *" c ", const char *" utf8 ", tui_style " st );
 .BI "void tui_table_cell_put(tui_table_cell *" c ", const char *" utf8 ", tui_style " st );
+.PP
+.BI "void tui_table_set_row_id(tui_table *" t ", uint64_t (*" id ")(void *" ctx ", int " index "),"
+.BI "                         void *" ctx );
+.BI "int  tui_table_marked(const tui_table *" t ", int " index );
+.BI "int  tui_table_marked_count(const tui_table *" t );
+.BI "int  tui_table_set_marked(tui_table *" t ", int " index ", int " on );
+.BI "int  tui_table_toggle_mark(tui_table *" t ", int " index );
+.BI "int  tui_table_mark_all(tui_table *" t );
+.BI "int  tui_table_invert_marks(tui_table *" t );
+.BI "void tui_table_clear_marks(tui_table *" t );
+.BI "int  tui_table_next_marked(const tui_table *" t ", int " after );
+.BI "void tui_table_free(tui_table *" t );
 .fi
 .SH DESCRIPTION
 A table draws what a program would otherwise draw row by row: the columns,
@@ -136,6 +151,52 @@ draw one of them only: a program that fetches its rows over the network
 draws each when it arrives, and redraws one changed row without
 repainting the table.
 The widget never reads input.
+.PP
+The table owns a set of marked rows, for a batch action.
+With
+.B TUI_TABLE_MARKS
+in
+.IR flags ,
+Space in
+.BR tui_table_handle ()
+toggles the mark of the cursor row and moves down one; without it the keys
+are unchanged.
+A marked row shows a bold
+.RB \(dq * \(dq
+beside the
+.RB \(dq > \(dq
+(it takes the place of the row's
+.BR tui_table_row_mark ()
+glyph while marked), in the row's colours, selected or not.
+.BR tui_table_marked ()
+asks one row, and
+.BR tui_table_next_marked ()
+walks the marked rows in index order, starting from \-1.
+.BR tui_table_mark_all (),
+.BR tui_table_invert_marks ()
+and
+.BR tui_table_clear_marks ()
+act on the whole list; section rows are never marked.
+.PP
+The marks are kept by a row's identity, so they survive a reload, a sort
+and a filter:
+.BR tui_table_set_row_id ()
+gives the callback that returns it (a UID, an issue number).
+Without it the identity is the row index.
+.BR tui_table_marked_count ()
+is the size of the set, which with a row id also holds marked rows the list
+does not hold at the moment.
+.BR tui_table_set_marked ()
+and
+.BR tui_table_toggle_mark ()
+return 0, or \-1 with
+.B errno
+EINVAL (no such row) or ENOMEM; so do
+.BR tui_table_mark_all ()
+and
+.BR tui_table_invert_marks ().
+.BR tui_table_free ()
+releases the set; a program that never marks need not call it.
 .PP
 .BR tui_table_set_message ()
 shows a text instead of the header and the rows: an empty list's

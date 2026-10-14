@@ -4,7 +4,7 @@
 # The build, test, install and package definition of libtuikit.
 
 cmake_minimum_required(VERSION 3.20)
-project(libtuikit VERSION 0.6.1 LANGUAGES C)
+project(libtuikit VERSION 0.7.0 LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Version
@@ -302,6 +302,11 @@ set(TUIKIT_MAN3_ALIASES
     tui_table_render:tui_table_init tui_table_render_header:tui_table_init
     tui_table_render_row:tui_table_init tui_table_format_row:tui_table_init
     tui_table_format_header:tui_table_init
+    tui_table_set_row_id:tui_table_init tui_table_marked:tui_table_init
+    tui_table_marked_count:tui_table_init tui_table_set_marked:tui_table_init
+    tui_table_toggle_mark:tui_table_init tui_table_mark_all:tui_table_init
+    tui_table_invert_marks:tui_table_init tui_table_clear_marks:tui_table_init
+    tui_table_next_marked:tui_table_init tui_table_free:tui_table_init
     tui_textview_free:tui_textview_init tui_textview_set_text:tui_textview_init
     tui_textview_append:tui_textview_init tui_textview_wrap:tui_textview_init
     tui_textview_lines:tui_textview_init tui_textview_scroll:tui_textview_init
