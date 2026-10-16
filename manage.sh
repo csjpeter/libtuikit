@@ -509,11 +509,14 @@ run_check() {
 
 # ---------------------------------------------------------------------------
 # Timing -- every verb that does work appends one line to build/timing.log:
-#   <UTC ISO time> <verb> <whole seconds>s <ok|fail>
+#   <UTC ISO time> <verb> <whole seconds>s <ok|fail> <commit>[+]
+# (+ = uncommitted changes).  timing KEY keeps in build/timing.posted the
+# record it last posted per key, and posts only a different record.
 # The script measures, never the person (policies/manage-sh-model.md).
 # ---------------------------------------------------------------------------
 
 TIMING_LOG="$BUILD_DIR/timing.log"
+TIMING_POSTED="$BUILD_DIR/timing.posted"
 TIMING_VERB=""
 TIMING_START=0
 
@@ -521,13 +524,18 @@ TIMING_START=0
 # a function called in an "||" list runs without "set -e", and the verbs
 # rely on it.  The trap sees the exit status of the verb, ok or not.
 timing_record() {
-    local rc=$? secs state=ok
+    local rc=$? secs state=ok commit dirty=""
     trap - EXIT
     secs=$(( $(date +%s) - TIMING_START ))
     [ "$rc" -eq 0 ] || state=fail
+    commit="$(git -C "$SCRIPT_DIR" rev-parse --short HEAD)" || commit=unknown
+    if [ "$commit" != unknown ] &&
+       [ -n "$(git -C "$SCRIPT_DIR" status --porcelain)" ]; then
+        dirty="+"
+    fi
     mkdir -p "$BUILD_DIR"
-    printf '%s %s %ss %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$TIMING_VERB" \
-           "$secs" "$state" >> "$TIMING_LOG"
+    printf '%s %s %ss %s %s%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+           "$TIMING_VERB" "$secs" "$state" "$commit" "$dirty" >> "$TIMING_LOG"
     exit "$rc"
 }
 
@@ -566,13 +574,42 @@ timing_line() {
     echo "$line"
 }
 
+# timing_used: the log lines the gate line is made from (the latest ok line
+# of each verb of the gate), joined with ";" -- the measured record.
+timing_used() {
+    awk '
+        $4 == "ok" { last[$2] = $0 }
+        END {
+            n = split("check package install", order, " ")
+            for (i = 1; i <= n; i++)
+                if (order[i] in last) {
+                    printf "%s%s", (out ? ";" : ""), last[order[i]]
+                    out = 1
+                }
+        }' "$TIMING_LOG"
+}
+
 do_timing() {
-    local key="${1:-}" line rc=0
+    local key="${1:-}" line rc=0 record previous=""
     line="$(timing_line)" || rc=$?
     echo "$line"
     [ "$rc" -eq 0 ] || return "$rc"
     if [ -n "$key" ]; then
+        record="$(timing_used)"
+        if [ -f "$TIMING_POSTED" ]; then
+            previous="$(awk -v k="$key" -F'\t' '$1 == k { r = $2 } END { print r }' "$TIMING_POSTED")"
+        fi
+        if [ "$record" = "$previous" ]; then
+            echo "timing: this record is already posted on $key; nothing posted."
+            return 0
+        fi
         issue-cli issue comment "$key" "$line"
+        : > "$TIMING_POSTED.new"
+        if [ -f "$TIMING_POSTED" ]; then
+            awk -v k="$key" -F'\t' '$1 != k' "$TIMING_POSTED" > "$TIMING_POSTED.new"
+        fi
+        printf '%s\t%s\n' "$key" "$record" >> "$TIMING_POSTED.new"
+        mv "$TIMING_POSTED.new" "$TIMING_POSTED"
     fi
 }
 
