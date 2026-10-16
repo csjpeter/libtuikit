@@ -37,7 +37,7 @@ typedef enum tui_dialog_kind {
     TUI_DIALOG_PROMPT,       /**< text and a line of input */
     TUI_DIALOG_MENU,         /**< a list to choose from */
     TUI_DIALOG_CHECKLIST,    /**< a list to tick several rows of */
-    TUI_DIALOG_HELP          /**< the keys of a view, closed by any key */
+    TUI_DIALOG_HELP          /**< the keys of a view, closed by Esc, q or Backspace */
 } tui_dialog_kind;
 
 /** @brief Where the dialog stands. */

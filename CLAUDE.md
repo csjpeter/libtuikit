@@ -56,6 +56,7 @@ descriptors; everything else is pure and renders into a `tui_buf`.
   below 100 %). Failure paths are reached through `tests/common/faults.c`:
   link-time wrappers (`-Wl,--wrap`) in the test binaries, armed per test.
   Never add a test hook to the library itself.
+- **Every capability has a functional test** (`policies/testing-model.md`): a new exported or inline function adds its call in `tests/functional/cap_*.c` and its row in `docs/functional-coverage.md` in the same commit; `unit.check-coverage-map` fails otherwise.
 - `tests/unit/test_compat.c` and `tests/pty/test_compat_pty.c` carry
   email-cli's and tg-cli's terminal tests over; a change that breaks one
   takes a capability away from them.
