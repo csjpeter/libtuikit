@@ -127,6 +127,8 @@ project_test(unit check-api      SCRIPT unit/check_api.sh ARGS $<TARGET_FILE:tui
 add_executable(abi-sizes unit/abi_sizes.c)
 target_link_libraries(abi-sizes PRIVATE tuikit::tuikit)
 project_test(unit check-abi      SCRIPT unit/check_abi.sh ARGS $<TARGET_FILE:tuikit> $<TARGET_FILE:abi-sizes> ${CMAKE_SOURCE_DIR}/abi TIMEOUT 60)
+# Every capability has a row in docs/functional-coverage.md and a test that calls it.
+project_test(unit check-coverage-map SCRIPT unit/check_coverage_map.sh ARGS $<TARGET_FILE:tuikit> ${CMAKE_SOURCE_DIR} TIMEOUT 60)
 project_test(unit check-license  SCRIPT unit/check_license.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
 project_test(unit check-headers  SCRIPT unit/check_headers.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
 project_test(unit check-platform  SCRIPT unit/check_platform.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
@@ -154,3 +156,16 @@ add_dependencies(test-compat-pty compat-harness)
 project_test(functional package-output SCRIPT functional/package_output.sh ARGS ${CMAKE_SOURCE_DIR} ${TUIKIT_TEST_TMPDIR} TIMEOUT 900)
 project_test(functional workspace-libs SCRIPT functional/workspace_libs.sh ARGS ${CMAKE_SOURCE_DIR} ${TUIKIT_TEST_TMPDIR} TIMEOUT 900)
 project_test(functional timing SCRIPT functional/timing.sh ARGS ${CMAKE_SOURCE_DIR} ${TUIKIT_TEST_TMPDIR} TIMEOUT 300)
+
+# --- functional: every capability of the library, through its public API ---
+# docs/functional-coverage.md maps each exported function to one of these;
+# unit/check_coverage_map.sh fails on a function with no row.  Linked against
+# the shared library, so only the installed public interface is used.
+project_test(functional cap-text SOURCES functional/cap_text.c LIB tuikit)
+project_test(functional cap-draw SOURCES functional/cap_draw.c LIB tuikit)
+project_test(functional cap-edit SOURCES functional/cap_edit.c LIB tuikit)
+project_test(functional cap-widgets SOURCES functional/cap_widgets.c LIB tuikit)
+project_test(functional cap-terminal SOURCES functional/cap_terminal.c LIB tuikit)
+foreach(_cap text draw edit widgets terminal)
+    target_compile_definitions(cap-${_cap} PRIVATE TUIKIT_EXPECTED_VERSION="${TUIKIT_VERSION}")
+endforeach()
