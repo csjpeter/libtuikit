@@ -5,7 +5,7 @@
 # Functional test: manage.sh times its verbs and prints the gate line.
 
 #
-# Every verb that does work appends "<UTC time> <verb> <n>s <ok|fail>" to
+# Every verb that does work appends "<UTC time> <verb> <n>s <ok|fail> <commit>" to
 # build/timing.log, success or failure, and "./manage.sh timing [KEY]"
 # prints (and posts) the gate line from it
 # (policies/manage-sh-model.md, "Every verb times itself").
@@ -66,9 +66,23 @@ else fail "a comment was posted without a measurement"; fi
 echo "--- a successful verb is logged"
 "$M" build > "$FIX/build.log" 2>&1 || { fail "build failed"; cat "$FIX/build.log" >&2; }
 if [ "$(wc -l < "$LOG")" -eq 1 ] &&
-   grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z build [0-9]+s ok$' "$LOG"; then
+   grep -Eq '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9:]{8}Z build [0-9]+s ok (unknown|[0-9a-f]+\+?)$' "$LOG"; then
     pass "one 'build <n>s ok' line"
 else fail "log: $(cat "$LOG")"; fi
+
+echo "--- the commit is logged, with + for uncommitted changes"
+git -C "$FIX/tree" init -q
+echo "build/" >> "$FIX/tree/.git/info/exclude"
+git -C "$FIX/tree" add manage.sh
+git -C "$FIX/tree" -c user.name=t -c user.email=t@example.org commit -q -m t
+"$M" build > "$FIX/build.log" 2>&1 || fail "build failed"
+tail -n 1 "$LOG" | grep -Eq ' build [0-9]+s ok [0-9a-f]{7,}$' && pass "clean tree: bare commit" \
+    || fail "log: $(tail -n 1 "$LOG")"
+echo "# change" >> "$FIX/tree/manage.sh"
+"$M" build > "$FIX/build.log" 2>&1 || fail "build failed"
+tail -n 1 "$LOG" | grep -Eq ' build [0-9]+s ok [0-9a-f]{7,}\+$' && pass "dirty tree: commit followed by +" \
+    || fail "log: $(tail -n 1 "$LOG")"
+git -C "$FIX/tree" checkout -q manage.sh
 
 echo "--- a failing verb is logged and fails"
 rc=0
@@ -97,6 +111,29 @@ comment
 TUI-7
 Gate: 110s (check 90s, package 20s)" ]; then pass "issue-cli issue comment TUI-7 <line>"
 else fail "issue-cli got: $(cat "$FIX/issue-cli.args")"; fi
+
+echo "--- the same record is not posted twice"
+rm -f "$FIX/issue-cli.args"
+rc=0
+out="$("$M" timing TUI-7)" || rc=$?
+if [ "$rc" -eq 0 ] && [ ! -e "$FIX/issue-cli.args" ] &&
+   printf '%s' "$out" | grep -q "nothing posted"; then pass "same record: nothing posted, exit 0"
+else fail "same record was posted again or failed (rc=$rc)"; fi
+"$M" timing TUI-8 > /dev/null
+[ -e "$FIX/issue-cli.args" ] && pass "another key still posts" || fail "other key suppressed"
+
+echo "--- a newer record with identical text is posted"
+rm -f "$FIX/issue-cli.args"
+cat > "$LOG" <<'LOG'
+2026-10-11T11:05:00Z check 90s ok abc1234
+2026-10-11T11:06:00Z package 20s ok abc1234
+LOG
+"$M" timing TUI-7 > /dev/null
+if [ -e "$FIX/issue-cli.args" ] && [ "$(sed -n 4p "$FIX/issue-cli.args")" = "Gate: 110s (check 90s, package 20s)" ]
+then pass "same numbers, newer record: posted"; else fail "newer record not posted"; fi
+rm -f "$FIX/issue-cli.args"
+"$M" timing TUI-7 > /dev/null
+[ ! -e "$FIX/issue-cli.args" ] && pass "and then once only" || fail "posted twice"
 
 echo "$run checks, $failed failed"
 [ "$failed" -eq 0 ]
