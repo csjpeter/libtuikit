@@ -20,6 +20,7 @@
 #define SHOW(t) printf("size %s %zu %zu\n", #t, sizeof(t), alignof(t))
 
 int main(void) {
+    SHOW(tui_actionmenu);
     SHOW(tui_buf);
     SHOW(tui_canvas);
     SHOW(tui_completion);
@@ -29,6 +30,9 @@ int main(void) {
     SHOW(tui_field);
     SHOW(tui_fieldset);
     SHOW(tui_history);
+    SHOW(tui_keyentry);
+    SHOW(tui_keyhelp);
+    SHOW(tui_keytable);
     SHOW(tui_lineedit);
     SHOW(tui_listview);
     SHOW(tui_readline_opts);

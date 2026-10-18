@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
 /* Created: 2026-10-16 */
-/* Capability tests: tui_table, tui_statusline, tui_dialog, tui_fieldset. */
+/* Capability tests: tui_table, tui_statusline, tui_dialog, tui_fieldset, the key table. */
 
 #include "cap_common.h"
 
@@ -401,10 +401,91 @@ static void cap_fieldset(void) {
     tui_fieldset_free(&f);
 }
 
+/* ---- actions: the key table, the action menu, the help ---------------- */
+
+static void cap_actions(void) {
+    static const tui_keyentry keys[] = {
+        { "list", TUI_KC_STAR, TUI_VERB_STAR, "Star", NULL, TUI_ACT_ROUTINE, 0, NULL, 1 },
+        { "list", TUI_KC_DELETE_D, TUI_VERB_DELETE, "Delete", NULL, TUI_ACT_SERIOUS, 1,
+          "Delete %s? It cannot be undone.", 2 },
+        { "list", TUI_KC_NONE, TUI_VERB_NONE, "Rotate secret", NULL, TUI_ACT_RARE, 0, NULL, 3 },
+        { "list", TUI_KC_RELOAD, TUI_VERB_NONE, "Reload", NULL, TUI_ACT_HARMLESS, 0, NULL, 4 },
+    };
+    tui_keytable t;
+    char why[128];
+    CHECK_INT(tui_keytable_init(&t, keys, 4, why, sizeof why), 0, "a good table");
+
+    static const tui_keyentry bad[] = {
+        { "list", 'R', TUI_VERB_NONE, "Restart", NULL, TUI_ACT_ROUTINE, 0, NULL, 1 } };
+    tui_keytable b;
+    CHECK_INT(tui_keytable_init(&b, bad, 1, why, sizeof why), -1, "R is not in the registry");
+    CHECK_HAS(why, "registry", "the reason");
+
+    tui_event star = cap_ev("*"), del = cap_ev("d"), rel = cap_ev("r");
+    CHECK_INT(tui_keytable_find(&t, "list", &star), 0, "star found");
+    CHECK_INT(tui_keytable_find(&t, "other", &star), -1, "not in another view");
+    CHECK_INT(tui_keycode_of(&del), TUI_KC_DELETE_D, "d");
+    CHECK_INT(tui_registry_verb('d'), TUI_VERB_DELETE, "d deletes");
+    CHECK_INT(tui_registry_verb('r'), TUI_VERB_NONE, "r is not a state change");
+    CHECK_INT(tui_key_reserved('r'), 1, "r is reserved");
+    CHECK_INT(tui_key_reserved('d'), 0, "d is not");
+    CHECK_INT(tui_keytable_find(&t, "list", &rel), 3, "reload found");
+    char name[16];
+    CHECK_INT(tui_keycode_name(TUI_KC_QUIT, name, sizeof name), 6, "name length");
+    CHECK_STR(name, "ctrl-c", "ctrl-c");
+
+    tui_event q = cap_ev("q"), esc = cap_ev("\x1b"), cc = cap_ev("\x03");
+    CHECK_INT(tui_nav_key(&q, 0), TUI_NAV_NONE, "q never quits");
+    CHECK_INT(tui_nav_key(&esc, 0), TUI_NAV_QUIT, "Esc on the top level quits");
+    CHECK_INT(tui_nav_key(&esc, 1), TUI_NAV_BACK, "Esc goes back");
+    CHECK_INT(tui_nav_key(&cc, 2), TUI_NAV_QUIT, "ctrl-c quits");
+
+    tui_screen *scr = tui_screen_new(12, 60);
+    tui_actionmenu m;
+    CHECK_INT(tui_actionmenu_open(&m, &t, "list", "mail 7"), 0, "menu opens");
+    tui_actionmenu_render(&m, tui_canvas_of(scr));
+    char *txt = cap_screen_text(scr, NULL);
+    CHECK_HAS(txt, "Actions", "the menu title");
+    CHECK_HAS(txt, "Delete", "the action listed");
+    CHECK_HAS(txt, "> *  Star", "the direct key beside the action");
+    CHECK_HAS(txt, "Rotate", "a menu-only action");
+    free(txt);
+    CAP_TYPE(tui_actionmenu_handle, &m, "j");
+    tui_event ent = cap_ev("\r");
+    CHECK_INT(tui_actionmenu_handle(&m, &ent), TUI_ACTION_OPEN, "Delete asks first");
+    tui_actionmenu_render(&m, tui_canvas_of(scr));
+    txt = cap_screen_text(scr, NULL);
+    CHECK_HAS(txt, "mail", "the target is named");
+    CHECK_HAS(txt, "7?", "in the question");
+    free(txt);
+    CHECK_INT(tui_actionmenu_handle(&m, &ent), TUI_ACTION_CANCELLED, "Enter on No does nothing");
+    tui_actionmenu_free(&m);
+
+    CHECK_INT(tui_actionmenu_run(&m, &t, 0, "mail 7"), 0, "run");
+    CHECK_INT(m.state, TUI_ACTION_CHOSEN, "a routine action is chosen at once");
+    tui_actionmenu_free(&m);
+    CHECK_INT(tui_actionmenu_run(&m, &t, 1, "mail 7"), 0, "run a serious one");
+    tui_event y = cap_ev("y");
+    CHECK_INT(tui_actionmenu_handle(&m, &y), TUI_ACTION_CHOSEN, "y performs it");
+    tui_actionmenu_free(&m);
+
+    tui_keyhelp h;
+    CHECK_INT(tui_keyhelp_open(&h, &t, "list", "List shortcuts"), 0, "help");
+    CHECK_INT(h.dialog.nitems, 3, "a row for every bound key");
+    tui_dialog_render(&h.dialog, tui_canvas_of(scr));
+    txt = cap_screen_text(scr, NULL);
+    CHECK_HAS(txt, "Star", "the help lists the star");
+    CHECK_HAS(txt, "Reload", "and the reload");
+    free(txt);
+    tui_keyhelp_free(&h);
+    tui_screen_free(scr);
+}
+
 int main(void) {
     cap_table();
     cap_statusline();
     cap_dialog();
     cap_fieldset();
+    cap_actions();
     return cap_finish("cap-widgets");
 }

@@ -120,6 +120,7 @@ endif()
 # can reach the internal helpers the shared library does not export).
 # ---------------------------------------------------------------------------
 set(TUIKIT_SOURCES
+    src/actions.c
     src/buf.c
     src/canvas.c
     src/decoder.c
@@ -342,6 +343,12 @@ set(TUIKIT_MAN3_ALIASES
     tui_dialog_handle:tui_dialog_message tui_dialog_render:tui_dialog_message
     tui_dialog_checklist:tui_dialog_message tui_dialog_is_checked:tui_dialog_message
     tui_dialog_help:tui_dialog_message
+    tui_actionmenu_open:tui_keytable_init tui_keytable_find:tui_keytable_init tui_registry_verb:tui_keytable_init
+    tui_key_reserved:tui_keytable_init tui_keycode_of:tui_keytable_init
+    tui_keycode_name:tui_keytable_init tui_nav_key:tui_keytable_init
+    tui_actionmenu_run:tui_keytable_init tui_actionmenu_handle:tui_keytable_init
+    tui_actionmenu_render:tui_keytable_init tui_actionmenu_free:tui_keytable_init
+    tui_keyhelp_open:tui_keytable_init tui_keyhelp_free:tui_keytable_init
     tui_fieldset_free:tui_fieldset_init tui_field_text:tui_fieldset_init
     tui_field_choice:tui_fieldset_init tui_fieldset_focus:tui_fieldset_init
     tui_fieldset_set_error:tui_fieldset_init tui_fieldset_update_completion:tui_fieldset_init
