@@ -54,9 +54,12 @@ for name in "${exported[@]}" "${inline[@]}"; do
         fail "$name: test file $f does not exist"
         continue
     fi
-    # A call, not a mention in a comment.
-    if ! grep -v '^[[:space:]]*\(/\*\|\*\|//\)' "$src/$f" \
-            | grep -Eq "(^|[^A-Za-z0-9_])${name}\\("; then
+    # A call, not a mention in a comment.  awk reads all its input: with
+    # grep -q the reader exits at the first match, the writer then dies of
+    # SIGPIPE and pipefail turns a found call into a failure (TUI-56).
+    calls=$(grep -v '^[[:space:]]*\(/\*\|\*\|//\)' "$src/$f" \
+            | awk -v re="(^|[^A-Za-z0-9_])${name}[(]" '$0 ~ re { n++ } END { print n + 0 }')
+    if [ "$calls" -eq 0 ]; then
         fail "$name: $f does not call it"
     fi
 done
