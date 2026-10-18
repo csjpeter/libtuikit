@@ -1,0 +1,146 @@
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_KEYTABLE_INIT 3 2026-10-18 "libtuikit 0.8" "libtuikit Manual"
+.SH NAME
+tui_keytable_init, tui_keytable_find, tui_registry_verb, tui_key_reserved,
+tui_keycode_of, tui_keycode_name, tui_nav_key, tui_actionmenu_open,
+tui_actionmenu_run, tui_actionmenu_handle, tui_actionmenu_render,
+tui_actionmenu_free, tui_keyhelp_open, tui_keyhelp_free \- the key table,
+the action menu and the help made from the table
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/actions.h>
+.PP
+.BI "int  tui_keytable_init(tui_keytable *" t ", const tui_keyentry *" entries ", int " n ,
+.BI "                       char *" why ", size_t " size );
+.BI "int  tui_keytable_find(const tui_keytable *" t ", const char *" view ,
+.BI "                       const tui_event *" ev );
+.BI "tui_verb    tui_registry_verb(tui_keycode " key );
+.BI "int         tui_key_reserved(tui_keycode " key );
+.BI "tui_keycode tui_keycode_of(const tui_event *" ev );
+.BI "int         tui_keycode_name(tui_keycode " key ", char *" buf ", size_t " size );
+.BI "tui_nav     tui_nav_key(const tui_event *" ev ", int " depth );
+.PP
+.BI "int  tui_actionmenu_open(tui_actionmenu *" m ", const tui_keytable *" t ,
+.BI "                         const char *" view ", const char *" target );
+.BI "int  tui_actionmenu_run(tui_actionmenu *" m ", const tui_keytable *" t ,
+.BI "                        int " entry ", const char *" target );
+.BI "tui_action_state tui_actionmenu_handle(tui_actionmenu *" m ", const tui_event *" ev );
+.BI "void tui_actionmenu_render(tui_actionmenu *" m ", tui_canvas " c );
+.BI "void tui_actionmenu_free(tui_actionmenu *" m );
+.PP
+.BI "int  tui_keyhelp_open(tui_keyhelp *" h ", const tui_keytable *" t ,
+.BI "                      const char *" view ", const char *" title );
+.BI "void tui_keyhelp_free(tui_keyhelp *" h );
+.fi
+.SH DESCRIPTION
+These functions carry the keyboard policy of the terminal interfaces
+(policies/tui-interface-model.md, "Actions that change state: the action
+menu").
+A program writes everything its keys do as one array of
+.IR tui_keyentry :
+the view, the direct key (or
+.BR TUI_KC_NONE ,
+the menu only), the registry verb, the action's name and description, its
+class
+.RB ( TUI_ACT_HARMLESS ", " TUI_ACT_ROUTINE ", " TUI_ACT_SERIOUS ", " TUI_ACT_RARE ),
+whether it is irreversible, the question to confirm with, and the program's
+own id.
+Keys are
+.I tui_keycode
+numbers: a character is its code point, a special key is its
+.I tui_key
+value, Ctrl+letter is
+.B TUI_KC_CTRL
+or-ed with the letter.
+The names
+.BR TUI_KC_STAR " (*), " TUI_KC_JUNK " (!), " TUI_KC_READ " (+), " TUI_KC_UNREAD " (\-),"
+.BR TUI_KC_DELETE_D " (d), " TUI_KC_DELETE " (Delete)"
+are the registry;
+.BR TUI_KC_NEW ", " TUI_KC_EDIT ", " TUI_KC_MOVE ", " TUI_KC_MESSAGE
+are n, e, t, m; the others name the common table
+.RB ( TUI_KC_BACK ", " TUI_KC_HELP ", " TUI_KC_MENU ", " TUI_KC_RELOAD ", " TUI_KC_QUIT
+and so on).
+.TP
+.BR tui_keytable_init ()
+Validates the table; the program calls it at start and exits on \-1
+(errno EINVAL, the reason in
+.I why
+when it is not NULL).
+It refuses: a state-changing entry whose direct key is not in the registry,
+or is the registry key of another verb; a harmless entry on a registry key
+(a key that changes state is never also harmless); a serious or irreversible
+entry without a confirmation containing
+.BR %s ,
+where the target is put; a rare entry with a direct key; one key bound twice
+in one view; an entry without a name.
+The array is not copied.
+.TP
+.BR tui_keytable_find ()
+The index of the entry bound to the event in
+.IR view ,
+or \-1.
+The key handler is driven by this, and the help is made from the same array.
+.TP
+.BR tui_registry_verb "(), " tui_key_reserved ()
+The verb a registry key stands for; whether a key is in the reserved
+harmless set (r s f p o c a u i l h x / j k q g G U ? :), which no program
+gives a state-changing meaning.
+.TP
+.BR tui_keycode_of "(), " tui_keycode_name ()
+The code of a key event (none for Alt and for modified special keys); the
+name of a code ("d", "Delete", "ctrl\-c", "Space") with the length returned
+as by snprintf(3).
+.TP
+.BR tui_nav_key ()
+The way out: q goes back and never quits (nothing at depth 0); Esc goes
+back, and at depth 0, the top level with nothing open, quits; ctrl-c quits
+from anywhere.
+Returns
+.BR TUI_NAV_BACK ", " TUI_NAV_QUIT " or " TUI_NAV_NONE .
+.TP
+.BR tui_actionmenu_open ()
+The menu that ':' opens: every non-harmless action of the view, each with
+its name, description and its direct key beside it.
+The program gives it events first while it is open
+.RB ( tui_actionmenu_handle ())
+and draws it last
+.RB ( tui_actionmenu_render ()).
+.I m\->state
+becomes
+.B TUI_ACTION_CHOSEN
+(run entry
+.IR m\->entry )
+or
+.BR TUI_ACTION_CANCELLED .
+An action that needs a confirmation opens a dialog named after the action,
+its text the entry's question with the target put in, the default answer No.
+Enter on the default, Esc and ctrl-c cancel; only Yes (or y) chooses.
+.TP
+.BR tui_actionmenu_run ()
+The same for an entry reached by its direct key: chosen at once when it
+needs no confirmation, otherwise the confirmation is open.
+.TP
+.BR tui_keyhelp_open ()
+The help overlay of a view, a
+.I tui_dialog
+in
+.IR h\->dialog ,
+with a row for every entry that has a direct key there.
+.PP
+All return 0 on success and \-1 with errno set on failure (EINVAL, ENOMEM).
+The library prints nothing.
+.SH EXAMPLE
+.nf
+static const tui_keyentry keys[] = {
+    { "list", TUI_KC_STAR, TUI_VERB_STAR, "Star", NULL,
+      TUI_ACT_ROUTINE, 0, NULL, 1 },
+    { "list", TUI_KC_DELETE_D, TUI_VERB_DELETE, "Delete", NULL,
+      TUI_ACT_SERIOUS, 1, "Delete %s? This cannot be undone.", 2 },
+    { "list", TUI_KC_NONE, TUI_VERB_NONE, "Rotate secret", NULL,
+      TUI_ACT_RARE, 0, NULL, 3 },
+};
+.fi
+.SH SEE ALSO
+.BR tui_dialog_message (3),
+.BR libtuikit (7)

@@ -14,6 +14,7 @@
 #
 # size <struct> <bytes> <alignment>   symbol <exported function>
 arch x86_64
+size tui_actionmenu 328 8
 size tui_buf 32 8
 size tui_canvas 24 8
 size tui_completion 16 8
@@ -23,6 +24,9 @@ size tui_event 56 8
 size tui_field 152 8
 size tui_fieldset 632 8
 size tui_history 16 8
+size tui_keyentry 56 8
+size tui_keyhelp 288 8
+size tui_keytable 16 8
 size tui_lineedit 104 8
 size tui_listview 16 4
 size tui_readline_opts 32 8
@@ -35,6 +39,11 @@ size tui_table_model 24 8
 size tui_term_opts 16 4
 size tui_textedit 56 8
 size tui_textview 64 8
+symbol tui_actionmenu_free
+symbol tui_actionmenu_handle
+symbol tui_actionmenu_open
+symbol tui_actionmenu_render
+symbol tui_actionmenu_run
 symbol tui_buf_append
 symbol tui_buf_free
 symbol tui_buf_init
@@ -85,6 +94,13 @@ symbol tui_history_count
 symbol tui_history_free
 symbol tui_history_get
 symbol tui_history_init
+symbol tui_key_reserved
+symbol tui_keycode_name
+symbol tui_keycode_of
+symbol tui_keyhelp_free
+symbol tui_keyhelp_open
+symbol tui_keytable_find
+symbol tui_keytable_init
 symbol tui_lineedit_cursor_col
 symbol tui_lineedit_free
 symbol tui_lineedit_handle
@@ -108,6 +124,7 @@ symbol tui_listview_reveal_selected
 symbol tui_listview_select
 symbol tui_listview_set_count
 symbol tui_listview_set_viewport
+symbol tui_nav_key
 symbol tui_readline
 symbol tui_readline_opts_init
 symbol tui_rect_center
@@ -115,6 +132,7 @@ symbol tui_rect_inset
 symbol tui_rect_intersect
 symbol tui_rect_split_h
 symbol tui_rect_split_v
+symbol tui_registry_verb
 symbol tui_screen_clear
 symbol tui_screen_cols
 symbol tui_screen_fill

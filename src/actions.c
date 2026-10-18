@@ -1,0 +1,355 @@
+/* SPDX-License-Identifier: GPL-3.0-only */
+/* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
+/* Created: 2026-10-18 */
+/* The key table, the action menu and the help made from the table. */
+
+#include "tuikit/actions.h"
+
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* ── Keys ────────────────────────────────────────────────────────────── */
+
+tui_verb tui_registry_verb(tui_keycode key) {
+    switch (key) {
+    case TUI_KC_STAR:     return TUI_VERB_STAR;
+    case TUI_KC_JUNK:     return TUI_VERB_JUNK;
+    case TUI_KC_READ:     return TUI_VERB_READ;
+    case TUI_KC_UNREAD:   return TUI_VERB_UNREAD;
+    case TUI_KC_DELETE_D:
+    case TUI_KC_DELETE:   return TUI_VERB_DELETE;
+    case TUI_KC_NEW:      return TUI_VERB_NEW;
+    case TUI_KC_EDIT:     return TUI_VERB_EDIT;
+    case TUI_KC_MOVE:     return TUI_VERB_MOVE;
+    case TUI_KC_MESSAGE:  return TUI_VERB_MESSAGE;
+    default:              return TUI_VERB_NONE;
+    }
+}
+
+int tui_key_reserved(tui_keycode key) {
+    return key > 0 && key < 128 && strchr("rsfpocauilhx/jkqgGU?:", (int)key) != NULL;
+}
+
+tui_keycode tui_keycode_of(const tui_event *ev) {
+    if (!ev || ev->type != TUI_EV_KEY || (ev->mods & TUI_MOD_ALT)) return TUI_KC_NONE;
+    if (ev->key == TUI_KEY_CHAR) {
+        if (ev->mods & TUI_MOD_CTRL) return TUI_KC_CTRL | ev->cp;
+        return ev->cp;
+    }
+    return ev->mods ? TUI_KC_NONE : (tui_keycode)ev->key;
+}
+
+static const char *const g_special[] = {
+    "Enter", "Tab", "Backspace", "Esc", "Up", "Down", "Left", "Right", "Home", "End",
+    "PageUp", "PageDown", "Insert", "Delete" };
+
+int tui_keycode_name(tui_keycode key, char *buf, size_t size) {
+    char tmp[32];
+    if (key & TUI_KC_CTRL) {
+        snprintf(tmp, sizeof tmp, "ctrl-%c", (char)(key & 0x7f));
+    } else if (key == ' ') {
+        snprintf(tmp, sizeof tmp, "Space");
+    } else if (key >= TUI_KEY_F1 && key <= TUI_KEY_F12) {
+        snprintf(tmp, sizeof tmp, "F%u", (unsigned)(key - TUI_KEY_F1 + 1));
+    } else if (key >= TUI_KEY_ENTER && key < TUI_KEY_ENTER + sizeof g_special / sizeof g_special[0]) {
+        snprintf(tmp, sizeof tmp, "%s", g_special[key - TUI_KEY_ENTER]);
+    } else if (key > 0 && key < 0x110000) {
+        char *p = tmp;
+        if (key < 0x80) {
+            *p++ = (char)key;
+        } else if (key < 0x800) {
+            *p++ = (char)(0xC0 | (key >> 6));
+            *p++ = (char)(0x80 | (key & 0x3F));
+        } else if (key < 0x10000) {
+            *p++ = (char)(0xE0 | (key >> 12));
+            *p++ = (char)(0x80 | ((key >> 6) & 0x3F));
+            *p++ = (char)(0x80 | (key & 0x3F));
+        } else {
+            *p++ = (char)(0xF0 | (key >> 18));
+            *p++ = (char)(0x80 | ((key >> 12) & 0x3F));
+            *p++ = (char)(0x80 | ((key >> 6) & 0x3F));
+            *p++ = (char)(0x80 | (key & 0x3F));
+        }
+        *p = '\0';
+    } else {
+        tmp[0] = '\0';
+    }
+    if (buf && size) snprintf(buf, size, "%s", tmp);
+    return (int)strlen(tmp);
+}
+
+tui_nav tui_nav_key(const tui_event *ev, int depth) {
+    tui_keycode k = tui_keycode_of(ev);
+    if (k == TUI_KC_QUIT) return TUI_NAV_QUIT;
+    if (k == TUI_KC_BACK) return depth > 0 ? TUI_NAV_BACK : TUI_NAV_NONE;
+    if (k == TUI_KC_ESC) return depth > 0 ? TUI_NAV_BACK : TUI_NAV_QUIT;
+    return TUI_NAV_NONE;
+}
+
+/* ── The table ───────────────────────────────────────────────────────── */
+
+static int overlap(const char *a, const char *b) {
+    return !a || !b || strcmp(a, b) == 0;
+}
+
+static int needs_confirm(const tui_keyentry *e) {
+    return e->cls == TUI_ACT_SERIOUS || e->irreversible;
+}
+
+static int applies(const tui_keyentry *e, const char *view) {
+    return !e->view || (view && strcmp(e->view, view) == 0);
+}
+
+static int refuse(char *why, size_t size, int i, const tui_keyentry *e, const char *reason) {
+    if (why && size)
+        snprintf(why, size, "key table entry %d (%s): %s", i, e->action ? e->action : "?", reason);
+    errno = EINVAL;
+    return -1;
+}
+
+int tui_keytable_init(tui_keytable *t, const tui_keyentry *entries, int n, char *why,
+                      size_t size) {
+    if (why && size) why[0] = '\0';
+    if (!t || n < 0 || (!entries && n > 0)) {
+        errno = EINVAL;
+        return -1;
+    }
+    for (int i = 0; i < n; i++) {
+        const tui_keyentry *e = &entries[i];
+        if (!e->action || !e->action[0]) return refuse(why, size, i, e, "no action name");
+        if ((int)e->cls < TUI_ACT_HARMLESS || e->cls > TUI_ACT_RARE)
+            return refuse(why, size, i, e, "unknown class");
+        if (needs_confirm(e) && (!e->confirm || !strstr(e->confirm, "%s")))
+            return refuse(why, size, i, e,
+                          "a serious or irreversible action needs a confirmation naming the target (%s)");
+        if (e->key != TUI_KC_NONE) {
+            tui_verb reg = tui_registry_verb(e->key);
+            if (e->cls == TUI_ACT_HARMLESS) {
+                if (reg != TUI_VERB_NONE)
+                    return refuse(why, size, i, e,
+                                  "a harmless action on a key of the registry, which is for state changes");
+            } else if (e->cls == TUI_ACT_RARE) {
+                return refuse(why, size, i, e, "a rare action has no direct key: it is in the menu");
+            } else if (reg == TUI_VERB_NONE) {
+                return refuse(why, size, i, e, "a state-changing direct key that is not in the registry");
+            } else if (e->verb != reg) {
+                return refuse(why, size, i, e, "the key is the registry key of another verb");
+            }
+            for (int j = 0; j < i; j++)
+                if (entries[j].key == e->key && overlap(entries[j].view, e->view))
+                    return refuse(why, size, i, e, "the key is bound twice in one view");
+        }
+    }
+    t->entries = entries;
+    t->n = n;
+    return 0;
+}
+
+int tui_keytable_find(const tui_keytable *t, const char *view, const tui_event *ev) {
+    tui_keycode k = tui_keycode_of(ev);
+    if (!t || k == TUI_KC_NONE) return -1;
+    for (int i = 0; i < t->n; i++)
+        if (t->entries[i].key == k && applies(&t->entries[i], view)) return i;
+    return -1;
+}
+
+/* ── The action menu ─────────────────────────────────────────────────── */
+
+/* The question with every "%s" replaced by the target; the caller frees. */
+static char *question(const char *confirm, const char *target) {
+    size_t tl = target ? strlen(target) : 0, cl = strlen(confirm), n = cl + 1;
+    for (const char *p = confirm; (p = strstr(p, "%s")); p += 2) n += tl;
+    char *out = malloc(n), *o = out;
+    if (!out) return NULL;
+    for (const char *p = confirm; *p;) {
+        if (p[0] == '%' && p[1] == 's') {
+            if (tl) memcpy(o, target, tl);
+            o += tl;
+            p += 2;
+        } else {
+            *o++ = *p++;
+        }
+    }
+    *o = '\0';
+    return out;
+}
+
+static int start_confirm(tui_actionmenu *m, int entry, const char *target) {
+    const tui_keyentry *e = &m->table->entries[entry];
+    char *text = question(e->confirm, target);
+    if (!text) return -1;
+    if (m->have_dialog) tui_dialog_free(&m->dialog);
+    m->have_dialog = 0;
+    int rc = tui_dialog_confirm(&m->dialog, e->action, text, 0);   /* the default is No */
+    free(text);
+    if (rc != 0) return -1;
+    m->have_dialog = 1;
+    m->confirming = 1;
+    m->entry = entry;
+    return 0;
+}
+
+int tui_actionmenu_open(tui_actionmenu *m, const tui_keytable *t, const char *view,
+                        const char *target) {
+    if (!m || !t) {
+        errno = EINVAL;
+        return -1;
+    }
+    memset(m, 0, sizeof *m);
+    m->table = t;
+    int count = 0, kw = 0;
+    size_t chars = target ? strlen(target) + 1 : 1;
+    for (int i = 0; i < t->n; i++) {
+        const tui_keyentry *e = &t->entries[i];
+        if (e->cls == TUI_ACT_HARMLESS || !applies(e, view)) continue;
+        int w = tui_keycode_name(e->key, NULL, 0);
+        if (w > kw) kw = w;
+        count++;
+    }
+    for (int i = 0; i < t->n; i++) {
+        const tui_keyentry *e = &t->entries[i];
+        if (e->cls == TUI_ACT_HARMLESS || !applies(e, view)) continue;
+        chars += (size_t)kw + 2 + strlen(e->action) + 1 + (e->desc ? 3 + strlen(e->desc) : 0);
+    }
+    /* One block: the item pointers, the table indexes, the text. */
+    size_t pbytes = (size_t)(count ? count : 1) * sizeof(char *);
+    size_t ibytes = (size_t)(count ? count : 1) * sizeof(int);
+    char *mem = malloc(pbytes + ibytes + chars);
+    if (!mem) {
+        errno = ENOMEM;
+        return -1;
+    }
+    m->mem = mem;
+    const char **items = (const char **)mem;
+    m->idx = (int *)(mem + pbytes);
+    char *text = mem + pbytes + ibytes;
+    m->target = text;
+    if (target) memcpy(text, target, strlen(target) + 1);
+    else text[0] = '\0';
+    text += strlen(m->target) + 1;
+    int k = 0;
+    for (int i = 0; i < t->n; i++) {
+        const tui_keyentry *e = &t->entries[i];
+        if (e->cls == TUI_ACT_HARMLESS || !applies(e, view)) continue;
+        items[k] = text;
+        m->idx[k++] = i;
+        char kn[32];
+        tui_keycode_name(e->key, kn, sizeof kn);
+        text += sprintf(text, "%-*s  %s", kw, kn, e->action);
+        if (e->desc) text += sprintf(text, " - %s", e->desc);
+        text++;
+    }
+    if (tui_dialog_menu(&m->dialog, "Actions", items, count, 0) != 0) {
+        free(mem);
+        m->mem = NULL;
+        return -1;
+    }
+    m->have_dialog = 1;
+    return 0;
+}
+
+int tui_actionmenu_run(tui_actionmenu *m, const tui_keytable *t, int entry, const char *target) {
+    if (!m || !t || entry < 0 || entry >= t->n) {
+        errno = EINVAL;
+        return -1;
+    }
+    memset(m, 0, sizeof *m);
+    m->table = t;
+    m->entry = entry;
+    if (!needs_confirm(&t->entries[entry])) {
+        m->state = TUI_ACTION_CHOSEN;
+        return 0;
+    }
+    if (start_confirm(m, entry, target) != 0) {
+        errno = ENOMEM;
+        return -1;
+    }
+    return 0;
+}
+
+tui_action_state tui_actionmenu_handle(tui_actionmenu *m, const tui_event *ev) {
+    if (!m) return TUI_ACTION_CANCELLED;
+    if (m->state != TUI_ACTION_OPEN || !m->have_dialog || !ev) return m->state;
+    tui_dialog_state st = tui_dialog_handle(&m->dialog, ev);
+    if (st == TUI_DIALOG_OPEN) return m->state;
+    if (st == TUI_DIALOG_CANCELLED) {
+        m->state = TUI_ACTION_CANCELLED;
+    } else if (m->confirming) {
+        /* Only an answer of Yes performs; Enter on the default No does not. */
+        m->state = m->dialog.answer == 1 ? TUI_ACTION_CHOSEN : TUI_ACTION_CANCELLED;
+    } else {
+        int entry = m->idx[m->dialog.answer];
+        if (!needs_confirm(&m->table->entries[entry])) {
+            m->entry = entry;
+            m->state = TUI_ACTION_CHOSEN;
+        } else if (start_confirm(m, entry, m->target) != 0) {
+            m->state = TUI_ACTION_CANCELLED;   /* never perform what was not confirmed */
+        }
+    }
+    return m->state;
+}
+
+void tui_actionmenu_render(tui_actionmenu *m, tui_canvas c) {
+    if (m && m->have_dialog) tui_dialog_render(&m->dialog, c);
+}
+
+void tui_actionmenu_free(tui_actionmenu *m) {
+    if (!m) return;
+    if (m->have_dialog) tui_dialog_free(&m->dialog);
+    free(m->mem);
+    memset(m, 0, sizeof *m);
+}
+
+/* ── The help ────────────────────────────────────────────────────────── */
+
+int tui_keyhelp_open(tui_keyhelp *h, const tui_keytable *t, const char *view, const char *title) {
+    if (!h || !t) {
+        errno = EINVAL;
+        return -1;
+    }
+    memset(h, 0, sizeof *h);
+    int count = 0;
+    size_t chars = 0;
+    for (int i = 0; i < t->n; i++) {
+        const tui_keyentry *e = &t->entries[i];
+        if (e->key == TUI_KC_NONE || !applies(e, view)) continue;
+        count++;
+        chars += (size_t)tui_keycode_name(e->key, NULL, 0) + 1 + strlen(e->action) + 1 +
+                 (e->desc ? 3 + strlen(e->desc) : 0);
+    }
+    size_t pbytes = 2 * (size_t)(count ? count : 1) * sizeof(char *);
+    char *mem = malloc(pbytes + chars + 1);
+    if (!mem) {
+        errno = ENOMEM;
+        return -1;
+    }
+    const char **pairs = (const char **)mem;
+    char *text = mem + pbytes;
+    int k = 0;
+    for (int i = 0; i < t->n; i++) {
+        const tui_keyentry *e = &t->entries[i];
+        if (e->key == TUI_KC_NONE || !applies(e, view)) continue;
+        pairs[2 * k] = text;
+        text += tui_keycode_name(e->key, text, 32) + 1;
+        pairs[2 * k + 1] = text;
+        text += sprintf(text, "%s", e->action);
+        if (e->desc) text += sprintf(text, " - %s", e->desc);
+        text++;
+        k++;
+    }
+    if (tui_dialog_help(&h->dialog, title, pairs, count) != 0) {
+        free(mem);
+        return -1;
+    }
+    h->mem = mem;
+    return 0;
+}
+
+void tui_keyhelp_free(tui_keyhelp *h) {
+    if (!h) return;
+    if (h->mem) tui_dialog_free(&h->dialog);
+    free(h->mem);
+    memset(h, 0, sizeof *h);
+}

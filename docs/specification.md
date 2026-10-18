@@ -660,6 +660,67 @@ and Tab or Enter accepted it.
 `shift_tab_fn`, `render_below`) for programs that draw in place with
 `tui_lineedit_run()`; a full-screen TUI uses the drop-down above.
 
+### 4.7b The key table and the action menu — one keyboard for every TUI
+
+`tuikit/actions.h`. The owner's decision of 2026-10-18 (TUI-57;
+`policies/tui-interface-model.md`, "Actions that change state: the action
+menu"; study `policies/studies/tui-keys.md`): a key either means the same in
+every program, or is unbound where it would mean something else, and a key that
+changes state outside the UI is never also a harmless key. The library supplies
+the parts so that a program cannot invent a binding.
+
+- **Key codes.** `tui_keycode` is one number per key: a character is its code
+  point, a special key its `tui_key`, Ctrl+letter `TUI_KC_CTRL | letter`.
+  Named constants `TUI_KC_*` exist for the common table (`TUI_KC_BACK` q,
+  `TUI_KC_HELP` ?, `TUI_KC_MENU` :, `TUI_KC_RELOAD` r, `TUI_KC_QUIT` ctrl-c...)
+  and for the registry (`TUI_KC_STAR` `*`, `TUI_KC_JUNK` `!`, `TUI_KC_READ` `+`,
+  `TUI_KC_UNREAD` `-`, `TUI_KC_DELETE_D` `d`, `TUI_KC_DELETE` Delete, and
+  n e t m for new, edit, move, message), so a program names a key and never
+  writes a character. `tui_registry_verb()` maps a key to its verb;
+  `tui_key_reserved()` is the reserved harmless set `r s f p o c a u i l h x /`
+  with `j k q g G U ? :` (`n` is in the policy's reserved list and also the
+  registry's *new*: the registry's table wins, as it lists `n` explicitly).
+- **One table.** A program lists everything its keys do as an array of
+  `tui_keyentry` (view, key, verb, action name, description, class,
+  irreversible, confirmation, id). The key handler asks
+  `tui_keytable_find(table, view, event)`; the help overlay is
+  `tui_keyhelp_open()` over the same array (a row of key and action name for
+  every entry with a direct key in that view, in table order); the `:` menu
+  is `tui_actionmenu_open()` over it. The help therefore cannot list a key the
+  handler does not have, nor the handler have a key the help omits.
+- **Refused when built.** `tui_keytable_init()` returns -1 (EINVAL, the reason
+  in a caller buffer) and the program exits when: a state-changing entry
+  (routine, serious, rare) has a direct key not in the registry, or the
+  registry key of another verb; a harmless entry sits on a registry key; a
+  serious or irreversible entry has no confirmation, or one without `%s` (the
+  place the target is named); a rare entry has a direct key; one key is bound
+  twice in one view; an entry has no name.
+- **Classes.** `TUI_ACT_HARMLESS` (a view, a filter, a movement; any
+  non-registry key), `TUI_ACT_ROUTINE` (reversible: a registry key, no
+  question), `TUI_ACT_SERIOUS` (deletes, cannot be undone, starts a process,
+  writes to someone else: a registry key or the menu, and always the
+  confirmation), `TUI_ACT_RARE` (configure, renew, rotate...: the menu only).
+- **The menu.** `tui_actionmenu_open(m, table, view, target)` draws a
+  `tui_dialog` menu titled *Actions* with every non-harmless entry of the view,
+  one row each: the direct key in a column (blank for a menu-only action), the
+  name, ` - description`. The selection is the table's (dark blue, `>` in bold).
+  The program gives it events first and draws it last, as any dialog; it ends
+  `TUI_ACTION_CHOSEN` (run entry `m->entry`) or `TUI_ACTION_CANCELLED` (Esc,
+  ctrl-c). An action that needs a confirmation opens a confirm dialog titled
+  with the action, the question with `%s` replaced by the target, **the default
+  answer No**; Enter on No, Esc, ctrl-c and `n` cancel, only Yes (moved to, or
+  `y`) chooses. If the question cannot be built (no memory) the action is
+  cancelled, never performed. `tui_actionmenu_run()` takes the same path for an
+  entry reached by its direct key, so a serious direct key asks as well.
+- **The way out.** `tui_nav_key(event, depth)`: `q` is back and does nothing at
+  depth 0 (it never quits); `Esc` is back, and at depth 0, the top level with
+  nothing open, quits; `ctrl-c` quits from anywhere.
+- **Tests.** Unit (`test_actions.c`: every refusal, the keys, the pictures with
+  colours at 256 and 8 colours, allocation failures), functional
+  (`cap_actions`), and PTY (`test_keys.c` over `tests/pty/keys_fixture.c`, a
+  program whose every key is one table: the menu, the confirmation, the help
+  matching the keys, the reserved set changing nothing, the way out).
+
 ### 4.8 Typical loop
 
 ```c

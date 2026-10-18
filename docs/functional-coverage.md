@@ -322,6 +322,25 @@ name the ticket that closes the gap; there is none now.
 | `tui_fieldset_update_completion` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
 | `tui_field_text` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
 
+## Key table and action menu
+
+| Capability | Functional test | Phase |
+|---|---|---|
+| `tui_actionmenu_free` | `tests/functional/cap_widgets.c` | `cap_actions` |
+| `tui_actionmenu_handle` | `tests/functional/cap_widgets.c` | `cap_actions` |
+| `tui_actionmenu_open` | `tests/functional/cap_widgets.c` | `cap_actions` |
+| `tui_actionmenu_render` | `tests/functional/cap_widgets.c` | `cap_actions` |
+| `tui_actionmenu_run` | `tests/functional/cap_widgets.c` | `cap_actions` |
+| `tui_key_reserved` | `tests/functional/cap_widgets.c` | `cap_actions` |
+| `tui_keycode_name` | `tests/functional/cap_widgets.c` | `cap_actions` |
+| `tui_keycode_of` | `tests/functional/cap_widgets.c` | `cap_actions` |
+| `tui_keyhelp_free` | `tests/functional/cap_widgets.c` | `cap_actions` |
+| `tui_keyhelp_open` | `tests/functional/cap_widgets.c` | `cap_actions` |
+| `tui_keytable_find` | `tests/functional/cap_widgets.c` | `cap_actions` |
+| `tui_keytable_init` | `tests/functional/cap_widgets.c` | `cap_actions` |
+| `tui_nav_key` | `tests/functional/cap_widgets.c` | `cap_actions` |
+| `tui_registry_verb` | `tests/functional/cap_widgets.c` | `cap_actions` |
+
 ## Gaps
 
 None.  A capability without a functional test is listed here with the ticket

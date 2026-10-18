@@ -11,6 +11,7 @@
  * @brief Every public header of libtuikit.  See libtuikit(7).
  */
 
+#include "tuikit/actions.h"
 #include "tuikit/api.h"
 #include "tuikit/buf.h"
 #include "tuikit/canvas.h"
