@@ -111,6 +111,16 @@ typedef struct tui_keyentry {
     int              id;           /**< the program's own number for the action */
 } tui_keyentry;
 
+/**
+ * @par The description of a view
+ * A row with no @c action, no key and only @c desc set (and @c view the view
+ * it describes; NULL: every view) is the view's description: one to three
+ * lines (at most three wrapped to 64 columns) shown by tui_keyhelp_open()
+ * between the title and the keys.  Written in the program's language of the
+ * screen; at most one per view; tui_keytable_init() refuses a longer text.
+ * A view without one shows the keys only.
+ */
+
 /** @brief A validated table.  Build it with tui_keytable_init(). */
 typedef struct tui_keytable {
     const tui_keyentry *entries;   /**< the caller's array, kept alive by it */
@@ -222,7 +232,8 @@ typedef struct tui_keyhelp {
 } tui_keyhelp;
 
 /**
- * @brief The help of @p view: a row for every entry that has a direct key
+ * @brief The help of @p view: the view's description (if the table has one)
+ *        under @p title, then a row for every entry that has a direct key
  *        there, in table order, the key and the action's name (and its
  *        description).  The same table drives tui_keytable_find().
  */
