@@ -93,9 +93,11 @@ name of a code ("d", "Delete", "ctrl\-c", "Space") with the length returned
 as by snprintf(3).
 .TP
 .BR tui_nav_key ()
-The way out: q goes back and never quits (nothing at depth 0); Esc goes
+The way out: q and Backspace go back and never quit (nothing at depth 0); Esc goes
 back, and at depth 0, the top level with nothing open, quits; ctrl-c quits
 from anywhere.
+Call it only from views where no text field has the cursor: Backspace in a
+field stays a delete.
 Returns
 .BR TUI_NAV_BACK ", " TUI_NAV_QUIT " or " TUI_NAV_NONE .
 .TP
