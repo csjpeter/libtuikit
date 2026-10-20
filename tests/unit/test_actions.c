@@ -136,9 +136,12 @@ static void test_registry_and_reserved(void) {
 }
 
 static void test_way_out(void) {
-    tui_event q = key_ev("q"), esc = key_ev("\x1b"), cc = key_ev("\x03"), x = key_ev("x");
+    tui_event bs = key_ev("\x7f"), q = key_ev("q"), esc = key_ev("\x1b"), cc = key_ev("\x03"), x = key_ev("x");
     ASSERT_EQ_INT(tui_nav_key(&q, 0), TUI_NAV_NONE, "q on the top level does not quit");
     ASSERT_EQ_INT(tui_nav_key(&q, 2), TUI_NAV_BACK, "q goes back");
+    ASSERT_EQ_INT(tui_nav_key(&bs, 0), TUI_NAV_NONE, "Backspace on the top level does not quit");
+    ASSERT_EQ_INT(tui_nav_key(&bs, 2), TUI_NAV_BACK, "Backspace goes back");
+    ASSERT_EQ_INT(TUI_KC_BACKSPACE, (int)TUI_KEY_BACKSPACE, "the named constant");
     ASSERT_EQ_INT(tui_nav_key(&esc, 0), TUI_NAV_QUIT, "Esc on the top level quits");
     ASSERT_EQ_INT(tui_nav_key(&esc, 1), TUI_NAV_BACK, "Esc goes back");
     ASSERT_EQ_INT(tui_nav_key(&cc, 0), TUI_NAV_QUIT, "ctrl-c quits on the top level");
@@ -543,6 +546,20 @@ static void test_help_matches_the_handler(void) {
     }
 }
 
+static void test_help_back_entry(void) {
+    static const tui_keyentry back[] = {
+        { NULL, TUI_KC_BACK, TUI_VERB_NONE, "Back", NULL, TUI_ACT_HARMLESS, 0, NULL, 1 },
+    };
+    tui_keytable t;
+    ASSERT_EQ_INT(tui_keytable_init(&t, back, 1, NULL, 0), 0, "table");
+    tui_keyhelp h;
+    ASSERT_EQ_INT(tui_keyhelp_open(&h, &t, "list", "T"), 0, "open");
+    ASSERT_EQ_INT(h.dialog.nitems, 1, "one row");
+    ASSERT_EQ_STR(h.dialog.items[0], "Esc, q, Backspace", "the Back entry lists all its keys");
+    ASSERT_EQ_STR(h.dialog.items[1], "Back", "the action");
+    tui_keyhelp_free(&h);
+}
+
 static void test_help_picture(void) {
     tui_keytable t;
     tui_keytable_init(&t, g_table, N_TABLE, NULL, 0);
@@ -649,6 +666,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_run_by_direct_key),
     TEST_CASE(test_menu_256_colours_and_8_colours),
     TEST_CASE(test_help_matches_the_handler),
+    TEST_CASE(test_help_back_entry),
     TEST_CASE(test_help_picture),
     TEST_CASE(test_allocation_failures),
 };

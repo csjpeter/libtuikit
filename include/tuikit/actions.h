@@ -57,6 +57,7 @@ enum {
     TUI_KC_MARK   = ' ',
     TUI_KC_UNMARK_ALL = 'U',
     TUI_KC_ESC    = TUI_KEY_ESC,
+    TUI_KC_BACKSPACE = TUI_KEY_BACKSPACE,  /**< goes back like q and Esc; a delete in a text field */
     TUI_KC_ENTER  = TUI_KEY_ENTER,
     TUI_KC_QUIT   = TUI_KC_CTRL | 'c',     /**< quits at once, from anywhere */
     TUI_KC_SUSPEND = TUI_KC_CTRL | 'z',
@@ -154,9 +155,11 @@ typedef enum tui_nav {
 } tui_nav;
 
 /**
- * @brief The way out: q goes back (and does nothing on the top level, it
- *        never quits); Esc goes back, and on the top level with nothing
+ * @brief The way out: q and Backspace go back (and do nothing on the top
+ *        level, they never quit); Esc goes back, and on the top level with nothing
  *        open (@p depth 0) quits; ctrl-c quits from anywhere.
+ *        Call it only from views where no text field has the cursor:
+ *        Backspace in a field stays a delete.
  */
 TUI_API tui_nav tui_nav_key(const tui_event *ev, int depth);
 

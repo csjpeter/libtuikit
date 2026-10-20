@@ -24,7 +24,7 @@ static const tui_keyentry g_keys[] = {
     { NULL,     TUI_KC_HELP,   TUI_VERB_NONE, "Help", NULL, TUI_ACT_HARMLESS, 0, NULL, A_HELP },
     { NULL,     TUI_KC_MENU,   TUI_VERB_NONE, "Action menu", NULL, TUI_ACT_HARMLESS, 0, NULL, A_MENU },
     { NULL,     TUI_KC_BACK,   TUI_VERB_NONE, "Back", NULL, TUI_ACT_HARMLESS, 0, NULL, A_BACK },
-    { NULL,     TUI_KC_ESC,    TUI_VERB_NONE, "Back; quit on the top level", NULL, TUI_ACT_HARMLESS, 0, NULL, A_ESC },
+    { NULL,     TUI_KC_ESC,    TUI_VERB_NONE, "Quit on the top level", NULL, TUI_ACT_HARMLESS, 0, NULL, A_ESC },
     { NULL,     TUI_KC_QUIT,   TUI_VERB_NONE, "Quit", NULL, TUI_ACT_HARMLESS, 0, NULL, A_QUIT },
     { "list",   TUI_KC_DOWN_J, TUI_VERB_NONE, "Down", NULL, TUI_ACT_HARMLESS, 0, NULL, A_DOWN },
     { "list",   TUI_KC_UP_K,   TUI_VERB_NONE, "Up", NULL, TUI_ACT_HARMLESS, 0, NULL, A_UP },

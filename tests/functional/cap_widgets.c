@@ -434,7 +434,9 @@ static void cap_actions(void) {
     CHECK_INT(tui_keycode_name(TUI_KC_QUIT, name, sizeof name), 6, "name length");
     CHECK_STR(name, "ctrl-c", "ctrl-c");
 
-    tui_event q = cap_ev("q"), esc = cap_ev("\x1b"), cc = cap_ev("\x03");
+    tui_event q = cap_ev("q"), esc = cap_ev("\x1b"), cc = cap_ev("\x03"), bs = cap_ev("\x7f");
+    CHECK_INT(tui_nav_key(&bs, 1), TUI_NAV_BACK, "Backspace goes back");
+    CHECK_INT(tui_nav_key(&bs, 0), TUI_NAV_NONE, "Backspace never quits");
     CHECK_INT(tui_nav_key(&q, 0), TUI_NAV_NONE, "q never quits");
     CHECK_INT(tui_nav_key(&esc, 0), TUI_NAV_QUIT, "Esc on the top level quits");
     CHECK_INT(tui_nav_key(&esc, 1), TUI_NAV_BACK, "Esc goes back");
