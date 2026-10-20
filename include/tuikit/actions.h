@@ -54,6 +54,10 @@ enum {
     TUI_KC_RELOAD = 'r',
     TUI_KC_SEARCH = '/',
     TUI_KC_CLEAR  = 'c',
+    TUI_KC_OPEN_L = 'l',                   /**< opens a tree row (like Right) */
+    TUI_KC_CLOSE_H = 'h',                  /**< closes a tree row (like Left) */
+    TUI_KC_RIGHT  = TUI_KEY_RIGHT,
+    TUI_KC_LEFT   = TUI_KEY_LEFT,
     TUI_KC_MARK   = ' ',
     TUI_KC_UNMARK_ALL = 'U',
     TUI_KC_ESC    = TUI_KEY_ESC,

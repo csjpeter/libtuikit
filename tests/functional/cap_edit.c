@@ -169,6 +169,48 @@ static void cap_textview(void) {
     tui_textview_free(&tv);
 }
 
+static int tree_label(void *ctx, tui_canvas c, int row, int selected, tui_style base) {
+    const tui_treerow *rows = ctx;
+    (void)selected;
+    tui_canvas_put(c, 0, 0, rows[row].id, base);
+    return (int)strlen(rows[row].id);
+}
+
+static void cap_tree(void) {
+    static const tui_treerow rows[] = {
+        { "top", 0, 2 }, { "mid", 1, 1 }, { "leaf", 2, 0 }, { "other", 1, 0 }, { "last", 0, 0 } };
+    tui_tree t;
+    tui_tree_init(&t);
+    CHECK_INT(tui_tree_set_rows(&t, rows, 5), 0, "set_rows");
+    CHECK_INT(t.list.count, 2, "closed on opening");
+    CHECK_INT(tui_tree_selected_row(&t), 0, "first row selected");
+    CHECK_STR(tui_tree_marker(&t, 0), "+ ", "closed marker");
+    tui_event ev = cap_ev("\x1b[C");
+    CHECK_INT(tui_tree_handle(&t, &ev), 1, "Right is used");
+    CHECK_INT(tui_tree_is_open(&t, 0), 1, "Right opens");
+    CHECK_STR(tui_tree_marker(&t, 0), "- ", "open marker");
+    CHECK_INT(tui_tree_row_at(&t, 1), 1, "the child shows");
+    ev = cap_ev("\r");
+    CHECK_INT(tui_tree_handle(&t, &ev), 0, "Enter is not used");
+    CHECK_INT(tui_tree_set_open(&t, 1, 1), 0, "set_open");
+    CHECK_INT(tui_tree_open_all(&t), 0, "open_all");
+    CHECK_INT(t.list.count, 5, "everything shows");
+    tui_tree_close_all(&t);
+    CHECK_INT(t.list.count, 2, "close_all");
+    CHECK_INT(tui_tree_select_row(&t, 2), 0, "select_row opens the way");
+    unsigned char m[5] = { 0, 0, 0, 1, 0 };
+    CHECK_INT(tui_tree_show_matches(&t, m), 0, "show_matches");
+    CHECK_INT(tui_tree_show_matches(&t, NULL), 0, "filter cleared");
+    tui_tree_show_counts(&t, 1);
+    tui_screen *s = tui_screen_new(6, 20);
+    tui_tree_render(&t, tui_canvas_of(s), TUI_STYLE_DEFAULT, TUI_STYLE_SELECTION, tree_label, (void *)rows);
+    char *txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "top", "label drawn");
+    free(txt);
+    tui_screen_free(s);
+    tui_tree_free(&t);
+}
+
 struct draw_ctx { tui_screen *s; };
 static void draw_row(void *ctx, tui_canvas row, int index, int selected) {
     (void)ctx;
@@ -229,5 +271,6 @@ int main(void) {
     cap_textedit();
     cap_textview();
     cap_listview();
+    cap_tree();
     return cap_finish("cap-edit");
 }

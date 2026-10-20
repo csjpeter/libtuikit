@@ -39,6 +39,9 @@ size tui_table_model 24 8
 size tui_term_opts 16 4
 size tui_textedit 56 8
 size tui_textview 64 8
+size tui_tree 104 8
+size tui_treerow 16 8
+size tui_treeset 24 8
 symbol tui_actionmenu_free
 symbol tui_actionmenu_handle
 symbol tui_actionmenu_open
@@ -232,6 +235,21 @@ symbol tui_textview_scroll_to
 symbol tui_textview_set_text
 symbol tui_textview_top
 symbol tui_textview_wrap
+symbol tui_tree_close_all
+symbol tui_tree_free
+symbol tui_tree_handle
+symbol tui_tree_init
+symbol tui_tree_is_open
+symbol tui_tree_marker
+symbol tui_tree_open_all
+symbol tui_tree_render
+symbol tui_tree_row_at
+symbol tui_tree_select_row
+symbol tui_tree_selected_row
+symbol tui_tree_set_open
+symbol tui_tree_set_rows
+symbol tui_tree_show_counts
+symbol tui_tree_show_matches
 symbol tui_tty_cols
 symbol tui_tty_is
 symbol tui_tty_raw_enter

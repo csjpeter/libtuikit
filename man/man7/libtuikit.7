@@ -23,7 +23,7 @@ events, state machines and drawing.
   tui_term --> tui_decoder --> tui_event     tui_canvas --> tui_screen --> tui_buf --> fd
   (fds, termios,  (bytes -> keys)            (clipped)     (cells, diff)  (bytes)
    signals, size)
-          widgets: tui_listview  tui_table  tui_statusline  tui_textview  tui_lineedit  tui_dialog
+          widgets: tui_listview  tui_tree  tui_table  tui_statusline  tui_textview  tui_lineedit  tui_dialog
           helpers: tui_text (UTF-8, width, sanitising)  tui_rect (layout)
           no session: tui_tty (size, raw mode, one key, password), tui_readline
 .fi
@@ -50,7 +50,7 @@ cells, styles and the renderer (pure)
 .B tuikit/canvas.h
 rectangles, layout and clipped drawing (pure)
 .TP
-.BR tuikit/listview.h ", " tuikit/table.h ", " tuikit/statusline.h ", " tuikit/textview.h ", " tuikit/textedit.h ", " tuikit/dialog.h ", " tuikit/fieldset.h
+.BR tuikit/listview.h ", " tuikit/tree.h ", " tuikit/table.h ", " tuikit/statusline.h ", " tuikit/textview.h ", " tuikit/textedit.h ", " tuikit/dialog.h ", " tuikit/fieldset.h
 widgets (pure)
 .TP
 .B tuikit/lineedit.h
