@@ -85,7 +85,7 @@ int tui_keycode_name(tui_keycode key, char *buf, size_t size) {
 tui_nav tui_nav_key(const tui_event *ev, int depth) {
     tui_keycode k = tui_keycode_of(ev);
     if (k == TUI_KC_QUIT) return TUI_NAV_QUIT;
-    if (k == TUI_KC_BACK) return depth > 0 ? TUI_NAV_BACK : TUI_NAV_NONE;
+    if (k == TUI_KC_BACK || k == TUI_KC_BACKSPACE) return depth > 0 ? TUI_NAV_BACK : TUI_NAV_NONE;
     if (k == TUI_KC_ESC) return depth > 0 ? TUI_NAV_BACK : TUI_NAV_QUIT;
     return TUI_NAV_NONE;
 }
@@ -333,6 +333,9 @@ void tui_actionmenu_free(tui_actionmenu *m) {
 
 /* ── The help ────────────────────────────────────────────────────────── */
 
+/* The Back entry names every key that goes back (tui_nav_key()). */
+#define HELP_BACK_KEYS "Esc, q, Backspace"
+
 int tui_keyhelp_open(tui_keyhelp *h, const tui_keytable *t, const char *view, const char *title) {
     if (!h || !t) {
         errno = EINVAL;
@@ -345,7 +348,8 @@ int tui_keyhelp_open(tui_keyhelp *h, const tui_keytable *t, const char *view, co
         const tui_keyentry *e = &t->entries[i];
         if (e->key == TUI_KC_NONE || !applies(e, view)) continue;
         count++;
-        chars += (size_t)tui_keycode_name(e->key, NULL, 0) + 1 + strlen(e->action) + 1 +
+        chars += (size_t)(e->key == TUI_KC_BACK ? (int)strlen(HELP_BACK_KEYS)
+                                                : tui_keycode_name(e->key, NULL, 0)) + 1 + strlen(e->action) + 1 +
                  (e->desc ? 3 + strlen(e->desc) : 0);
     }
     size_t pbytes = 2 * (size_t)(count ? count : 1) * sizeof(char *);
@@ -361,7 +365,8 @@ int tui_keyhelp_open(tui_keyhelp *h, const tui_keytable *t, const char *view, co
         const tui_keyentry *e = &t->entries[i];
         if (e->key == TUI_KC_NONE || !applies(e, view)) continue;
         pairs[2 * k] = text;
-        text += tui_keycode_name(e->key, text, 32) + 1;
+        text += (e->key == TUI_KC_BACK ? snprintf(text, 32, "%s", HELP_BACK_KEYS)
+                                       : tui_keycode_name(e->key, text, 32)) + 1;
         pairs[2 * k + 1] = text;
         text += sprintf(text, "%s", e->action);
         if (e->desc) text += sprintf(text, " - %s", e->desc);

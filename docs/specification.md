@@ -720,8 +720,8 @@ the parts so that a program cannot invent a binding.
   `y`) chooses. If the question cannot be built (no memory) the action is
   cancelled, never performed. `tui_actionmenu_run()` takes the same path for an
   entry reached by its direct key, so a serious direct key asks as well.
-- **The way out.** `tui_nav_key(event, depth)`: `q` is back and does nothing at
-  depth 0 (it never quits); `Esc` is back, and at depth 0, the top level with
+- **The way out.** `tui_nav_key(event, depth)`: `q` and `Backspace` are back and do nothing at
+  depth 0 (they never quit; call it only where no text field has the cursor); `Esc` is back, and at depth 0, the top level with
   nothing open, quits; `ctrl-c` quits from anywhere.
 - **Tests.** Unit (`test_actions.c`: every refusal, the keys, the pictures with
   colours at 256 and 8 colours, allocation failures), functional

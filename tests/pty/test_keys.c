@@ -272,6 +272,11 @@ static void test_way_out(void) {
     pty_send_str(s, "q");
     WAIT_LIST(s);
     pty_send_str(s, "q");                                   /* never quits */
+    pty_send_key(s, PTY_KEY_BACK);                     /* nor does Backspace */
+    pty_send_str(s, "\r");
+    pty_wait_for(s, "Detail of Alpha", 3000);
+    pty_send_key(s, PTY_KEY_BACK);                     /* Backspace goes back */
+    WAIT_LIST(s);
     pty_send_str(s, "\r");
     pty_wait_for(s, "Detail of Alpha", 3000);
     pty_send_key(s, PTY_KEY_ESC);
@@ -333,8 +338,8 @@ static void test_help_matches_the_keys(void) {
     pty_send_str(s, "?");
     pty_wait_for(s, "List shortcuts", 3000);
     static const char *const rows[][2] = {
-        { "?", "Help" }, { ":", "Action menu" }, { "q", "Back" },
-        { "Esc", "Back; quit on the top level" }, { "ctrl-c", "Quit" }, { "j", "Down" },
+        { "?", "Help" }, { ":", "Action menu" }, { "Esc, q, Backspace", "Back" },
+        { "Esc", "Quit on the top level" }, { "ctrl-c", "Quit" }, { "j", "Down" },
         { "k", "Up" }, { "Enter", "Open" }, { "r", "Reload" }, { "*", "Star - toggle the star" },
         { "!", "Junk" }, { "d", "Delete" } };
     for (size_t i = 0; i < sizeof rows / sizeof rows[0]; i++) {
