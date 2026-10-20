@@ -73,8 +73,20 @@ or is the registry key of another verb; a harmless entry on a registry key
 entry without a confirmation containing
 .BR %s ,
 where the target is put; a rare entry with a direct key; one key bound twice
-in one view; an entry without a name.
+in one view; an entry without a name; a view description of more than three
+lines or a second one for a view (below).
 The array is not copied.
+.IP
+A row with no
+.IR action ,
+no key and only
+.I desc
+set (and
+.I view
+the view it describes, NULL for every view) is the
+.B description of a view
+(one to three lines, wrapped to 64 columns, in the program's language of the
+screen).
 .TP
 .BR tui_keytable_find ()
 The index of the entry bound to the event in
@@ -127,6 +139,9 @@ The help overlay of a view, a
 in
 .IR h\->dialog ,
 with a row for every entry that has a direct key there.
+The description row of the view, if the table has one, is shown wrapped
+between the title and the keys, followed by a blank row; a view without one
+shows the keys only.
 .PP
 All return 0 on success and \-1 with errno set on failure (EINVAL, ENOMEM).
 The library prints nothing.
@@ -140,6 +155,9 @@ static const tui_keyentry keys[] = {
     { "list", TUI_KC_NONE, TUI_VERB_NONE, "Rotate secret", NULL,
       TUI_ACT_RARE, 0, NULL, 3 },
 };
+    { "list", TUI_KC_NONE, TUI_VERB_NONE, NULL,
+      "The messages of the folder; the cursor is on one.  Enter opens it.",
+      TUI_ACT_HARMLESS, 0, NULL, 0 },
 .fi
 .SH SEE ALSO
 .BR tui_dialog_message (3),

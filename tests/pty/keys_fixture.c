@@ -21,6 +21,9 @@ enum { A_HELP = 1, A_MENU, A_BACK, A_QUIT, A_UP, A_DOWN, A_OPEN, A_RELOAD, A_STA
        A_DELETE, A_RESTART, A_ROTATE, A_READ, A_ESC };
 
 static const tui_keyentry g_keys[] = {
+    { "list",   TUI_KC_NONE,   TUI_VERB_NONE, NULL,
+      "Three demo rows; the cursor is on one.\nEnter opens it, : lists its actions.",
+      TUI_ACT_HARMLESS, 0, NULL, 0 },
     { NULL,     TUI_KC_HELP,   TUI_VERB_NONE, "Help", NULL, TUI_ACT_HARMLESS, 0, NULL, A_HELP },
     { NULL,     TUI_KC_MENU,   TUI_VERB_NONE, "Action menu", NULL, TUI_ACT_HARMLESS, 0, NULL, A_MENU },
     { NULL,     TUI_KC_BACK,   TUI_VERB_NONE, "Back", NULL, TUI_ACT_HARMLESS, 0, NULL, A_BACK },

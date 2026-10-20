@@ -110,6 +110,18 @@ int tui_dialog_help(tui_dialog *d, const char *title, const char *const *pairs, 
     return 0;
 }
 
+int tui__dialog_help_text(tui_dialog *d, const char *text) {
+    char *copy = dup_or_empty(text);
+    if (!copy) return -1;
+    if (tui_textview_set_text(&d->body, copy) != 0) {
+        free(copy);
+        return -1;
+    }
+    free(d->text);
+    d->text = copy;
+    return 0;
+}
+
 int tui_dialog_is_checked(const tui_dialog *d, int i) {
     if (!d || !d->checked || i < 0 || i >= d->nitems) return 0;
     return d->checked[i];
@@ -264,6 +276,7 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
 
     /* Width: the widest of the text, the title, the buttons, the items. */
     int want = text_width(d->text);
+    if (d->kind == TUI_DIALOG_HELP && want > TUI__HELP_TEXT_COLS) want = TUI__HELP_TEXT_COLS;
     int tw = tui_str_width(d->title) + 4;
     if (tw > want) want = tw;
     if (d->kind == TUI_DIALOG_MESSAGE && want < 6) want = 6;
@@ -293,6 +306,9 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     /* Height: the frame, the text, then what the kind adds below it. */
     int lines = d->text[0] ? tui_textview_wrap(&d->body, inner_w) : 0;
     if (lines < 0) lines = 0;
+    /* The description of a view is one to three lines, then a blank row. */
+    if (d->kind == TUI_DIALOG_HELP && lines > 3) lines = 3;
+    int help_text = d->kind == TUI_DIALOG_HELP && lines > 0 ? lines + 1 : 0;
     int extra = 0;
     switch (d->kind) {
     case TUI_DIALOG_MESSAGE:
@@ -302,7 +318,7 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     case TUI_DIALOG_CHECKLIST:
     case TUI_DIALOG_HELP:    extra = d->nitems > 0 ? d->nitems : 1; break;
     }
-    int h = 2 + lines + extra;
+    int h = 2 + (d->kind == TUI_DIALOG_HELP ? help_text : lines) + extra;
     if (h > avail_h) h = avail_h;
     int w = inner_w + 4;
 
@@ -316,12 +332,21 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     int is_list = d->kind == TUI_DIALOG_MENU || d->kind == TUI_DIALOG_CHECKLIST ||
                   d->kind == TUI_DIALOG_HELP;
     int below = is_list ? rows : extra;
+    if (d->kind == TUI_DIALOG_HELP) {
+        /* The description keeps its rows, but at least one row stays for the keys. */
+        int keep = help_text < rows - 1 ? help_text : (rows > 1 ? rows - 1 : 0);
+        below = rows - keep;
+    }
     if (below > rows) below = rows;
     /* Short of rows, the blank line above the buttons goes first: the
      * text keeps at least one row. */
     if (!is_list && lines > 0 && rows - below < 1 && below > 1) below--;
     int text_rows = rows - below;
-    if (text_rows > 0 && lines > 0)
+    if (text_rows > 0 && lines > 0 && d->kind == TUI_DIALOG_HELP) {
+        int shown = text_rows > lines ? lines : text_rows;
+        tui_textview_render(&d->body, tui_canvas_sub(cc, tui_rect_make(0, 0, shown, inner_w)),
+                            d->fill);
+    } else if (text_rows > 0 && lines > 0)
         tui_textview_render(&d->body, tui_canvas_sub(cc, tui_rect_make(0, 0, text_rows, inner_w)),
                             d->fill);
 

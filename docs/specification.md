@@ -688,6 +688,14 @@ the parts so that a program cannot invent a binding.
   every entry with a direct key in that view, in table order); the `:` menu
   is `tui_actionmenu_open()` over it. The help therefore cannot list a key the
   handler does not have, nor the handler have a key the help omits.
+- **The view description.** A row with no action name, no key and only the
+  description text (`view` the view it describes, NULL every view) is the
+  description of that view: one to three lines (wrapped to 64 columns; a longer
+  text, or a second row for the same view, is refused by
+  `tui_keytable_init()`) that `tui_keyhelp_open()` shows between the title and
+  the keys, wrapped to the box width and followed by a blank row, in the
+  dialog's text style. A view without one shows the keys only. The text is set
+  once per view in the table, so no program draws its own help text.
 - **Refused when built.** `tui_keytable_init()` returns -1 (EINVAL, the reason
   in a caller buffer) and the program exits when: a state-changing entry
   (routine, serious, rare) has a direct key not in the registry, or the

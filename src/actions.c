@@ -4,6 +4,8 @@
 /* The key table, the action menu and the help made from the table. */
 
 #include "tuikit/actions.h"
+#include "tuikit/textview.h"
+#include "internal.h"
 
 #include <errno.h>
 #include <stdio.h>
@@ -109,6 +111,16 @@ static int refuse(char *why, size_t size, int i, const tui_keyentry *e, const ch
     return -1;
 }
 
+/* How many lines @p text takes wrapped to the help's text width; -1 on no memory. */
+static int desc_lines(const char *text) {
+    tui_textview tv;
+    tui_textview_init(&tv);
+    int lines = -1;
+    if (tui_textview_set_text(&tv, text) == 0) lines = tui_textview_wrap(&tv, TUI__HELP_TEXT_COLS);
+    tui_textview_free(&tv);
+    return lines;
+}
+
 int tui_keytable_init(tui_keytable *t, const tui_keyentry *entries, int n, char *why,
                       size_t size) {
     if (why && size) why[0] = '\0';
@@ -118,6 +130,23 @@ int tui_keytable_init(tui_keytable *t, const tui_keyentry *entries, int n, char 
     }
     for (int i = 0; i < n; i++) {
         const tui_keyentry *e = &entries[i];
+        if (!e->action && e->desc) {
+            /* The description row of a view: no action, only the text. */
+            if (!e->desc[0] || e->key != TUI_KC_NONE || e->verb != TUI_VERB_NONE ||
+                e->cls != TUI_ACT_HARMLESS || e->irreversible || e->confirm)
+                return refuse(why, size, i, e, "a view description row carries only the text");
+            for (int j = 0; j < i; j++)
+                if (!entries[j].action && entries[j].desc && overlap(entries[j].view, e->view))
+                    return refuse(why, size, i, e, "a second description for one view");
+            int lines = desc_lines(e->desc);
+            if (lines < 0) {
+                errno = ENOMEM;
+                return -1;
+            }
+            if (lines > 3)
+                return refuse(why, size, i, e, "a view description is at most three lines");
+            continue;
+        }
         if (!e->action || !e->action[0]) return refuse(why, size, i, e, "no action name");
         if ((int)e->cls < TUI_ACT_HARMLESS || e->cls > TUI_ACT_RARE)
             return refuse(why, size, i, e, "unknown class");
@@ -342,6 +371,17 @@ int tui_keyhelp_open(tui_keyhelp *h, const tui_keytable *t, const char *view, co
     if (tui_dialog_help(&h->dialog, title, pairs, count) != 0) {
         free(mem);
         return -1;
+    }
+    for (int i = 0; i < t->n; i++) {
+        const tui_keyentry *e = &t->entries[i];
+        if (e->action || !e->desc || !applies(e, view)) continue;
+        if (tui__dialog_help_text(&h->dialog, e->desc) != 0) {
+            tui_dialog_free(&h->dialog);
+            free(mem);
+            errno = ENOMEM;
+            return -1;
+        }
+        break;
     }
     h->mem = mem;
     return 0;

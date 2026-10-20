@@ -589,6 +589,154 @@ static void test_help_picture(void) {
     tui_keyhelp_free(NULL);
 }
 
+/* ── The description of a view ───────────────────────────────────────── */
+
+#define DESC_NAMES "Alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi "
+
+static void test_description_rows_are_validated(void) {
+    tui_keytable t;
+    char why[160];
+    static const tui_keyentry ok[] = {
+        E("list", 0, TUI_VERB_NONE, NULL, "One line.\nTwo.\nThree.", TUI_ACT_HARMLESS, 0, NULL, 0),
+        E("other", 0, TUI_VERB_NONE, NULL, "Another view's own text.", TUI_ACT_HARMLESS, 0, NULL, 0),
+        E("list", '*', TUI_VERB_STAR, "Star", NULL, TUI_ACT_ROUTINE, 0, NULL, 1) };
+    ASSERT_EQ_INT(tui_keytable_init(&t, ok, 3, why, sizeof why), 0, "three lines are fine");
+    static const tui_keyentry four[] = {
+        E("list", 0, TUI_VERB_NONE, NULL, "1\n2\n3\n4", TUI_ACT_HARMLESS, 0, NULL, 0) };
+    ASSERT_EQ_INT(tui_keytable_init(&t, four, 1, why, sizeof why), -1, "four lines");
+    ASSERT(strstr(why, "three lines") != NULL, "the reason");
+    static const tui_keyentry wrapped[] = {
+        E("list", 0, TUI_VERB_NONE, NULL, DESC_NAMES DESC_NAMES DESC_NAMES DESC_NAMES DESC_NAMES,
+          TUI_ACT_HARMLESS, 0, NULL, 0) };
+    ASSERT_EQ_INT(tui_keytable_init(&t, wrapped, 1, why, sizeof why), -1, "wraps to more than three");
+    static const tui_keyentry wrapped3[] = {
+        E("list", 0, TUI_VERB_NONE, NULL, DESC_NAMES DESC_NAMES, TUI_ACT_HARMLESS, 0, NULL, 0) };
+    ASSERT_EQ_INT(tui_keytable_init(&t, wrapped3, 1, why, sizeof why), 0, "wraps to three");
+    static const tui_keyentry two[] = {
+        E("list", 0, TUI_VERB_NONE, NULL, "a", TUI_ACT_HARMLESS, 0, NULL, 0),
+        E(NULL, 0, TUI_VERB_NONE, NULL, "b", TUI_ACT_HARMLESS, 0, NULL, 0) };
+    ASSERT_EQ_INT(tui_keytable_init(&t, two, 2, why, sizeof why), -1, "two for one view");
+    ASSERT(strstr(why, "second") != NULL, "the reason");
+    static const tui_keyentry empty[] = {
+        E("list", 0, TUI_VERB_NONE, NULL, "", TUI_ACT_HARMLESS, 0, NULL, 0) };
+    ASSERT_EQ_INT(tui_keytable_init(&t, empty, 1, why, sizeof why), -1, "empty text");
+    static const tui_keyentry withkey[] = {
+        E("list", 'x', TUI_VERB_NONE, NULL, "text", TUI_ACT_HARMLESS, 0, NULL, 0) };
+    ASSERT_EQ_INT(tui_keytable_init(&t, withkey, 1, why, sizeof why), -1, "a key on it");
+    static const tui_keyentry withcls[] = {
+        E("list", 0, TUI_VERB_NONE, NULL, "text", TUI_ACT_RARE, 0, NULL, 0) };
+    ASSERT_EQ_INT(tui_keytable_init(&t, withcls, 1, why, sizeof why), -1, "a class on it");
+    fault_reset();
+    fault_arm(F_MALLOC, 0, 1, ENOMEM);
+    errno = 0;
+    ASSERT_EQ_INT(tui_keytable_init(&t, ok, 3, why, sizeof why), -1, "no memory to count the lines");
+    ASSERT_EQ_INT(errno, ENOMEM, "errno");
+    fault_reset();
+}
+
+static void test_help_shows_the_description(void) {
+    static const tui_keyentry keys[] = {
+        E("list", 0, TUI_VERB_NONE, NULL, "Shows the things.\nThe cursor is on one thing.",
+          TUI_ACT_HARMLESS, 0, NULL, 0),
+        E("list", TUI_KC_STAR, TUI_VERB_STAR, "Star", NULL, TUI_ACT_ROUTINE, 0, NULL, 1),
+        E("list", TUI_KC_RELOAD, TUI_VERB_NONE, "Reload", NULL, TUI_ACT_HARMLESS, 0, NULL, 2),
+        E("plain", TUI_KC_RELOAD, TUI_VERB_NONE, "Reload", NULL, TUI_ACT_HARMLESS, 0, NULL, 3) };
+    tui_keytable t;
+    ASSERT_EQ_INT(tui_keytable_init(&t, keys, 4, NULL, 0), 0, "table");
+    tui_keyhelp h;
+    ASSERT_EQ_INT(tui_keyhelp_open(&h, &t, "list", "List shortcuts"), 0, "open");
+    ASSERT_EQ_INT(h.dialog.nitems, 2, "the description is not a key row");
+    Fx f;
+    ASSERT(fx_open(&f, 12, 50) == 0, "fixtures");
+    tui_canvas all = tui_canvas_of(f.scr);
+    tui_canvas_clear(all, TUI_STYLE_DEFAULT);
+    tui_dialog_render(&h.dialog, all);
+    tui_screen_render(f.scr, &f.buf);
+    pty_feed(f.s, f.buf.data, f.buf.len);
+    char d[160];
+    int r = 3;
+    ASSERT_EQ_STR(pty_cell_text(f.s, r, 11), "S", "the description is under the title");
+    pty_cell_describe(f.s, r, 11, d, sizeof d);
+    ASSERT(strstr(d, "bold") == NULL, "plain, not the keys' bold");
+    ASSERT_EQ_STR(pty_cell_text(f.s, r + 1, 11), "T", "its second line");
+    ASSERT_EQ_STR(pty_cell_text(f.s, r + 2, 11), " ", "a blank row");
+    ASSERT_EQ_STR(pty_cell_text(f.s, r + 3, 11), "*", "then the keys");
+    pty_cell_describe(f.s, r + 3, 11, d, sizeof d);
+    ASSERT(strstr(d, "bold") != NULL, "the key is bold");
+    ASSERT_EQ_INT(pty_cell_fg(f.s, r, 11), PTY_FG_DEFAULT, "default colour text");
+    tui_keyhelp_free(&h);
+    fx_close(&f);
+
+    /* A view without one shows the keys only: the first row is a key. */
+    ASSERT_EQ_INT(tui_keyhelp_open(&h, &t, "plain", "Plain"), 0, "open plain");
+    ASSERT(fx_open(&f, 12, 50) == 0, "fixtures");
+    all = tui_canvas_of(f.scr);
+    tui_canvas_clear(all, TUI_STYLE_DEFAULT);
+    tui_dialog_render(&h.dialog, all);
+    tui_screen_render(f.scr, &f.buf);
+    pty_feed(f.s, f.buf.data, f.buf.len);
+    ASSERT(!pty_screen_contains(f.s, "Shows the things"), "no description");
+    tui_keyhelp_free(&h);
+    fx_close(&f);
+
+    /* The description is for every view when it names none. */
+    static const tui_keyentry all_views[] = {
+        E(NULL, 0, TUI_VERB_NONE, NULL, "Everywhere.", TUI_ACT_HARMLESS, 0, NULL, 0) };
+    tui_keytable_init(&t, all_views, 1, NULL, 0);
+    tui_keyhelp_open(&h, &t, "any", "T");
+    ASSERT_EQ_STR(h.dialog.text, "Everywhere.", "applies to every view");
+    tui_keyhelp_free(&h);
+
+    /* Short of rows the description gives way, one row stays for the keys. */
+    tui_keytable_init(&t, keys, 4, NULL, 0);
+    tui_keyhelp_open(&h, &t, "list", "L");
+    ASSERT(fx_open(&f, 6, 40) == 0, "fixtures");
+    all = tui_canvas_of(f.scr);
+    tui_canvas_clear(all, TUI_STYLE_DEFAULT);
+    tui_dialog_render(&h.dialog, all);
+    tui_screen_render(f.scr, &f.buf);
+    pty_feed(f.s, f.buf.data, f.buf.len);
+    ASSERT(pty_screen_contains(f.s, "Shows the things"), "the first line is kept");
+    ASSERT(pty_screen_contains(f.s, "Star"), "and a key row stays");
+    fx_close(&f);
+    tui_keyhelp_free(&h);
+
+    /* A long description wraps to the box width, never to more than three rows. */
+    static const tui_keyentry longd[] = {
+        E("list", 0, TUI_VERB_NONE, NULL, DESC_NAMES DESC_NAMES,
+          TUI_ACT_HARMLESS, 0, NULL, 0),
+        E("list", TUI_KC_RELOAD, TUI_VERB_NONE, "Reload", NULL, TUI_ACT_HARMLESS, 0, NULL, 1) };
+    ASSERT_EQ_INT(tui_keytable_init(&t, longd, 2, NULL, 0), 0, "a long description");
+    tui_keyhelp_open(&h, &t, "list", "L");
+    ASSERT(fx_open(&f, 14, 30) == 0, "fixtures");
+    all = tui_canvas_of(f.scr);
+    tui_canvas_clear(all, TUI_STYLE_DEFAULT);
+    tui_dialog_render(&h.dialog, all);
+    tui_screen_render(f.scr, &f.buf);
+    pty_feed(f.s, f.buf.data, f.buf.len);
+    int top = -1, rel = -1;
+    for (int r = 0; r < 14; r++) {
+        char row[128];
+        pty_row_text(f.s, r, row, sizeof row);
+        if (strstr(row, "┌─ L")) top = r;
+        if (strstr(row, "Reload")) rel = r;
+    }
+    ASSERT(pty_screen_contains(f.s, "Alpha beta gamma delta"), "wrapped to the box");
+    ASSERT(pty_screen_contains(f.s, "Reload"), "the keys follow");
+    ASSERT_EQ_INT(rel - top, 5, "three description rows and a blank before the keys");
+    fx_close(&f);
+    tui_keyhelp_free(&h);
+
+    /* Allocation failures on the way. */
+    tui_keytable_init(&t, keys, 4, NULL, 0);
+    for (int skip = 0; skip < 12; skip++) {
+        fault_reset();
+        fault_arm(F_MALLOC, skip, 1, ENOMEM);
+        if (tui_keyhelp_open(&h, &t, "list", "T") == 0) tui_keyhelp_free(&h);
+    }
+    fault_reset();
+}
+
 /* ── Allocation failures ─────────────────────────────────────────────── */
 
 static void test_allocation_failures(void) {
@@ -638,6 +786,8 @@ static const TestCase tests[] = {
     TEST_CASE(test_registry_and_reserved),
     TEST_CASE(test_way_out),
     TEST_CASE(test_table_accepts_the_policy),
+    TEST_CASE(test_description_rows_are_validated),
+    TEST_CASE(test_help_shows_the_description),
     TEST_CASE(test_table_refuses_unregistered_state_change),
     TEST_CASE(test_table_refuses_serious_without_confirmation),
     TEST_CASE(test_table_refuses_rare_with_direct_key),
