@@ -406,7 +406,51 @@ static void test_help_matches_the_keys(void) {
     pty_close(s);
 }
 
+/* The description of the view sits between the title and the keys, wrapped,
+ * in the plain text style (the keys are bold); the view without one shows the
+ * keys only. */
+static void test_help_describes_the_view(void) {
+    PtySession *s = start();
+    ASSERT(s != NULL, "start");
+    WAIT_LIST(s);
+    pty_send_str(s, "?");
+    pty_wait_for(s, "List shortcuts", 3000);
+    int title = -1, d1 = -1, d2 = -1, first = -1;
+    for (int r = 0; r < ROWS; r++) {
+        char row[256];
+        pty_row_text(s, r, row, sizeof row);
+        if (strstr(row, "List shortcuts")) title = r;
+        if (strstr(row, "Three demo rows; the cursor")) d1 = r;
+        if (strstr(row, "Enter opens it, : lists")) d2 = r;
+        if (strstr(row, " Help") && first < 0) first = r;
+    }
+    ASSERT(title >= 0 && d1 == title + 1, "the description is right under the title");
+    ASSERT(d2 == d1 + 1, "its second line follows");
+    ASSERT(first == d2 + 2, "one blank row, then the keys");
+    char row[256];
+    pty_row_text(s, d2 + 1, row, sizeof row);
+    ASSERT(strstr(row, "  ") != NULL && strstr(row, "Help") == NULL, "the separator row is blank");
+    char d[160];
+    int c = 0;
+    while (c < COLS && strcmp(pty_cell_text(s, d1, c), "T") != 0) c++;
+    pty_cell_describe(s, d1, c, d, sizeof d);
+    ASSERT(strstr(d, "bold") == NULL, "the description is plain text");
+    pty_close(s);
+
+    s = start();
+    ASSERT(s != NULL, "start");
+    WAIT_LIST(s);
+    pty_send_key(s, PTY_KEY_ENTER);
+    pty_wait_for(s, "Detail of", 3000);
+    pty_send_str(s, "?");
+    pty_wait_for(s, "Detail shortcuts", 3000);
+    ASSERT(!pty_screen_contains(s, "Three demo rows"), "a view without a description shows none");
+    ASSERT(!pty_screen_contains(s, "Enter opens it"), "none of the list's text either");
+    pty_close(s);
+}
+
 static const TestCase tests[] = {
+    TEST_CASE(test_help_describes_the_view),
     TEST_CASE(test_list_at_rest),
     TEST_CASE(test_menu_lists_actions_and_cancels),
     TEST_CASE(test_menu_runs_a_routine_action),

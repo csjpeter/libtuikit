@@ -32,6 +32,12 @@ int tui__write_all(int fd, const void *p, size_t n);
  * it, as a terminal that implements bidi would reorder what is around it. */
 int tui__cp_is_bidi_control(uint32_t cp);
 
+/* The description shown above the rows of a help dialog (copied), wrapped to
+ * at most this many columns.  0, or -1 with errno ENOMEM. */
+#define TUI__HELP_TEXT_COLS 64
+struct tui_dialog;
+int tui__dialog_help_text(struct tui_dialog *d, const char *text);
+
 /* Milliseconds of a monotonic clock. */
 int64_t tui__now_ms(void);
 

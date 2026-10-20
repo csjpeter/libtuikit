@@ -480,6 +480,20 @@ static void cap_actions(void) {
     CHECK_HAS(txt, "Reload", "and the reload");
     free(txt);
     tui_keyhelp_free(&h);
+
+    static const tui_keyentry described[] = {
+        { "list", TUI_KC_NONE, TUI_VERB_NONE, NULL, "The list of things; Enter opens one.",
+          TUI_ACT_HARMLESS, 0, NULL, 0 },
+        { "list", TUI_KC_RELOAD, TUI_VERB_NONE, "Reload", NULL, TUI_ACT_HARMLESS, 0, NULL, 1 } };
+    tui_keytable dt;
+    CHECK_INT(tui_keytable_init(&dt, described, 2, why, sizeof why), 0, "a table with a description");
+    CHECK_INT(tui_keyhelp_open(&h, &dt, "list", "List shortcuts"), 0, "described help");
+    tui_dialog_render(&h.dialog, tui_canvas_of(scr));
+    txt = cap_screen_text(scr, NULL);
+    CHECK_HAS(txt, "things;", "the description is shown");
+    CHECK_HAS(txt, "Reload", "above the keys");
+    free(txt);
+    tui_keyhelp_free(&h);
     tui_screen_free(scr);
 }
 
