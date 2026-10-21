@@ -233,9 +233,11 @@ typedef struct tui_keyhelp {
 
 /**
  * @brief The help of @p view: the view's description (if the table has one)
- *        under @p title, then a row for every entry that has a direct key
- *        there, in table order, the key and the action's name (and its
- *        description).  The same table drives tui_keytable_find().
+ *        under @p title, then a row for every entry there, in table order,
+ *        the key and the action's name (and its description).  An entry with
+ *        no direct key is listed too, with ':' as its key.  '/' searches the
+ *        entries (tui_dialog_help(3)).  The same table drives
+ *        tui_keytable_find().
  */
 TUI_API int tui_keyhelp_open(tui_keyhelp *h, const tui_keytable *t, const char *view,
                              const char *title);

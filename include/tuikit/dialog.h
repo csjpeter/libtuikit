@@ -118,7 +118,10 @@ TUI_API int tui_dialog_checklist(tui_dialog *d, const char *title,
  * from any view, and so does Ctrl-C; the list's movement keys (arrows,
  * page keys, Home/End, j/k, ctrl-f/ctrl-b, g/G) scroll it when the rows do
  * not all fit; every other key changes nothing.  The strings are not
- * copied.
+ * copied.  '/' opens a one-line search over the entries: the rows narrow
+ * to those whose key or text contains every typed word, matched words
+ * highlighted; Enter keeps the list, Esc clears and then closes
+ * (tui_dialog_message(3)).
  * policies/tui-interface-model.md, "The help screen".
  */
 TUI_API int tui_dialog_help(tui_dialog *d, const char *title,

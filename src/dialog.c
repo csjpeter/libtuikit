@@ -7,7 +7,9 @@
 #include "tuikit/text.h"
 #include "internal.h"
 
+#include <ctype.h>
 #include <errno.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -98,6 +100,79 @@ static const char *help_str(const tui_dialog *d, int i) {
     return d->items[i] ? d->items[i] : "";
 }
 
+/* ── The search of a help dialog (TUI-59) ────────────────────────────────
+ * '/' opens a one-line search.  Its buffer is the dialog's @c checked array
+ * (a help has no ticks), the editor is @c edit, and @c answer is 1 while the
+ * line has the keyboard.  The unit is an entry (a key and what it does): it
+ * is shown whole when every typed word is in its key or in its text, in
+ * either case, and not at all otherwise. */
+#define HELP_QUERY_MAX 128
+
+static const char *help_query(const tui_dialog *d) {
+    return d->kind == TUI_DIALOG_HELP && d->checked ? (const char *)d->checked : "";
+}
+
+static int help_ci_find(const char *hay, const char *needle, size_t nlen) {
+    size_t hl = strlen(hay);
+    for (size_t i = 0; i + nlen <= hl; i++) {
+        size_t j = 0;
+        while (j < nlen && tolower((unsigned char)hay[i + j]) == tolower((unsigned char)needle[j])) j++;
+        if (j == nlen) return (int)i;
+    }
+    return -1;
+}
+
+/* The next word of @p q: its start and length, advancing @p q; 0 at the end. */
+static int help_word(const char **q, const char **w, size_t *n) {
+    while (**q == ' ' || **q == '\t') (*q)++;
+    if (!**q) return 0;
+    *w = *q;
+    while (**q && **q != ' ' && **q != '\t') (*q)++;
+    *n = (size_t)(*q - *w);
+    return 1;
+}
+
+static int help_matches(const tui_dialog *d, int i) {
+    const char *q = help_query(d), *w;
+    size_t n;
+    while (help_word(&q, &w, &n))
+        if (help_ci_find(help_str(d, 2 * i), w, n) < 0 && help_ci_find(help_str(d, 2 * i + 1), w, n) < 0)
+            return 0;
+    return 1;
+}
+
+/* How many entries are shown, and which entry is the @p k-th shown. */
+static int help_shown(const tui_dialog *d) {
+    int c = 0;
+    for (int i = 0; i < d->nitems; i++) c += help_matches(d, i);
+    return c;
+}
+
+static int help_nth(const tui_dialog *d, int k) {
+    int i = 0;
+    while (i < d->nitems && !(help_matches(d, i) && k-- == 0)) i++;
+    return i;     /* callers ask for k below help_shown() */
+}
+
+static int help_searching(const tui_dialog *d) { return d->answer == 1; }
+static int help_filtered(const tui_dialog *d) { return help_query(d)[0] != '\0'; }
+
+/* Opens the line (allocating its buffer the first time); the old text stays. */
+static void help_search_open(tui_dialog *d) {
+    if (!d->checked) {
+        d->checked = calloc(HELP_QUERY_MAX, 1);
+        if (!d->checked) return;
+        tui_lineedit_init(&d->edit, (char *)d->checked, HELP_QUERY_MAX, "");
+    }
+    d->answer = 1;
+}
+
+static void help_search_clear(tui_dialog *d) {
+    d->answer = 0;
+    if (d->checked) tui_lineedit_set_text(&d->edit, "");
+    d->list.scroll_top = 0;
+}
+
 int tui_dialog_help(tui_dialog *d, const char *title, const char *const *pairs, int n) {
     if ((!pairs && n > 0) || n < 0) {
         errno = EINVAL;
@@ -123,7 +198,7 @@ int tui__dialog_help_text(tui_dialog *d, const char *text) {
 }
 
 int tui_dialog_is_checked(const tui_dialog *d, int i) {
-    if (!d || !d->checked || i < 0 || i >= d->nitems) return 0;
+    if (!d || d->kind != TUI_DIALOG_CHECKLIST || !d->checked || i < 0 || i >= d->nitems) return 0;
     return d->checked[i];
 }
 
@@ -197,12 +272,39 @@ tui_dialog_state tui_dialog_handle(tui_dialog *d, const tui_event *ev) {
     case TUI_DIALOG_HELP: {
         /* Back as from any view: Esc, q, Backspace (and Ctrl-C, as in
          * every dialog).  The movement keys scroll; nothing else does
-         * anything (TUI-18). */
-        if (cancel || TUI_EV_IS_CHAR(ev, 'q') ||
-            (is_key && ev->key == TUI_KEY_BACKSPACE && ev->mods == 0))
-            return close_with(d, TUI_DIALOG_OK);
+         * anything (TUI-18).  '/' searches (TUI-59): Esc clears the search
+         * first and closes the help on the next press, Enter leaves the
+         * line and keeps the narrowed list. */
+        if (is_key && TUI_EV_IS_CTRL(ev, 'c')) return close_with(d, TUI_DIALOG_OK);
+        if (help_searching(d)) {
+            if (is_key && ev->key == TUI_KEY_ESC) {
+                help_search_clear(d);
+                return d->state;
+            }
+            tui_edit_result r = tui_lineedit_handle(&d->edit, ev);
+            if (r == TUI_EDIT_ACCEPT) {
+                d->answer = 0;
+                return d->state;
+            }
+            if (r != TUI_EDIT_IGNORED) {
+                d->list.scroll_top = 0;
+                return d->state;
+            }
+        } else {
+            if (is_key && ev->key == TUI_KEY_ESC && help_filtered(d)) {
+                help_search_clear(d);
+                return d->state;
+            }
+            if (cancel || TUI_EV_IS_CHAR(ev, 'q') ||
+                (is_key && ev->key == TUI_KEY_BACKSPACE && ev->mods == 0))
+                return close_with(d, TUI_DIALOG_OK);
+            if (TUI_EV_IS_CHAR(ev, '/')) {
+                help_search_open(d);
+                return d->state;
+            }
+        }
         if (d->list.rows_visible <= 0) return d->state;   /* not drawn yet */
-        int max_top = d->nitems - d->list.rows_visible;
+        int max_top = help_shown(d) - d->list.rows_visible;
         if (max_top < 0) max_top = 0;
         int page = d->list.rows_visible > 1 ? d->list.rows_visible - 1 : 1;
         int top = d->list.scroll_top;
@@ -268,6 +370,27 @@ static void draw_item(void *ctx, tui_canvas row, int index, int selected) {
     tui_canvas_put_aligned(row, 0, d->items[index] ? d->items[index] : "", TUI_ALIGN_LEFT, st);
 }
 
+/* Draws the typed words again, in @p hl, over @p text already drawn at the
+ * start of @p row (the span that matches, in either case). */
+static void help_highlight(const tui_dialog *d, tui_canvas row, const char *text, tui_style base,
+                           tui_style hl, int col0) {
+    (void)base;
+    const char *q = help_query(d), *w;
+    size_t n;
+    while (help_word(&q, &w, &n)) {
+        size_t from = 0;
+        int at;
+        while ((at = help_ci_find(text + from, w, n)) >= 0) {
+            size_t off = from + (size_t)at;
+            char part[HELP_QUERY_MAX + 1];
+            memcpy(part, text + off, n);
+            part[n] = '\0';
+            tui_canvas_put(row, 0, col0 + tui_strn_width(text, off), part, hl);
+            from = off + n;
+        }
+    }
+}
+
 void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     if (!d || !c.screen) return;
     /* A margin of one cell around the dialog; on a tiny canvas the box is
@@ -315,8 +438,10 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     case TUI_DIALOG_CONFIRM: extra = lines > 0 ? 2 : 1; break;   /* blank + buttons */
     case TUI_DIALOG_PROMPT:  extra = 1; break;                     /* the input line */
     case TUI_DIALOG_MENU:
-    case TUI_DIALOG_CHECKLIST:
-    case TUI_DIALOG_HELP:    extra = d->nitems > 0 ? d->nitems : 1; break;
+    case TUI_DIALOG_CHECKLIST: extra = d->nitems > 0 ? d->nitems : 1; break;
+    case TUI_DIALOG_HELP:    extra = (d->nitems > 0 ? d->nitems : 1) +
+                                     (help_searching(d) || help_filtered(d) ? 1 : 0);
+                             break;                  /* + the search line */
     }
     int h = 2 + (d->kind == TUI_DIALOG_HELP ? help_text : lines) + extra;
     if (h > avail_h) h = avail_h;
@@ -375,18 +500,48 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     }
     case TUI_DIALOG_HELP: {
         /* Two columns, the keys in bold; the window is the dialog's own
-         * (it has no cursor), kept within the rows it has now. */
+         * (it has no cursor), kept within the rows it has now.  A search
+         * adds its line at the bottom and shows the matching entries only,
+         * the matched words highlighted. */
+        int sline = help_searching(d) || help_filtered(d);
+        int lrows = below - (sline && below > 1 ? 1 : 0);
         tui_style key_st = d->fill;
         key_st.attrs |= TUI_ATTR_BOLD;
-        d->list.rows_visible = below;
-        int max_top = d->nitems - below;
+        tui_style hl_st = d->fill;
+        hl_st.fg = d->frame.fg;
+        hl_st.attrs |= TUI_ATTR_BOLD | TUI_ATTR_UNDERLINE;
+        int shown = help_shown(d);
+        d->list.rows_visible = lrows;
+        int max_top = shown - lrows;
         if (d->list.scroll_top > max_top) d->list.scroll_top = max_top > 0 ? max_top : 0;
-        for (int r = 0; r < below && d->list.scroll_top + r < d->nitems; r++) {
-            int i = d->list.scroll_top + r;
+        for (int r = 0; r < lrows && d->list.scroll_top + r < shown; r++) {
+            int i = help_nth(d, d->list.scroll_top + r);
             tui_canvas row = tui_canvas_sub(cc, tui_rect_make(text_rows + r, 0, 1, inner_w));
-            tui_canvas_put(row, 0, 0, help_str(d, 2 * i), key_st);
             tui_canvas what = tui_canvas_sub(row, tui_rect_make(0, key_w + 2, 1, inner_w - key_w - 2));
+            tui_canvas_put(row, 0, 0, help_str(d, 2 * i), key_st);
             tui_canvas_put_aligned(what, 0, help_str(d, 2 * i + 1), TUI_ALIGN_LEFT, d->fill);
+            if (sline) {
+                help_highlight(d, row, help_str(d, 2 * i), key_st, hl_st, 0);
+                help_highlight(d, what, help_str(d, 2 * i + 1), d->fill, hl_st, 0);
+            }
+        }
+        if (shown == 0 && help_filtered(d) && lrows > 0) {
+            char none[HELP_QUERY_MAX + 32];
+            const char *q = help_query(d);
+            while (*q == ' ' || *q == '\t') q++;
+            snprintf(none, sizeof none, "No key matches \"%s\"", q);
+            tui_canvas row = tui_canvas_sub(cc, tui_rect_make(text_rows, 0, 1, inner_w));
+            tui_canvas_put_aligned(row, 0, none, TUI_ALIGN_LEFT, d->fill);
+        }
+        if (sline && below > 1) {
+            tui_canvas row = tui_canvas_sub(cc, tui_rect_make(rows - 1, 0, 1, inner_w));
+            if (help_searching(d)) {
+                tui_lineedit_render(&d->edit, row, "/ ", d->fill);
+            } else {
+                char line[HELP_QUERY_MAX + 4];
+                snprintf(line, sizeof line, "/ %s", help_query(d));
+                tui_canvas_put_aligned(row, 0, line, TUI_ALIGN_LEFT, d->fill);
+            }
         }
         break;
     }

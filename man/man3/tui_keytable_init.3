@@ -140,7 +140,18 @@ The help overlay of a view, a
 .I tui_dialog
 in
 .IR h\->dialog ,
-with a row for every entry that has a direct key there.
+with a row for every entry of the view, in table order: the key and the
+action's name (and description).
+An entry with no direct key (the rare class, reached by the
+.B :
+menu) is listed too, with
+.B :
+in the key column, so that an action with no key can be found there.
+The help is searched with
+.B /
+(see
+.BR tui_dialog_help (3)),
+over whole entries.
 The description row of the view, if the table has one, is shown wrapped
 between the title and the keys, followed by a blank row; a view without one
 shows the keys only.

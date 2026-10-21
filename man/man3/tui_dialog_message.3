@@ -105,7 +105,22 @@ and Backspace close it with
 as they go back from any view, and so does Ctrl\-C; the list's movement
 keys (Up, Down, PgUp, PgDn, Home, End,
 .BR j ", " k ", " ctrl\-f ", " ctrl\-b ", " g ", " G )
-scroll it when the rows do not all fit; every other key changes nothing.
+scroll it when the rows do not all fit; every other key changes nothing,
+except
+.BR / ,
+which opens a one-line search.
+While the user types, the rows narrow to the entries (a key and what it does,
+shown whole or not at all) whose key or text contains every typed word,
+in either case; the matched words are drawn underlined, bold and in the
+accent colour, and the line (\(lq/ words\(rq) is the last row of the box.
+Enter leaves the line and keeps the narrowed list; Esc clears the search first
+and closes the help on the next press; a search with no match shows
+\(lqNo key matches "words"\(rq.
+The line is kept in the dialog's
+.I checked
+array, which a help has no other use for; a failed allocation leaves
+.B /
+without effect.
 .PP
 .BR tui_dialog_render ()
 draws a box centred in
