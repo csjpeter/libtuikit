@@ -701,9 +701,25 @@ the parts so that a program cannot invent a binding.
   irreversible, confirmation, id). The key handler asks
   `tui_keytable_find(table, view, event)`; the help overlay is
   `tui_keyhelp_open()` over the same array (a row of key and action name for
-  every entry with a direct key in that view, in table order); the `:` menu
+  every entry of that view, in table order; an entry with no direct key, the
+  menu-only class, is listed with `:` in the key column); the `:` menu
   is `tui_actionmenu_open()` over it. The help therefore cannot list a key the
   handler does not have, nor the handler have a key the help omits.
+- **Search in the help (TUI-59).** `/` in a help dialog opens a one-line
+  search (a `tui_lineedit` over a buffer the dialog allocates on first use,
+  kept in the otherwise unused `checked` array, so no public struct changes).
+  The rows narrow as the user types to the **entries** (a key with its action
+  and description; never a single drawn line) whose key or text contains
+  **every typed word**, case-insensitive; an entry is matched on its strings,
+  not on the drawn lines, and is shown whole or not at all. The matched words
+  are drawn bold, underlined and in the accent colour; the line is the last
+  row of the box (`/ words`); the box keeps the size of the full help.
+  `Enter` leaves the line and keeps the list, `Esc` clears the search and the
+  next `Esc` closes, `q`/`Backspace` close (not while typing), ctrl-c closes
+  from anywhere; Up, Down, PgUp, PgDn, Home, End scroll the narrowed list even
+  while typing. No match: `No key matches "word"`. Because it is in
+  `tui_dialog_handle()`, a program that routes events to `help.dialog` gets
+  it with no change.
 - **The view description.** A row with no action name, no key and only the
   description text (`view` the view it describes, NULL every view) is the
   description of that view: one to three lines (wrapped to 64 columns; a longer

@@ -25,10 +25,11 @@ int g_tests_failed = 0;
 #endif
 
 #define ROWS 20
+#define TALL 30      /* the help of the list view, search line included, fits */
 #define COLS 50
 
-static PtySession *start(void) {
-    PtySession *s = pty_open(COLS, ROWS);
+static PtySession *start_sized(int rows) {
+    PtySession *s = pty_open(COLS, rows);
     if (!s) return NULL;
     const char *argv[] = { KEYS_FIXTURE, NULL };
     if (pty_run(s, argv) != 0) {
@@ -37,6 +38,8 @@ static PtySession *start(void) {
     }
     return s;
 }
+
+static PtySession *start(void) { return start_sized(ROWS); }
 
 static const PtyStyleKey g_legend[] = {
     { '.', PTY_ATTR_NONE, PTY_FG_DEFAULT, PTY_BG_DEFAULT },
@@ -332,7 +335,7 @@ static void test_other_view_other_actions(void) {
 /* The help is made from the table: it lists the keys the table binds in this
  * view and nothing else, and each key does what the table says. */
 static void test_help_matches_the_keys(void) {
-    PtySession *s = start();
+    PtySession *s = start_sized(TALL);
     ASSERT(s != NULL, "start");
     WAIT_LIST(s);
     pty_send_str(s, "?");
@@ -341,11 +344,12 @@ static void test_help_matches_the_keys(void) {
         { "?", "Help" }, { ":", "Action menu" }, { "Esc, q, Backspace", "Back" },
         { "Esc", "Quit on the top level" }, { "ctrl-c", "Quit" }, { "j", "Down" },
         { "k", "Up" }, { "Enter", "Open" }, { "r", "Reload" }, { "*", "Star - toggle the star" },
-        { "!", "Junk" }, { "d", "Delete" } };
+        { "!", "Junk" }, { "d", "Delete" },
+        { ":", "Restart service" }, { ":", "Rotate secret" } };
     for (size_t i = 0; i < sizeof rows / sizeof rows[0]; i++) {
         char row[256];
         int found = 0;
-        for (int r = 0; r < ROWS && !found; r++) {
+        for (int r = 0; r < TALL && !found; r++) {
             pty_row_text(s, r, row, sizeof row);
             char want[160];
             snprintf(want, sizeof want, " %s ", rows[i][0]);
@@ -354,11 +358,11 @@ static void test_help_matches_the_keys(void) {
         ASSERT(found, rows[i][1]);
     }
     ASSERT(!pty_screen_contains(s, "Mark read"), "not another view's key");
-    ASSERT(!pty_screen_contains(s, "Restart"), "not a menu-only action");
+    ASSERT(pty_screen_contains(s, "Restart service"), "a menu-only action is listed, with ':'");
     /* Keys in bold, names plain. */
     char d[160];
     int kr = -1;
-    for (int r = 0; r < ROWS; r++) {
+    for (int r = 0; r < TALL; r++) {
         char row[256];
         pty_row_text(s, r, row, sizeof row);
         if (strstr(row, "Star - toggle")) kr = r;
@@ -449,7 +453,96 @@ static void test_help_describes_the_view(void) {
     pty_close(s);
 }
 
+
+/* The row (0-based) of the screen that contains @p text, or -1. */
+static int row_of(PtySession *s, const char *text) {
+    for (int r = 0; r < TALL; r++) {
+        char row[256];
+        pty_row_text(s, r, row, sizeof row);
+        if (strstr(row, text)) return r;
+    }
+    return -1;
+}
+
+/* '/' opens the search; the list narrows to whole entries; the line, the
+ * highlight and the empty message have their colours; Esc clears first. */
+static void test_help_search(void) {
+    PtySession *s = start_sized(TALL);
+    ASSERT(s != NULL, "start");
+    WAIT_LIST(s);
+    pty_send_str(s, "?");
+    pty_wait_for(s, "List shortcuts", 3000);
+    ASSERT(row_of(s, "/ ") < 0, "no search line before '/'");
+    pty_send_str(s, "/");
+    pty_wait_for(s, "/ ", 3000);
+    ASSERT(row_of(s, "Junk") >= 0, "an empty search narrows nothing");
+    /* By a word of the description: the entry keeps its key and its whole text. */
+    pty_send_str(s, "toggle");
+    pty_wait_for(s, "/ toggle", 3000);
+    ASSERT(row_of(s, "Reload") < 0, "the entries without the word are gone");
+    int r = row_of(s, "Star - toggle");
+    ASSERT(r >= 0, "the entry found by a word of its description");
+    char row[256];
+    pty_row_text(s, r, row, sizeof row);
+    ASSERT(strstr(row, " * ") != NULL, "is shown with its key");
+    ASSERT(row_of(s, "Junk") < 0 && row_of(s, "Help") < 0, "others are gone");
+    ASSERT(row_of(s, "Three demo rows") >= 0, "the description of the view stays");
+    /* The matched word is highlighted (accent colour, bold, underlined), the rest is not. */
+    int c = 0;
+    while (c < COLS && !(strcmp(pty_cell_text(s, r, c), "t") == 0 && strcmp(pty_cell_text(s, r, c + 1), "o") == 0)) c++;
+    char d[160];
+    pty_cell_describe(s, r, c, d, sizeof d);
+    ASSERT(strstr(d, "underline") != NULL && strstr(d, "bold") != NULL, "the typed word is underlined bold");
+    ASSERT_EQ_INT(pty_cell_fg(s, r, c), PTY_FG_CYAN, "in the accent colour");
+    pty_cell_describe(s, r, c - 3, d, sizeof d);
+    ASSERT(strstr(d, "underline") == NULL, "Star is not");
+    /* Two words, in any case. */
+    pty_send_str(s, "\x15");
+    pty_send_str(s, "STAR the");
+    pty_wait_for(s, "/ STAR the", 3000);
+    ASSERT(row_of(s, "Restart service") < 0, "Restart service has no 'the'");
+    ASSERT(row_of(s, "Star - toggle") >= 0, "two words, case-insensitive");
+    /* Enter leaves the line and keeps the list; the line stays shown. */
+    pty_send_key(s, PTY_KEY_ENTER);
+    pty_wait_for(s, "/ STAR the", 3000);
+    ASSERT(row_of(s, "Star - toggle") >= 0 && row_of(s, "Junk") < 0, "Enter keeps the narrowed list");
+    ASSERT(row_of(s, "/ STAR the") >= 0, "and the query");
+    /* Esc clears the search, the next Esc closes the help. */
+    pty_send_key(s, PTY_KEY_ESC);
+    pty_wait_for(s, "Junk", 3000);
+    ASSERT(row_of(s, "/ STAR") < 0, "the line is gone");
+    ASSERT(pty_screen_contains(s, "List shortcuts"), "the help is still open");
+    pty_send_key(s, PTY_KEY_ESC);
+    ASSERT_WAIT_GONE(s, "List shortcuts", 3000);
+    WAIT_LIST(s);
+
+    /* A menu-only action is found with ':' in its key column; Esc in the line clears. */
+    pty_send_str(s, "?");
+    pty_wait_for(s, "List shortcuts", 3000);
+    pty_send_str(s, "/restart");
+    pty_wait_for(s, "/ restart", 3000);
+    ASSERT(row_of(s, "Junk") < 0, "other entries are gone");
+    r = row_of(s, "Restart service");
+    ASSERT(r >= 0, "the menu-only action is found");
+    pty_row_text(s, r, row, sizeof row);
+    ASSERT(strstr(row, " : ") != NULL, "with ':' as its key");
+    pty_send_key(s, PTY_KEY_ESC);
+    pty_wait_for(s, "Junk", 3000);
+    ASSERT(pty_screen_contains(s, "List shortcuts"), "Esc in the line only clears it");
+
+    /* No match: the message, the typed word in it, no entry. */
+    pty_send_str(s, "/restrat");
+    pty_wait_for(s, "No key matches \"restrat\"", 3000);
+    ASSERT(row_of(s, "Star") < 0 && row_of(s, "Help") < 0, "no entry is shown");
+    r = row_of(s, "/ restrat");
+    ASSERT(r >= 0, "the line shows the query");
+    pty_send_key(s, PTY_KEY_ESC);
+    pty_wait_for(s, "Junk", 3000);
+    pty_close(s);
+}
+
 static const TestCase tests[] = {
+    TEST_CASE(test_help_search),
     TEST_CASE(test_help_describes_the_view),
     TEST_CASE(test_list_at_rest),
     TEST_CASE(test_menu_lists_actions_and_cancels),

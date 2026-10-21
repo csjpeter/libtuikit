@@ -528,13 +528,17 @@ static void test_help_matches_the_handler(void) {
         int row = 0;
         for (int i = 0; i < t.n; i++) {
             const tui_keyentry *e = &t.entries[i];
-            if (e->key == TUI_KC_NONE || (e->view && strcmp(e->view, views[v]) != 0)) continue;
+            if (e->view && strcmp(e->view, views[v]) != 0) continue;
             ASSERT(row < h.dialog.nitems, "a row for the entry");
             char name[32];
             tui_keycode_name(e->key, name, sizeof name);
-            ASSERT_EQ_STR(h.dialog.items[2 * row], name, "the key shown");
+            ASSERT_EQ_STR(h.dialog.items[2 * row], e->key == TUI_KC_NONE ? ":" : name, "the key shown");
             ASSERT(strstr(h.dialog.items[2 * row + 1], e->action) == h.dialog.items[2 * row + 1],
                    "the action named");
+            if (e->key == TUI_KC_NONE) {   /* menu-only: ':' stands for it */
+                row++;
+                continue;
+            }
             /* The key, sent to the handler, finds that very entry. */
             tui_event ev = { .type = TUI_EV_KEY, .key = e->key >= TUI_KEY_ENTER ? (tui_key)e->key : TUI_KEY_CHAR,
                              .cp = e->key >= TUI_KEY_ENTER ? 0 : e->key };
@@ -566,7 +570,7 @@ static void test_help_picture(void) {
     tui_keyhelp h;
     ASSERT_EQ_INT(tui_keyhelp_open(&h, &t, "list", "List shortcuts"), 0, "open");
     Fx f;
-    ASSERT(fx_open(&f, 10, 50) == 0, "fixtures");
+    ASSERT(fx_open(&f, 12, 50) == 0, "fixtures");
     tui_canvas all = tui_canvas_of(f.scr);
     tui_canvas_clear(all, TUI_STYLE_DEFAULT);
     tui_dialog_render(&h.dialog, all);
@@ -574,18 +578,20 @@ static void test_help_picture(void) {
     pty_feed(f.s, f.buf.data, f.buf.len);
     const char *const expect[] = {
         "", "",
-        "              ┌─ List shortcuts ───┐",
-        "              │ *  Star            │",
-        "              │ d  Delete          │",
-        "              │ r  Reload          │",
-        "              │ ?  Help            │",
-        "              └────────────────────┘",
-        "", "", NULL };
+        "    ┌─ List shortcuts ──────────────────────┐",
+        "    │ *  Star                               │",
+        "    │ d  Delete                             │",
+        "    │ :  Restart service - starts a process │",
+        "    │ :  Rotate secret                      │",
+        "    │ r  Reload                             │",
+        "    │ ?  Help                               │",
+        "    └───────────────────────────────────────┘",
+        "", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
     char d[160];
-    pty_cell_describe(f.s, 3, 16, d, sizeof d);
+    pty_cell_describe(f.s, 3, 6, d, sizeof d);
     ASSERT(strstr(d, "bold") != NULL, "the key is bold");
-    pty_cell_describe(f.s, 3, 19, d, sizeof d);
+    pty_cell_describe(f.s, 3, 9, d, sizeof d);
     ASSERT(strstr(d, "bold") == NULL, "the name is not");
     tui_keyhelp_free(&h);
     fx_close(&f);
@@ -732,11 +738,11 @@ static void test_help_shows_the_description(void) {
     tui_screen_render(f.scr, &f.buf);
     pty_feed(f.s, f.buf.data, f.buf.len);
     int top = -1, rel = -1;
-    for (int r = 0; r < 14; r++) {
+    for (int rr = 0; rr < 14; rr++) {
         char row[128];
-        pty_row_text(f.s, r, row, sizeof row);
-        if (strstr(row, "┌─ L")) top = r;
-        if (strstr(row, "Reload")) rel = r;
+        pty_row_text(f.s, rr, row, sizeof row);
+        if (strstr(row, "┌─ L")) top = rr;
+        if (strstr(row, "Reload")) rel = rr;
     }
     ASSERT(pty_screen_contains(f.s, "Alpha beta gamma delta"), "wrapped to the box");
     ASSERT(pty_screen_contains(f.s, "Reload"), "the keys follow");
@@ -752,6 +758,232 @@ static void test_help_shows_the_description(void) {
         if (tui_keyhelp_open(&h, &t, "list", "T") == 0) tui_keyhelp_free(&h);
     }
     fault_reset();
+}
+
+
+/* ── The search of the help (TUI-59) ─────────────────────────────────── */
+
+static tui_dialog_state help_send(tui_keyhelp *h, const char *keys) {
+    tui_decoder dec;
+    tui_decoder_init(&dec);
+    tui_decoder_feed(&dec, keys, strlen(keys));
+    tui_event ev;
+    tui_dialog_state st = h->dialog.state;
+    while (tui_decoder_next(&dec, &ev)) st = tui_dialog_handle(&h->dialog, &ev);
+    if (tui_decoder_timeout(&dec, &ev)) st = tui_dialog_handle(&h->dialog, &ev);
+    tui_decoder_free(&dec);
+    return st;
+}
+
+/* Draws the help and returns the rows of the screen joined by newlines. */
+static void help_draw(Fx *f, tui_keyhelp *h, char *out, size_t size) {
+    tui_canvas all = tui_canvas_of(f->scr);
+    tui_canvas_clear(all, TUI_STYLE_DEFAULT);
+    tui_dialog_render(&h->dialog, all);
+    tui_screen_render(f->scr, &f->buf);
+    pty_feed(f->s, f->buf.data, f->buf.len);
+    out[0] = '\0';
+    for (int r = 0; r < 14; r++) {
+        char row[256];
+        pty_row_text(f->s, r, row, sizeof row);
+        strncat(out, row, size - strlen(out) - 1);
+        strncat(out, "\n", size - strlen(out) - 1);
+    }
+}
+
+static const tui_keyentry g_search_table[] = {
+    E("list", TUI_KC_STAR, TUI_VERB_STAR, "Star", "toggle the star", TUI_ACT_ROUTINE, 0, NULL, 1),
+    E("list", TUI_KC_DELETE_D, TUI_VERB_DELETE, "Delete", NULL, TUI_ACT_SERIOUS, 1,
+      "Delete %s? It cannot be undone.", 2),
+    E("list", TUI_KC_NONE, TUI_VERB_NONE, "Restart service", "starts a process", TUI_ACT_SERIOUS, 0,
+      "Restart the service of %s?", 3),
+    E("list", TUI_KC_NONE, TUI_VERB_NONE, "Rotate secret", NULL, TUI_ACT_RARE, 0, NULL, 4),
+    E("list", TUI_KC_RELOAD, TUI_VERB_NONE, "Reload", "fetch again", TUI_ACT_HARMLESS, 0, NULL, 5),
+    E("list", TUI_KC_HELP, TUI_VERB_NONE, "Help", NULL, TUI_ACT_HARMLESS, 0, NULL, 6),
+};
+
+/* The entries shown after the keys @p typed, as the names of their actions. */
+static void search_shows(const char *typed, const char *const *want, int n, const char *what) {
+    tui_keytable t;
+    ASSERT_EQ_INT(tui_keytable_init(&t, g_search_table, 6, NULL, 0), 0, "table");
+    tui_keyhelp h;
+    ASSERT_EQ_INT(tui_keyhelp_open(&h, &t, "list", "Search"), 0, "open");
+    Fx f;
+    ASSERT(fx_open(&f, 14, 60) == 0, "fixtures");
+    char scr[4096];
+    help_draw(&f, &h, scr, sizeof scr);    /* the window is known once drawn */
+    char keys[128];
+    snprintf(keys, sizeof keys, "/%s", typed);
+    help_send(&h, keys);
+    help_draw(&f, &h, scr, sizeof scr);
+    static const char *const all[] = { "Star", "Delete", "Restart service", "Rotate secret",
+                                       "Reload", "Help" };
+    for (int i = 0; i < 6; i++) {
+        int expected = 0;
+        for (int k = 0; k < n; k++) expected |= strcmp(all[i], want[k]) == 0;
+        char msg[160];
+        snprintf(msg, sizeof msg, "%s: %s %s", what, all[i], expected ? "shown" : "hidden");
+        ASSERT((strstr(scr, all[i]) != NULL) == expected, msg);
+    }
+    fx_close(&f);
+    tui_keyhelp_free(&h);
+}
+
+static void test_help_search_narrows_to_whole_entries(void) {
+    search_shows("d", (const char *const[]){ "Delete", "Reload" }, 2,
+                 "by a letter (key or action name)");
+    search_shows("star", (const char *const[]){ "Star", "Restart service" }, 2, "by the action name");
+    search_shows("STAR", (const char *const[]){ "Star", "Restart service" }, 2, "case-insensitive");
+    search_shows("fetch", (const char *const[]){ "Reload" }, 1, "by a word of the description");
+    search_shows("process", (const char *const[]){ "Restart service" }, 1, "a menu-only action by its text");
+    search_shows("rotate", (const char *const[]){ "Rotate secret" }, 1, "a menu-only action by its name");
+    search_shows("star toggle", (const char *const[]){ "Star" }, 1, "two words, both required");
+    search_shows("toggle  star", (const char *const[]){ "Star" }, 1, "two words, any order and spacing");
+    search_shows("zzz", NULL, 0, "nothing");
+    search_shows("star fetch", NULL, 0, "two words no entry has both");
+    search_shows("", (const char *const[]){ "Star", "Delete", "Restart service", "Rotate secret",
+                                           "Reload", "Help" }, 6, "an empty search shows all");
+}
+
+static void test_help_search_by_key_and_menu_key(void) {
+    tui_keytable t;
+    tui_keytable_init(&t, g_search_table, 6, NULL, 0);
+    tui_keyhelp h;
+    tui_keyhelp_open(&h, &t, "list", "Search");
+    Fx f;
+    ASSERT(fx_open(&f, 14, 60) == 0, "fixtures");
+    char scr[4096];
+    help_draw(&f, &h, scr, sizeof scr);
+    help_send(&h, "/:");
+    help_draw(&f, &h, scr, sizeof scr);
+    ASSERT(strstr(scr, ":  Restart service") && strstr(scr, ":  Rotate secret"), "':' finds the menu-only actions");
+    ASSERT(strstr(scr, "Star") == NULL && strstr(scr, "Reload") == NULL, "and only them");
+    help_send(&h, "\x15" "?");   /* ctrl-u clears the line, then a key name */
+    help_draw(&f, &h, scr, sizeof scr);
+    ASSERT(strstr(scr, "?  Help") && strstr(scr, "Star") == NULL, "by the key");
+    fx_close(&f);
+    tui_keyhelp_free(&h);
+}
+
+/* Esc clears the search first, closes on the next press; Enter keeps the list. */
+static void test_help_search_esc_enter_and_empty(void) {
+    tui_keytable t;
+    tui_keytable_init(&t, g_search_table, 6, NULL, 0);
+    tui_keyhelp h;
+    tui_keyhelp_open(&h, &t, "list", "Search");
+    Fx f;
+    ASSERT(fx_open(&f, 14, 60) == 0, "fixtures");
+    char scr[4096];
+    help_draw(&f, &h, scr, sizeof scr);
+    help_send(&h, "/rel");
+    help_draw(&f, &h, scr, sizeof scr);
+    ASSERT(strstr(scr, "/ rel"), "the line shows the typed text");
+    ASSERT_EQ_INT(help_send(&h, "\r"), TUI_DIALOG_OPEN, "Enter leaves the line");
+    help_draw(&f, &h, scr, sizeof scr);
+    ASSERT(strstr(scr, "Reload") && strstr(scr, "Star") == NULL, "and keeps the narrowed list");
+    ASSERT(strstr(scr, "/ rel"), "the query stays visible");
+    ASSERT_EQ_INT(help_send(&h, "q"), TUI_DIALOG_OK, "q goes back as before");
+    tui_keyhelp_free(&h);
+
+    tui_keyhelp_open(&h, &t, "list", "Search");
+    help_draw(&f, &h, scr, sizeof scr);
+    help_send(&h, "/rel");
+    ASSERT_EQ_INT(help_send(&h, "\x1b"), TUI_DIALOG_OPEN, "Esc in the line clears, does not close");
+    help_draw(&f, &h, scr, sizeof scr);
+    ASSERT(strstr(scr, "Star") && strstr(scr, "Help") && strstr(scr, "/ ") == NULL, "all entries again");
+    ASSERT_EQ_INT(help_send(&h, "\x1b"), TUI_DIALOG_OK, "the next Esc closes");
+    tui_keyhelp_free(&h);
+
+    tui_keyhelp_open(&h, &t, "list", "Search");
+    help_draw(&f, &h, scr, sizeof scr);
+    help_send(&h, "/rel\r");
+    ASSERT_EQ_INT(help_send(&h, "\x1b"), TUI_DIALOG_OPEN, "Esc after Enter clears the kept search");
+    help_draw(&f, &h, scr, sizeof scr);
+    ASSERT(strstr(scr, "Star") != NULL, "all entries again");
+    help_send(&h, "/restrat");
+    help_draw(&f, &h, scr, sizeof scr);
+    ASSERT(strstr(scr, "No key matches \"restrat\""), "an empty result says so");
+    ASSERT(strstr(scr, "Star") == NULL, "and shows no entry");
+    ASSERT_EQ_INT(help_send(&h, "\x03"), TUI_DIALOG_OK, "ctrl-c closes from the line");
+    fx_close(&f);
+    tui_keyhelp_free(&h);
+}
+
+static void test_help_search_highlight_and_line_colours(void) {
+    tui_keytable t;
+    tui_keytable_init(&t, g_search_table, 6, NULL, 0);
+    tui_keyhelp h;
+    tui_keyhelp_open(&h, &t, "list", "Search");
+    Fx f;
+    ASSERT(fx_open(&f, 14, 60) == 0, "fixtures");
+    char scr[4096];
+    help_draw(&f, &h, scr, sizeof scr);
+    help_send(&h, "/star TOGG\r");
+    help_draw(&f, &h, scr, sizeof scr);
+    int row = -1, col = -1;
+    for (int r = 0; r < 14; r++) {
+        char line[256];
+        pty_row_text(f.s, r, line, sizeof line);
+        if (strstr(line, "Star - toggle")) row = r;
+    }
+    ASSERT(row >= 0, "the entry is shown");
+    for (int c = 0; c < 60 && col < 0; c++)
+        if (strcmp(pty_cell_text(f.s, row, c), "S") == 0) col = c;
+    char d[160];
+    pty_cell_describe(f.s, row, col, d, sizeof d);
+    ASSERT(strstr(d, "underline") && strstr(d, "bold"), "a matched word in the action is highlighted");
+    ASSERT_EQ_INT(pty_cell_fg(f.s, row, col), PTY_FG_CYAN, "in the accent colour");
+    pty_cell_describe(f.s, row, col + 4, d, sizeof d);
+    ASSERT(strstr(d, "underline") == NULL, "the rest of the line is not");
+    ASSERT_EQ_INT(pty_cell_fg(f.s, row, col + 4), PTY_FG_DEFAULT, "default colour");
+    int tg = col + 7;      /* "Star - toggle": the T of toggle */
+    ASSERT_EQ_STR(pty_cell_text(f.s, row, tg), "t", "the description word");
+    pty_cell_describe(f.s, row, tg, d, sizeof d);
+    ASSERT(strstr(d, "underline") != NULL, "a matched word of the description is highlighted");
+    pty_cell_describe(f.s, row, tg + 4, d, sizeof d);
+    ASSERT(strstr(d, "underline") == NULL, "only the typed part");
+    fx_close(&f);
+    tui_keyhelp_free(&h);
+}
+
+static void test_help_search_scrolls_and_survives_failures(void) {
+    tui_keytable t;
+    tui_keytable_init(&t, g_search_table, 6, NULL, 0);
+    tui_keyhelp h;
+    tui_keyhelp_open(&h, &t, "list", "Search");
+    Fx f;
+    ASSERT(fx_open(&f, 8, 60) == 0, "fixtures");     /* too small for all rows */
+    char scr[4096];
+    help_draw(&f, &h, scr, sizeof scr);
+    help_send(&h, "/e");          /* most entries contain an e; the line takes a row */
+    help_draw(&f, &h, scr, sizeof scr);
+    help_send(&h, "\x1b[B\x1b[B\x1b[6~\x1b[F");   /* Down, Down, PgDn, End while typing */
+    help_draw(&f, &h, scr, sizeof scr);
+    ASSERT(strstr(scr, "/ e"), "the line stays");
+    help_send(&h, "\x1b[H\x1b[5~\x1b[A");
+    help_draw(&f, &h, scr, sizeof scr);
+    fx_close(&f);
+    tui_keyhelp_free(&h);
+
+    /* The search buffer is not given if memory is short; '/' then does nothing. */
+    tui_keyhelp_open(&h, &t, "list", "Search");
+    fault_reset();
+    fault_arm(F_CALLOC, 0, 1, ENOMEM);
+    help_send(&h, "/");
+    fault_reset();
+    ASSERT_EQ_INT(h.dialog.answer, 0, "no line without a buffer");
+    ASSERT_EQ_INT(help_send(&h, "q"), TUI_DIALOG_OK, "the help still works");
+    tui_keyhelp_free(&h);
+
+    /* A help of a bare dialog (no table) searches too. */
+    tui_dialog d;
+    const char *pairs[] = { "k", "Kilo", "m", "Mega" };
+    tui_dialog_help(&d, "Bare", pairs, 2);
+    tui_event ev = { .type = TUI_EV_KEY, .key = TUI_KEY_CHAR, .cp = '/' };
+    tui_dialog_handle(&d, &ev);
+    ASSERT_EQ_INT(d.answer, 1, "the line is open");
+    ASSERT_EQ_INT(tui_dialog_is_checked(&d, 0), 0, "the search buffer is no tick");
+    tui_dialog_free(&d);
 }
 
 /* ── Allocation failures ─────────────────────────────────────────────── */
@@ -818,6 +1050,11 @@ static const TestCase tests[] = {
     TEST_CASE(test_help_matches_the_handler),
     TEST_CASE(test_help_back_entry),
     TEST_CASE(test_help_picture),
+    TEST_CASE(test_help_search_narrows_to_whole_entries),
+    TEST_CASE(test_help_search_by_key_and_menu_key),
+    TEST_CASE(test_help_search_esc_enter_and_empty),
+    TEST_CASE(test_help_search_highlight_and_line_colours),
+    TEST_CASE(test_help_search_scrolls_and_survives_failures),
     TEST_CASE(test_allocation_failures),
 };
 
