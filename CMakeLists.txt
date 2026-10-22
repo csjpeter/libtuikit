@@ -4,7 +4,7 @@
 # The build, test, install and package definition of libtuikit.
 
 cmake_minimum_required(VERSION 3.20)
-project(libtuikit VERSION 0.11.0 LANGUAGES C)
+project(libtuikit VERSION 0.12.0 LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Version
@@ -447,7 +447,7 @@ function(tuikit_write_changelog _pkg)
 "${_pkg} (${TUIKIT_VERSION}) stable; urgency=medium
 
   * Build from git commit ${TUIKIT_GIT_COMMIT}.
-  * 0.11.0: every entry of the action menu has a quick key (TUI-62), shown
+  * 0.12.0: every entry of the action menu has a quick key (TUI-62), shown
     in the accent colour at the left; the library assigns it, and the same
     verb gets the same letter in every program.  New:
     tui_keytable_assign_quick(), tui_actionmenu_open_keys().
