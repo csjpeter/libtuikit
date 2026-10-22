@@ -54,6 +54,10 @@ enum {
     TUI_KC_RELOAD = 'r',
     TUI_KC_SEARCH = '/',
     TUI_KC_CLEAR  = 'c',
+    TUI_KC_OPEN_L = 'l',                   /**< opens a tree row (like Right) */
+    TUI_KC_CLOSE_H = 'h',                  /**< closes a tree row (like Left) */
+    TUI_KC_RIGHT  = TUI_KEY_RIGHT,
+    TUI_KC_LEFT   = TUI_KEY_LEFT,
     TUI_KC_MARK   = ' ',
     TUI_KC_UNMARK_ALL = 'U',
     TUI_KC_ESC    = TUI_KEY_ESC,
@@ -262,9 +266,11 @@ typedef struct tui_keyhelp {
 
 /**
  * @brief The help of @p view: the view's description (if the table has one)
- *        under @p title, then a row for every entry that has a direct key
- *        there, in table order, the key and the action's name (and its
- *        description).  The same table drives tui_keytable_find().
+ *        under @p title, then a row for every entry there, in table order,
+ *        the key and the action's name (and its description).  An entry with
+ *        no direct key is listed too, with ':' as its key.  '/' searches the
+ *        entries (tui_dialog_help(3)).  The same table drives
+ *        tui_keytable_find().
  */
 TUI_API int tui_keyhelp_open(tui_keyhelp *h, const tui_keytable *t, const char *view,
                              const char *title);

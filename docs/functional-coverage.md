@@ -194,6 +194,26 @@ name the ticket that closes the gap; there is none now.
 | `tui_textedit_set_text` | `tests/functional/cap_edit.c` | `cap_textedit` |
 | `tui_textedit_summary` | `tests/functional/cap_edit.c` | `cap_textedit` |
 
+## Tree
+
+| Capability | Functional test | Phase |
+|---|---|---|
+| `tui_tree_close_all` | `tests/functional/cap_edit.c` | `cap_tree` |
+| `tui_tree_free` | `tests/functional/cap_edit.c` | `cap_tree` |
+| `tui_tree_handle` | `tests/functional/cap_edit.c` | `cap_tree` |
+| `tui_tree_init` | `tests/functional/cap_edit.c` | `cap_tree` |
+| `tui_tree_is_open` | `tests/functional/cap_edit.c` | `cap_tree` |
+| `tui_tree_marker` | `tests/functional/cap_edit.c` | `cap_tree` |
+| `tui_tree_open_all` | `tests/functional/cap_edit.c` | `cap_tree` |
+| `tui_tree_render` | `tests/functional/cap_edit.c` | `cap_tree` |
+| `tui_tree_row_at` | `tests/functional/cap_edit.c` | `cap_tree` |
+| `tui_tree_select_row` | `tests/functional/cap_edit.c` | `cap_tree` |
+| `tui_tree_selected_row` | `tests/functional/cap_edit.c` | `cap_tree` |
+| `tui_tree_set_open` | `tests/functional/cap_edit.c` | `cap_tree` |
+| `tui_tree_set_rows` | `tests/functional/cap_edit.c` | `cap_tree` |
+| `tui_tree_show_counts` | `tests/functional/cap_edit.c` | `cap_tree` |
+| `tui_tree_show_matches` | `tests/functional/cap_edit.c` | `cap_tree` |
+
 ## Text view
 
 | Capability | Functional test | Phase |

@@ -524,10 +524,11 @@ int tui_keyhelp_open(tui_keyhelp *h, const tui_keytable *t, const char *view, co
     size_t chars = 0;
     for (int i = 0; i < t->n; i++) {
         const tui_keyentry *e = &t->entries[i];
-        if (e->key == TUI_KC_NONE || !applies(e, view)) continue;
+        if (!e->action || !applies(e, view)) continue;
         count++;
         chars += (size_t)(e->key == TUI_KC_BACK ? (int)strlen(HELP_BACK_KEYS)
-                                                : tui_keycode_name(e->key, NULL, 0)) + 1 + strlen(e->action) + 1 +
+                          : e->key == TUI_KC_NONE ? 1
+                                                  : tui_keycode_name(e->key, NULL, 0)) + 1 + strlen(e->action) + 1 +
                  (e->desc ? 3 + strlen(e->desc) : 0);
     }
     size_t pbytes = 2 * (size_t)(count ? count : 1) * sizeof(char *);
@@ -541,10 +542,12 @@ int tui_keyhelp_open(tui_keyhelp *h, const tui_keytable *t, const char *view, co
     int k = 0;
     for (int i = 0; i < t->n; i++) {
         const tui_keyentry *e = &t->entries[i];
-        if (e->key == TUI_KC_NONE || !applies(e, view)) continue;
+        if (!e->action || !applies(e, view)) continue;
         pairs[2 * k] = text;
+        /* A menu-only action has no key: ':' (the menu) stands in its column. */
         text += (e->key == TUI_KC_BACK ? snprintf(text, 32, "%s", HELP_BACK_KEYS)
-                                       : tui_keycode_name(e->key, text, 32)) + 1;
+                 : e->key == TUI_KC_NONE ? snprintf(text, 32, ":")
+                                         : tui_keycode_name(e->key, text, 32)) + 1;
         pairs[2 * k + 1] = text;
         text += sprintf(text, "%s", e->action);
         if (e->desc) text += sprintf(text, " - %s", e->desc);

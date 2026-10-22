@@ -493,11 +493,21 @@ static void cap_actions(void) {
 
     tui_keyhelp h;
     CHECK_INT(tui_keyhelp_open(&h, &t, "list", "List shortcuts"), 0, "help");
-    CHECK_INT(h.dialog.nitems, 3, "a row for every bound key");
+    CHECK_INT(h.dialog.nitems, 4, "a row for every entry, the menu-only one too");
     tui_dialog_render(&h.dialog, tui_canvas_of(scr));
     txt = cap_screen_text(scr, NULL);
     CHECK_HAS(txt, "Star", "the help lists the star");
     CHECK_HAS(txt, "Reload", "and the reload");
+    free(txt);
+    /* '/' searches whole entries: only the reload is left. */
+    tui_event sl = cap_ev("/"), ty[4] = { cap_ev("r"), cap_ev("e"), cap_ev("l"), cap_ev("\r") };
+    tui_dialog_handle(&h.dialog, &sl);
+    for (int i = 0; i < 4; i++) tui_dialog_handle(&h.dialog, &ty[i]);
+    tui_dialog_render(&h.dialog, tui_canvas_of(scr));
+    txt = cap_screen_text(scr, NULL);
+    CHECK_HAS(txt, "Reload", "the search keeps the matching entry");
+    CHECK_HAS(txt, "rel", "and shows its line");
+    CHECK(strstr(txt, "Star") == NULL, "and drops the others");
     free(txt);
     tui_keyhelp_free(&h);
 

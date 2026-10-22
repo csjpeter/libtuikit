@@ -204,7 +204,7 @@ Non-goals:
   tui_term ──► tui_decoder ──► tui_event     tui_canvas ──► tui_screen ──► tui_buf ──► fd
    (fds, termios,  (bytes → keys)          (clipped rect)  (cells, diff)  (bytes)
     signals, size)
-                         widgets: tui_listview  tui_table  tui_statusline  tui_textview  tui_lineedit  tui_dialog
+                         widgets: tui_listview  tui_tree  tui_table  tui_statusline  tui_textview  tui_lineedit  tui_dialog
                          helpers: tui_text (UTF-8, width, sanitise)  tui_rect (layout)
 ```
 
@@ -220,6 +220,7 @@ Non-goals:
 | `tuikit/screen.h` | cells, styles, diff renderer | yes | M3 |
 | `tuikit/canvas.h` | `tui_rect`, layout splits, clipped drawing, boxes | yes | M4 |
 | `tuikit/listview.h` | scroll + selection, row rendering | yes | M4 |
+| `tuikit/tree.h` | the opening and closing tree over the list view | yes | |
 | `tuikit/table.h` | columns, header, the selection the widget owns | yes | TUI-48 |
 | `tuikit/statusline.h` | the one bottom line: hints that fit, message, wait, position, prompt | yes | TUI-51 |
 | `tuikit/textview.h` | wrapped, scrollable text | yes | M4 |
@@ -515,6 +516,21 @@ widget the program routes events to first.
   plus `tui_listview_handle(lv, ev)` for the standard keys and
   `tui_listview_render(lv, canvas, draw_row_cb, ctx)` which calls back per
   visible row with the row's canvas and whether it is selected.
+- **`tui_tree`** (TUI-60) — the tree of `policies/tui-interface-model.md`,
+  "Trees", over `tui_listview`. The program gives rows in pre-order
+  (`id`, `depth`, `children`); the widget keeps the open branches by id
+  (a packed string set), shows the visible rows through the list view and
+  draws the two-cell marker (`+ `, `- `, two blanks) at the first two cells,
+  then two cells of indent per level, then the program's label, then
+  optionally ` (N)` on a closed row. Closed on opening. Keys: Right/`l`
+  open (on an open row: first child), Left/`h` close (on a closed row or a
+  leaf: parent), `j`/`k` and paging over visible rows, Enter not handled.
+  `tui_tree_set_rows` keeps open state and selection by identity;
+  `tui_tree_show_matches(match)` opens the ancestors of the matches and
+  `tui_tree_show_matches(NULL)` restores the earlier open set. Open all and
+  close all are functions for the program's `:` menu. Each point has a unit
+  test (`tests/unit/test_tree.c`) and the demo has a pty test
+  (`tests/pty/test_tree.c`).
 - **`tui_table`** (TUI-48) — columns, a header and the selection, so that a
   program supplies data and column definitions and never paints a row
   (`policies/tui-interface-model.md`, "Lists"). The requirement set is the
@@ -685,9 +701,25 @@ the parts so that a program cannot invent a binding.
   irreversible, confirmation, id). The key handler asks
   `tui_keytable_find(table, view, event)`; the help overlay is
   `tui_keyhelp_open()` over the same array (a row of key and action name for
-  every entry with a direct key in that view, in table order); the `:` menu
+  every entry of that view, in table order; an entry with no direct key, the
+  menu-only class, is listed with `:` in the key column); the `:` menu
   is `tui_actionmenu_open()` over it. The help therefore cannot list a key the
   handler does not have, nor the handler have a key the help omits.
+- **Search in the help (TUI-59).** `/` in a help dialog opens a one-line
+  search (a `tui_lineedit` over a buffer the dialog allocates on first use,
+  kept in the otherwise unused `checked` array, so no public struct changes).
+  The rows narrow as the user types to the **entries** (a key with its action
+  and description; never a single drawn line) whose key or text contains
+  **every typed word**, case-insensitive; an entry is matched on its strings,
+  not on the drawn lines, and is shown whole or not at all. The matched words
+  are drawn bold, underlined and in the accent colour; the line is the last
+  row of the box (`/ words`); the box keeps the size of the full help.
+  `Enter` leaves the line and keeps the list, `Esc` clears the search and the
+  next `Esc` closes, `q`/`Backspace` close (not while typing), ctrl-c closes
+  from anywhere; Up, Down, PgUp, PgDn, Home, End scroll the narrowed list even
+  while typing. No match: `No key matches "word"`. Because it is in
+  `tui_dialog_handle()`, a program that routes events to `help.dialog` gets
+  it with no change.
 - **The view description.** A row with no action name, no key and only the
   description text (`view` the view it describes, NULL every view) is the
   description of that view: one to three lines (wrapped to 64 columns; a longer

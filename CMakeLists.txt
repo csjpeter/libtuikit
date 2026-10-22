@@ -4,7 +4,7 @@
 # The build, test, install and package definition of libtuikit.
 
 cmake_minimum_required(VERSION 3.20)
-project(libtuikit VERSION 0.10.0 LANGUAGES C)
+project(libtuikit VERSION 0.11.0 LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Version
@@ -132,6 +132,7 @@ set(TUIKIT_SOURCES
     src/selection.c
     src/statusline.c
     src/table.c
+    src/tree.c
     src/term.c
     src/text.c
     src/textedit.c
@@ -293,6 +294,13 @@ set(TUIKIT_MAN3_ALIASES
     tui_listview_end:tui_listview_init tui_listview_reveal_selected:tui_listview_init
     tui_listview_is_visible:tui_listview_init tui_listview_handle:tui_listview_init
     tui_listview_render:tui_listview_init
+    tui_tree_free:tui_tree_init tui_tree_set_rows:tui_tree_init
+    tui_tree_row_at:tui_tree_init tui_tree_selected_row:tui_tree_init
+    tui_tree_is_open:tui_tree_init tui_tree_set_open:tui_tree_init
+    tui_tree_open_all:tui_tree_init tui_tree_close_all:tui_tree_init
+    tui_tree_select_row:tui_tree_init tui_tree_show_matches:tui_tree_init
+    tui_tree_show_counts:tui_tree_init tui_tree_marker:tui_tree_init
+    tui_tree_handle:tui_tree_init tui_tree_render:tui_tree_init
     tui_table_row_kind:tui_table_init tui_table_row_style:tui_table_init
     tui_table_row_mark:tui_table_init tui_table_row_text:tui_table_init
     tui_table_cell_prefix:tui_table_init tui_table_cell_put:tui_table_init
@@ -434,7 +442,7 @@ function(tuikit_write_changelog _pkg)
 "${_pkg} (${TUIKIT_VERSION}) stable; urgency=medium
 
   * Build from git commit ${TUIKIT_GIT_COMMIT}.
-  * 0.10.0: every entry of the action menu has a quick key (TUI-62), shown
+  * 0.11.0: every entry of the action menu has a quick key (TUI-62), shown
     in the accent colour at the left; the library assigns it, and the same
     verb gets the same letter in every program.  New:
     tui_keytable_assign_quick(), tui_actionmenu_open_keys().

@@ -1,0 +1,130 @@
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_TREE_INIT 3 2026-10-20 "libtuikit 0.10" "libtuikit Manual"
+.SH NAME
+tui_tree_init, tui_tree_free, tui_tree_set_rows, tui_tree_row_at,
+tui_tree_selected_row, tui_tree_is_open, tui_tree_set_open,
+tui_tree_open_all, tui_tree_close_all, tui_tree_select_row,
+tui_tree_show_matches, tui_tree_show_counts, tui_tree_marker,
+tui_tree_handle, tui_tree_render \- a list whose rows open and close
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/tree.h>
+.PP
+.B typedef struct tui_treerow {
+.B "    const char *id;  int depth;  int children;"
+.B } tui_treerow;
+.PP
+.BI "void tui_tree_init(tui_tree *" t );
+.BI "void tui_tree_free(tui_tree *" t );
+.BI "int  tui_tree_set_rows(tui_tree *" t ", const tui_treerow *" rows ", int " n );
+.BI "int  tui_tree_row_at(const tui_tree *" t ", int " item );
+.BI "int  tui_tree_selected_row(const tui_tree *" t );
+.BI "int  tui_tree_is_open(const tui_tree *" t ", int " row );
+.BI "int  tui_tree_set_open(tui_tree *" t ", int " row ", int " open );
+.BI "int  tui_tree_open_all(tui_tree *" t );
+.BI "void tui_tree_close_all(tui_tree *" t );
+.BI "int  tui_tree_select_row(tui_tree *" t ", int " row );
+.BI "int  tui_tree_show_matches(tui_tree *" t ", const unsigned char *" match );
+.BI "void tui_tree_show_counts(tui_tree *" t ", int " on );
+.BI "const char *tui_tree_marker(const tui_tree *" t ", int " row );
+.BI "int  tui_tree_handle(tui_tree *" t ", const tui_event *" ev );
+.PP
+.BI "typedef int (*tui_tree_draw_fn)(void *" ctx ", tui_canvas " label ", int " row ,
+.BI "                                int " selected ", tui_style " base );
+.BI "void tui_tree_render(tui_tree *" t ", tui_canvas " c ", tui_style " blank ,
+.BI "                     tui_style " selected ", tui_tree_draw_fn " draw ", void *" ctx );
+.fi
+.SH DESCRIPTION
+The tree of the interface policy (policies/tui-interface-model.md, "Trees"),
+over
+.BR tui_listview (3):
+every program's tree looks and behaves the same.
+The program gives its rows in pre-order, each with an identity string, its
+depth (0 on the top level, at most one more than the row above) and its number
+of children.
+The widget keeps which branches are open, keyed by the identity, and the
+list view (the
+.I list
+member) holds the visible rows only.
+.PP
+Every branch is closed on opening.
+The first two cells of a row are the marker, returned by
+.BR tui_tree_marker ():
+"+ " for a closed row with children, "\- " for an open one, two blanks for a
+leaf.
+.PP
+.BR tui_tree_set_rows ()
+is a load or a reload.
+The open state and the selection are kept by identity (a selected row that is
+gone leaves the selection at the same position, clamped).
+The previous rows must still be valid during the call, the new ones until the
+next.
+It returns \-1 and leaves the tree unchanged for a missing id, a depth below 0
+or more than one deeper than the row above (errno EINVAL), or without memory.
+.BR tui_tree_row_at ()
+maps a list item to its row,
+.BR tui_tree_selected_row ()
+gives the selected row.
+.BR tui_tree_set_open ()
+opens or closes one row and keeps the selection on it;
+.BR tui_tree_open_all ()
+and
+.BR tui_tree_close_all ()
+are for the program's ':' menu (no letter is taken for them); after a close
+the selection moves to its nearest visible ancestor.
+.BR tui_tree_select_row ()
+opens the branches above a row and selects it.
+.PP
+.BR tui_tree_show_matches ()
+shows a filter or a search: the array has one byte per row, non-zero for a
+match, and the branches above every match are opened.
+What was open before is remembered; calling it with NULL clears the filter and
+restores that state.
+A new call replaces the earlier match; after a reload while filtering, call it
+again.
+.PP
+.BR tui_tree_handle ()
+applies the keys of the policy and returns 1 for them:
+Right and
+.B l
+open the row at the cursor (on an open row they move to its first child);
+Left and
+.B h
+close it (on a closed row or a leaf they move to its parent);
+Up, Down, PgUp, PgDn, Home, End, their letters
+.BR j ", " k ", " ctrl\-f ", " ctrl\-b ", " g ", " G
+move over the visible rows only.
+Enter is not the widget's (it stays "open the row" of the program), and
+returns 0.
+.PP
+.BR tui_tree_render ()
+draws the visible rows: the marker at the first two cells, two cells of indent
+per level, then the label, drawn by
+.I draw
+into a canvas already cleared with the row's style, which it returns as
+.IR base .
+The row's style is
+.I selected
+on the selected row, else
+.IR blank .
+With
+.BR tui_tree_show_counts (t,\ 1)
+a closed row with children shows " (N)" after the label, N being its number of
+children.
+.SH EXAMPLE
+.nf
+static int draw_label(void *ctx, tui_canvas c, int row, int sel, tui_style st) {
+    const char *const *names = ctx;
+    tui_canvas_put(c, 0, 0, names[row], st);
+    return (int)strlen(names[row]);
+}
+\&...
+tui_tree_set_rows(&tree, rows, n);
+tui_tree_render(&tree, pane, TUI_STYLE_DEFAULT, TUI_STYLE_SELECTION,
+                draw_label, names);
+.fi
+.SH SEE ALSO
+.BR tui_listview_init (3),
+.BR tui_keytable_init (3),
+.BR libtuikit (7)
