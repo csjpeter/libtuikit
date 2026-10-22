@@ -42,6 +42,7 @@ size tui_textview 64 8
 symbol tui_actionmenu_free
 symbol tui_actionmenu_handle
 symbol tui_actionmenu_open
+symbol tui_actionmenu_open_keys
 symbol tui_actionmenu_render
 symbol tui_actionmenu_run
 symbol tui_buf_append
@@ -99,6 +100,7 @@ symbol tui_keycode_name
 symbol tui_keycode_of
 symbol tui_keyhelp_free
 symbol tui_keyhelp_open
+symbol tui_keytable_assign_quick
 symbol tui_keytable_find
 symbol tui_keytable_init
 symbol tui_lineedit_cursor_col

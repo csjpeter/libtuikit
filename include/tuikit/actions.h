@@ -195,12 +195,45 @@ typedef struct tui_actionmenu {
 
 /**
  * @brief Opens the ':' menu of @p view: every state-changing action that
- *        applies there, each with its direct key beside it.  @p target
+ *        applies there, each with its quick key at the left (assigned by the
+ *        library, see tui_keytable_assign_quick()) and its direct key beside it.  @p target
  *        (copied; may be NULL) names what the action will act on and is put
  *        into the confirmation.
  */
 TUI_API int tui_actionmenu_open(tui_actionmenu *m, const tui_keytable *t, const char *view,
                                 const char *target);
+
+/**
+ * @brief The quick keys of the menu of @p view.
+ *
+ * Every entry of the menu has one: a character, unique in the menu, shown
+ * at the left of the entry.  @p given (may be NULL) has @c t->n characters,
+ * one for each table entry: the letter the program wants for it, or 0 for
+ * "the library chooses".  A given letter wins when it is usable and not
+ * taken; j k g G q (the list keys) are never quick keys.  Otherwise the
+ * entry takes the letter of its verb from the library's table (delete is d,
+ * reload r, rename w, ... the same in every program), and the others the
+ * first letter of one of the words of their name that is free, then the
+ * other letters of the name, then a digit 1-9.
+ *
+ * @param out  @c t->n characters: the quick key of each table entry, 0 for
+ *             an entry that is not in the menu (or got none).
+ * @return The number of menu entries left without a quick key (more
+ *         entries than characters; they stay reachable by the list keys and
+ *         Enter, and the program should write it in its debug log), or -1
+ *         with errno EINVAL.
+ */
+TUI_API int tui_keytable_assign_quick(const tui_keytable *t, const char *view, const char *given,
+                                      char *out);
+
+/**
+ * @brief tui_actionmenu_open() with the program's own quick keys, as in
+ *        tui_keytable_assign_quick().  Pressing a quick key runs its entry
+ *        exactly as Enter on it does (a serious one opens its confirmation
+ *        first).  '?' in the menu lists the keys.
+ */
+TUI_API int tui_actionmenu_open_keys(tui_actionmenu *m, const tui_keytable *t, const char *view,
+                                     const char *target, const char *given);
 
 /**
  * @brief Runs entry @p entry from its direct key: CHOSEN at once when it

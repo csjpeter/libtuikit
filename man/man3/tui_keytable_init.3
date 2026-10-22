@@ -1,10 +1,10 @@
 .\" SPDX-License-Identifier: GPL-3.0-only
 .\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
-.TH TUI_KEYTABLE_INIT 3 2026-10-18 "libtuikit 0.9" "libtuikit Manual"
+.TH TUI_KEYTABLE_INIT 3 2026-10-18 "libtuikit 0.10" "libtuikit Manual"
 .SH NAME
 tui_keytable_init, tui_keytable_find, tui_registry_verb, tui_key_reserved,
 tui_keycode_of, tui_keycode_name, tui_nav_key, tui_actionmenu_open,
-tui_actionmenu_run, tui_actionmenu_handle, tui_actionmenu_render,
+tui_actionmenu_open_keys, tui_keytable_assign_quick, tui_actionmenu_run, tui_actionmenu_handle, tui_actionmenu_render,
 tui_actionmenu_free, tui_keyhelp_open, tui_keyhelp_free \- the key table,
 the action menu and the help made from the table
 .SH SYNOPSIS
@@ -23,6 +23,11 @@ the action menu and the help made from the table
 .PP
 .BI "int  tui_actionmenu_open(tui_actionmenu *" m ", const tui_keytable *" t ,
 .BI "                         const char *" view ", const char *" target );
+.BI "int  tui_actionmenu_open_keys(tui_actionmenu *" m ", const tui_keytable *" t ,
+.BI "                              const char *" view ", const char *" target ,
+.BI "                              const char *" given );
+.BI "int  tui_keytable_assign_quick(const tui_keytable *" t ", const char *" view ,
+.BI "                               const char *" given ", char *" out );
 .BI "int  tui_actionmenu_run(tui_actionmenu *" m ", const tui_keytable *" t ,
 .BI "                        int " entry ", const char *" target );
 .BI "tui_action_state tui_actionmenu_handle(tui_actionmenu *" m ", const tui_event *" ev );
@@ -115,7 +120,7 @@ Returns
 .TP
 .BR tui_actionmenu_open ()
 The menu that ':' opens: every non-harmless action of the view, each with
-its name, description and its direct key beside it.
+its quick key at the left, then its direct key, its name and description.
 The program gives it events first while it is open
 .RB ( tui_actionmenu_handle ())
 and draws it last
@@ -130,6 +135,49 @@ or
 An action that needs a confirmation opens a dialog named after the action,
 its text the entry's question with the target put in, the default answer No.
 Enter on the default, Esc and ctrl-c cancel; only Yes (or y) chooses.
+.TP
+.BR "Quick keys"
+Every entry of the menu has a quick key: one character, unique in the menu,
+shown in a column of its own at the left of the entry (for example
+"d  Delete") in the accent colour.
+Pressing it selects the entry and runs it exactly as Enter on that entry
+does: a serious action opens its confirmation first, the library never
+skips it.
+The list keys (j, k, g, G, q, the arrows, PgUp, PgDn, Home, End) and Enter,
+Esc and Backspace still work and are never quick keys; q and Backspace
+close the menu like Esc.
+\fB?\fP in the menu shows its keys ("letter: run the entry" and the list
+keys).
+The letters are chosen by the library: a letter the program gives wins
+(see
+.BR tui_actionmenu_open_keys ());
+otherwise an entry whose name begins with one of the common verbs takes
+that verb's letter, the same in every program (archive a, start b, copy c,
+delete d, edit e, forward f, label l, move m, new n, open o, pause p, reload r,
+restart t, unarchive u, revert v, rename w, stop x); the others take the
+first letter of one of the words of their name that no other entry of the
+menu has, then the other letters of the name, then a digit 1\-9.
+j, k, g, G and q are never assigned.
+.TP
+.BR tui_actionmenu_open_keys ()
+As
+.BR tui_actionmenu_open (),
+with the program's own quick keys:
+.I given
+has one character for each entry of the table, the letter wanted for it or 0
+for "assign one"; it may be NULL.
+A letter that is a list key, unusable or already taken is ignored.
+.TP
+.BR tui_keytable_assign_quick ()
+Computes the quick keys of the menu of
+.I view
+into
+.I out
+(one character for each table entry, 0 for an entry not in the menu or left
+without one) and returns how many menu entries got none, or \-1 (EINVAL).
+A menu with more entries than characters keeps those reachable by the list
+keys and Enter; the program should write the count in its debug log.
+The library prints nothing.
 .TP
 .BR tui_actionmenu_run ()
 The same for an entry reached by its direct key: chosen at once when it

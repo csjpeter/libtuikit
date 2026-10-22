@@ -96,13 +96,13 @@ static const char *const g_menu[] = {
     "> Alpha",
     "  Bravo",
     "  Charlie",
-    "   ┌─ Actions ───────────────────────────────┐",
-    "   │ > *  Star - toggle the star             │",
-    "   │   !  Junk                               │",
-    "   │   d  Delete                             │",
-    "   │      Restart service - starts a process │",
-    "   │      Rotate secret                      │",
-    "   └─────────────────────────────────────────┘",
+    "  ┌─ Actions ──────────────────────────────────┐",
+    "  │ > s  *  Star - toggle the star             │",
+    "  │   u  !  Junk                               │",
+    "  │   d  d  Delete                             │",
+    "  │   t     Restart service - starts a process │",
+    "  │   r     Rotate secret                      │",
+    "  └────────────────────────────────────────────┘",
     NULL };
 
 /* ':' lists every state-changing action of the view, the direct key beside it. */
@@ -112,10 +112,10 @@ static void test_menu_lists_actions_and_cancels(void) {
     WAIT_LIST(s);
     pty_send_str(s, ":");
     ASSERT_WAIT_SCREEN(s, g_menu, 3000);
-    const char *const row4[] = { "A.MBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB.A", NULL };
-    ASSERT_REGION_STYLE(s, PTY_REGION(7, 3, 1, 43), row4, g_legend);
-    const char *const row5[] = { "A.........................................A", NULL };
-    ASSERT_REGION_STYLE(s, PTY_REGION(8, 3, 1, 43), row5, g_legend);
+    const char *const row4[] = { "A.MBMBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB.A", NULL };
+    ASSERT_REGION_STYLE(s, PTY_REGION(7, 2, 1, 46), row4, g_legend);
+    const char *const row5[] = { "A...A........................................A", NULL };
+    ASSERT_REGION_STYLE(s, PTY_REGION(8, 2, 1, 46), row5, g_legend);
     /* Esc cancels: nothing was done. */
     pty_send_key(s, PTY_KEY_ESC);
     WAIT_LIST(s);

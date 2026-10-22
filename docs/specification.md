@@ -711,7 +711,18 @@ the parts so that a program cannot invent a binding.
 - **The menu.** `tui_actionmenu_open(m, table, view, target)` draws a
   `tui_dialog` menu titled *Actions* with every non-harmless entry of the view,
   one row each: the direct key in a column (blank for a menu-only action), the
-  name, ` - description`. The selection is the table's (dark blue, `>` in bold).
+  name, ` - description`. Each row starts with its **quick key** (TUI-62): one
+  character, unique in the menu, in the accent colour, in a column of its own
+  (`d  Delete`). `tui_keytable_assign_quick()` chooses them: a letter the
+  program gives (`tui_actionmenu_open_keys()`) wins; an entry whose first word
+  is a common verb takes the verb's letter from a small table (the same in every
+  program: delete d, reload r, rename w, ...); the others take the first free
+  letter of one of the words of the name, then the other letters, then a digit
+  1-9; `j k g G q` are never assigned. Entries beyond the characters are counted
+  (the return value) for the program's debug log and stay reachable by the list
+  keys. A quick key runs its entry exactly as Enter does (a serious one asks
+  first); `?` lists them; `q` and Backspace close the menu like Esc. The
+  selection is the table's (dark blue, `>` in bold).
   The program gives it events first and draws it last, as any dialog; it ends
   `TUI_ACTION_CHOSEN` (run entry `m->entry`) or `TUI_ACTION_CANCELLED` (Esc,
   ctrl-c). An action that needs a confirmation opens a confirm dialog titled
@@ -724,7 +735,7 @@ the parts so that a program cannot invent a binding.
   depth 0 (they never quit; call it only where no text field has the cursor); `Esc` is back, and at depth 0, the top level with
   nothing open, quits; `ctrl-c` quits from anywhere.
 - **Tests.** Unit (`test_actions.c`: every refusal, the keys, the pictures with
-  colours at 256 and 8 colours, allocation failures), functional
+  colours at 256 and 8 colours, allocation failures, the quick-key assignment), functional
   (`cap_actions`), and PTY (`test_keys.c` over `tests/pty/keys_fixture.c`, a
   program whose every key is one table: the menu, the confirmation, the help
   matching the keys, the reserved set changing nothing, the way out).

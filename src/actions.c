@@ -220,14 +220,128 @@ static int start_confirm(tui_actionmenu *m, int entry, const char *target) {
     return 0;
 }
 
+/* ── The quick keys ──────────────────────────────────────────────────── */
+
+/* The verbs several programs offer, and the letter each gets in every one
+ * of them (tui-interface-model.md, "Every action in the menu has a quick
+ * key").  No letter here is j, k, g or q. */
+static const struct { const char *verb; char letter; } g_verbs[] = {
+    { "archive", 'a' }, { "start", 'b' },  { "copy", 'c' },    { "delete", 'd' },
+    { "edit", 'e' },    { "forward", 'f' }, { "label", 'l' },  { "move", 'm' },
+    { "new", 'n' },     { "open", 'o' },   { "pause", 'p' },   { "reload", 'r' },
+    { "restart", 't' }, { "unarchive", 'u' }, { "revert", 'v' }, { "rename", 'w' },
+    { "stop", 'x' },
+};
+
+/* A quick key is a letter or a digit 1-9; the list keys (j k g G q) are the
+ * menu's own and never quick keys. */
+static int assignable(int c) {
+    if (c >= '1' && c <= '9') return 1;
+    if (c == 'j' || c == 'k' || c == 'g' || c == 'G' || c == 'q') return 0;
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+static int in_menu(const tui_keyentry *e, const char *view) {
+    return e->action && e->cls != TUI_ACT_HARMLESS && applies(e, view);
+}
+
+static int ascii_lower(int c) {
+    return c >= 'A' && c <= 'Z' ? c + ('a' - 'A') : c;
+}
+
+/* 1 when the first word of @p action is @p verb (case does not matter). */
+static int first_word_is(const char *action, const char *verb) {
+    size_t n = strlen(verb);
+    for (size_t i = 0; i < n; i++)
+        if (ascii_lower((unsigned char)action[i]) != verb[i]) return 0;
+    return action[n] == '\0' || action[n] == ' ';
+}
+
+int tui_keytable_assign_quick(const tui_keytable *t, const char *view, const char *given,
+                              char *out) {
+    if (!t || !out) {
+        errno = EINVAL;
+        return -1;
+    }
+    unsigned char used[128] = { 0 };
+    memset(out, 0, (size_t)t->n);
+    /* 1. The program's own letters win; a repeated or unusable one is ignored. */
+    for (int i = 0; given && i < t->n; i++) {
+        unsigned char c = (unsigned char)given[i];
+        if (in_menu(&t->entries[i], view) && c < 128 && assignable(c) && !used[ascii_lower(c)]) {
+            used[ascii_lower(c)] = 1;
+            out[i] = (char)c;
+        }
+    }
+    /* 2. The common verbs take their table letter, so it is the same everywhere. */
+    for (int i = 0; i < t->n; i++) {
+        if (out[i] || !in_menu(&t->entries[i], view)) continue;
+        for (size_t v = 0; v < sizeof g_verbs / sizeof g_verbs[0]; v++) {
+            unsigned char c = (unsigned char)g_verbs[v].letter;
+            if (first_word_is(t->entries[i].action, g_verbs[v].verb) && !used[c]) {
+                used[c] = 1;
+                out[i] = (char)c;
+                break;
+            }
+        }
+    }
+    /* 3. The rest: the first letters of the words, then the other letters of
+     *    the name, then a digit. */
+    int missing = 0;
+    for (int i = 0; i < t->n; i++) {
+        if (out[i] || !in_menu(&t->entries[i], view)) continue;
+        const char *a = t->entries[i].action;
+        int c = 0;
+        for (const char *p = a; *p && !c; p++) {
+            unsigned char l = (unsigned char)ascii_lower((unsigned char)*p);
+            if ((p == a || p[-1] == ' ') && l < 128 && assignable(l) && !used[l]) c = l;
+        }
+        for (const char *p = a; *p && !c; p++) {
+            unsigned char l = (unsigned char)ascii_lower((unsigned char)*p);
+            if (l < 128 && assignable(l) && !used[l] && l > '9') c = l;
+        }
+        for (int d = '1'; d <= '9' && !c; d++)
+            if (!used[d]) c = d;
+        if (c) {
+            used[c] = 1;
+            out[i] = (char)c;
+        } else {
+            missing++;
+        }
+    }
+    return missing;
+}
+
+/* The menu's help: the quick keys, then the list keys. */
+static const char *const g_menu_help[] = {
+    "letter", "run the entry (a serious one asks first)",
+    "Enter", "run the entry the list stands on",
+    "j, k, arrows", "move",
+    "PgUp, PgDn", "page",
+    "g, G, Home, End", "first, last",
+    "Esc, q, Backspace", "close the menu",
+};
+#define MENU_HELP_ROWS ((int)(sizeof g_menu_help / sizeof g_menu_help[0] / 2))
+
 int tui_actionmenu_open(tui_actionmenu *m, const tui_keytable *t, const char *view,
                         const char *target) {
+    return tui_actionmenu_open_keys(m, t, view, target, NULL);
+}
+
+int tui_actionmenu_open_keys(tui_actionmenu *m, const tui_keytable *t, const char *view,
+                             const char *target, const char *quick) {
     if (!m || !t) {
         errno = EINVAL;
         return -1;
     }
     memset(m, 0, sizeof *m);
     m->table = t;
+    char *letters = malloc((size_t)(t->n ? t->n : 1));
+    if (!letters) {
+        errno = ENOMEM;
+        return -1;
+    }
+    tui_keytable_assign_quick(t, view, quick, letters);
     int count = 0, kw = 0;
     size_t chars = target ? strlen(target) + 1 : 1;
     for (int i = 0; i < t->n; i++) {
@@ -240,20 +354,26 @@ int tui_actionmenu_open(tui_actionmenu *m, const tui_keytable *t, const char *vi
     for (int i = 0; i < t->n; i++) {
         const tui_keyentry *e = &t->entries[i];
         if (e->cls == TUI_ACT_HARMLESS || !applies(e, view)) continue;
-        chars += (size_t)kw + 2 + strlen(e->action) + 1 + (e->desc ? 3 + strlen(e->desc) : 0);
+        chars += 3 + (size_t)kw + 2 + strlen(e->action) + 1 + (e->desc ? 3 + strlen(e->desc) : 0);
     }
-    /* One block: the item pointers, the table indexes, the text. */
+    /* One block: the item pointers, the row count, the table indexes, the
+     * quick key of each row, the text. */
     size_t pbytes = (size_t)(count ? count : 1) * sizeof(char *);
-    size_t ibytes = (size_t)(count ? count : 1) * sizeof(int);
-    char *mem = malloc(pbytes + ibytes + chars);
+    size_t ibytes = (size_t)(count + 1) * sizeof(int);
+    size_t lbytes = ((size_t)count + sizeof(void *) - 1) / sizeof(void *) * sizeof(void *);
+    char *mem = malloc(pbytes + ibytes + lbytes + chars);
     if (!mem) {
+        free(letters);
         errno = ENOMEM;
         return -1;
     }
     m->mem = mem;
     const char **items = (const char **)mem;
-    m->idx = (int *)(mem + pbytes);
-    char *text = mem + pbytes + ibytes;
+    int *ints = (int *)(mem + pbytes);
+    ints[0] = count;
+    m->idx = ints + 1;
+    char *qk = mem + pbytes + ibytes;
+    char *text = qk + lbytes;
     m->target = text;
     if (target) memcpy(text, target, strlen(target) + 1);
     else text[0] = '\0';
@@ -263,14 +383,18 @@ int tui_actionmenu_open(tui_actionmenu *m, const tui_keytable *t, const char *vi
         const tui_keyentry *e = &t->entries[i];
         if (e->cls == TUI_ACT_HARMLESS || !applies(e, view)) continue;
         items[k] = text;
+        qk[k] = letters[i] ? letters[i] : ' ';
         m->idx[k++] = i;
         char kn[32];
         tui_keycode_name(e->key, kn, sizeof kn);
-        text += sprintf(text, "%-*s  %s", kw, kn, e->action);
+        text += sprintf(text, "%c  ", letters[i] ? letters[i] : ' ');
+        if (kw) text += sprintf(text, "%-*s  ", kw, kn);
+        text += sprintf(text, "%s", e->action);
         if (e->desc) text += sprintf(text, " - %s", e->desc);
         text++;
     }
-    if (tui_dialog_menu(&m->dialog, "Actions", items, count, 0) != 0) {
+    free(letters);
+    if (tui__dialog_quickmenu(&m->dialog, "Actions", items, count, 0) != 0) {
         free(mem);
         m->mem = NULL;
         return -1;
@@ -298,24 +422,78 @@ int tui_actionmenu_run(tui_actionmenu *m, const tui_keytable *t, int entry, cons
     return 0;
 }
 
+/* Row @p row was chosen (Enter, or its quick key): run it as Enter does. */
+static void choose_row(tui_actionmenu *m, int row) {
+    int entry = m->idx[row];
+    if (!needs_confirm(&m->table->entries[entry])) {
+        m->entry = entry;
+        m->state = TUI_ACTION_CHOSEN;
+    } else if (start_confirm(m, entry, m->target) != 0) {
+        m->state = TUI_ACTION_CANCELLED;   /* never perform what was not confirmed */
+    }
+}
+
+/* The row of the menu whose quick key is @p ev, or -1. */
+static int quick_row(const tui_actionmenu *m, const tui_event *ev) {
+    if (ev->type != TUI_EV_KEY || ev->key != TUI_KEY_CHAR || ev->mods != 0 || ev->cp >= 128)
+        return -1;
+    const char *qk = (const char *)(m->idx + m->idx[-1]);
+    for (int k = 0; k < m->idx[-1]; k++)
+        if (qk[k] != ' ' && (unsigned char)qk[k] == ev->cp) return k;
+    return -1;
+}
+
 tui_action_state tui_actionmenu_handle(tui_actionmenu *m, const tui_event *ev) {
     if (!m) return TUI_ACTION_CANCELLED;
     if (m->state != TUI_ACTION_OPEN || !m->have_dialog || !ev) return m->state;
+    if (!m->confirming) {
+        /* The menu's own keys, before the list's: a quick key runs its entry,
+         * ? shows them, q and Backspace go back like Esc. */
+        int row = quick_row(m, ev);
+        if (row >= 0) {
+            choose_row(m, row);
+            return m->state;
+        }
+        if (TUI_EV_IS_CHAR(ev, '?')) {
+            int selected = m->dialog.list.selected;
+            tui_dialog_free(&m->dialog);
+            m->have_dialog = 0;
+            if (tui_dialog_help(&m->dialog, "Actions: keys", g_menu_help, MENU_HELP_ROWS) != 0) {
+                m->state = TUI_ACTION_CANCELLED;
+                return m->state;
+            }
+            m->have_dialog = 1;
+            m->confirming = 2;
+            m->entry = selected;   /* where the list stood, until the help closes */
+            return m->state;
+        }
+        if (tui_keycode_of(ev) == TUI_KC_BACK || tui_keycode_of(ev) == TUI_KC_BACKSPACE) {
+            m->state = TUI_ACTION_CANCELLED;
+            return m->state;
+        }
+    }
     tui_dialog_state st = tui_dialog_handle(&m->dialog, ev);
     if (st == TUI_DIALOG_OPEN) return m->state;
+    if (m->confirming == 2) {
+        /* The help closed: back to the menu, on the row it stood on. */
+        tui_dialog_free(&m->dialog);
+        m->have_dialog = 0;
+        if (tui__dialog_quickmenu(&m->dialog, "Actions", (const char *const *)m->mem,
+                                  m->idx[-1], m->entry) != 0) {
+            m->state = TUI_ACTION_CANCELLED;
+            return m->state;
+        }
+        m->have_dialog = 1;
+        m->confirming = 0;
+        return m->state;
+    }
     if (st == TUI_DIALOG_CANCELLED) {
         m->state = TUI_ACTION_CANCELLED;
     } else if (m->confirming) {
         /* Only an answer of Yes performs; Enter on the default No does not. */
         m->state = m->dialog.answer == 1 ? TUI_ACTION_CHOSEN : TUI_ACTION_CANCELLED;
     } else {
-        int entry = m->idx[m->dialog.answer];
-        if (!needs_confirm(&m->table->entries[entry])) {
-            m->entry = entry;
-            m->state = TUI_ACTION_CHOSEN;
-        } else if (start_confirm(m, entry, m->target) != 0) {
-            m->state = TUI_ACTION_CANCELLED;   /* never perform what was not confirmed */
-        }
+        choose_row(m, m->dialog.answer);
     }
     return m->state;
 }
