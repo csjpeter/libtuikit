@@ -59,7 +59,9 @@ enum {
     TUI_ATTR_DIM       = 2,
     TUI_ATTR_ITALIC    = 4,
     TUI_ATTR_UNDERLINE = 8,
-    TUI_ATTR_REVERSE   = 16
+    TUI_ATTR_REVERSE   = 16,
+    TUI_ATTR_STRIKE    = 32,
+    TUI_ATTR_BLINK     = 64
 };
 
 /** @brief How a cell is drawn. */

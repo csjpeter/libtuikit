@@ -479,6 +479,50 @@ cursor position/visibility. Every frame is wrapped in synchronized-update
 mode (`CSI ? 2026 h/l`), which terminals that lack it ignore — see *Open
 questions*.
 
+### 4.5a `tui_scheme` — colour schemes (TUI-64)
+
+`tuikit/scheme.h` implements the "Colour schemes" of
+`policies/tui-interface-model.md`.  Fifteen roles (`tui_role`): text,
+header, status, selection, cursor, accent, frame, input, input.focus,
+tab.active, tab.inactive, ok, error, hint, progress; the key in a file is
+`tui_role_name()`.  `tui_scheme_builtin()` is the built-in style of a role
+and is what `/usr/share/libtuikit/schemes/default.scheme` holds, key by key
+(a unit test compares the two).  The palette macros of `screen.h` keep their
+values; the widgets do not read the scheme yet.
+
+**File format.** `NAME.scheme`, plain text, one `key = fg bg attr,attr` per
+line.  A line whose first non-blank character is `#` is a comment, and so is
+everything from a `#` in the third place on (in the first two a `#` starts a
+`#rrggbb` colour).  A part may be `-` (the terminal's own); trailing parts
+may be left out.  Colours: `default`, `black red green yellow blue magenta
+cyan white`, `bright-` before one of them, an index 0 to 255 (0 to 15 are
+the 16 colours), or `#rrggbb`.  Attributes: `bold dim italic underline
+strike reverse blink` (`TUI_ATTR_STRIKE` is SGR 9, `TUI_ATTR_BLINK` SGR 5).
+Lines are at most 255 bytes, a file at most 65536 bytes.
+
+**Search.** `NAME.scheme` is looked up in `$XDG_CONFIG_HOME/tuikit/schemes/`
+(`$HOME/.config/tuikit/schemes/` when it is unset or not absolute), then in
+`/usr/share/libtuikit/schemes/`.  A name is letters, digits, `_`, `-`, `.`,
+at most 63, not starting with a dot.  `scheme = NAME` in
+`~/.config/tuikit/tuikit.conf` (the same user directory), then in
+`/etc/tuikit/tuikit.conf`, selects it; with none the built-in palette is used.
+
+**Failure.** A missing, unreadable, too long or malformed scheme, line or key
+is counted in a `tui_scheme_report` (the number of problems and the first as
+"origin:line: what") and is harmless: the role keeps its built-in style.  A
+selected scheme named `default` that is not installed is the built-in palette
+and no problem.
+
+**API.** `tui_scheme_load(sc, name, rep)` fills a `tui_scheme` (name `NULL`:
+the selector); `tui_scheme_parse()` applies text; `tui_scheme_defaults()`;
+`tui_scheme_init()` loads the active scheme (done by the first query) and
+`tui_scheme_style(role)` queries it; `tui_scheme_diagnostic()` is the first
+problem of that load, for the program to show once.  `tui_color_reduce(c,
+colors)` maps a colour to what a terminal of 256, 16 or 8 colours shows: the
+nearest of the cube and greys at 256, a channel-threshold map keeping the hue
+below (a dark blue stays blue).  The active scheme is process-wide and not
+thread safe: initialise it before starting threads.
+
 ### 4.6 `tui_canvas` — rectangles, layout, clipping (M4)
 
 ```c

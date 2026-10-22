@@ -4,7 +4,7 @@
 # The build, test, install and package definition of libtuikit.
 
 cmake_minimum_required(VERSION 3.20)
-project(libtuikit VERSION 0.12.0 LANGUAGES C)
+project(libtuikit VERSION 0.13.0 LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Version
@@ -129,6 +129,7 @@ set(TUIKIT_SOURCES
     src/histview.c
     src/lineedit.c
     src/listview.c
+    src/scheme.c
     src/screen.c
     src/selection.c
     src/statusline.c
@@ -281,6 +282,11 @@ set(TUIKIT_MAN3_ALIASES
     tui_screen_fill:tui_screen_new tui_screen_set_cursor:tui_screen_new
     tui_screen_invalidate:tui_screen_new tui_screen_set_sync:tui_screen_new
     tui_screen_render:tui_screen_new
+    tui_role_name:tui_scheme_load tui_role_from_name:tui_scheme_load
+    tui_scheme_builtin:tui_scheme_load tui_scheme_defaults:tui_scheme_load
+    tui_scheme_parse:tui_scheme_load tui_scheme_init:tui_scheme_load
+    tui_scheme_style:tui_scheme_load tui_scheme_diagnostic:tui_scheme_load
+    tui_color_reduce:tui_scheme_load
     tui_canvas_sub:tui_canvas_of tui_canvas_put:tui_canvas_of
     tui_canvas_put_aligned:tui_canvas_of tui_canvas_fill:tui_canvas_of
     tui_canvas_clear:tui_canvas_of tui_canvas_hline:tui_canvas_of
@@ -447,6 +453,10 @@ function(tuikit_write_changelog _pkg)
 "${_pkg} (${TUIKIT_VERSION}) stable; urgency=medium
 
   * Build from git commit ${TUIKIT_GIT_COMMIT}.
+  * 0.13.0: colour schemes (TUI-64): scheme files, the tuikit.conf selector
+    and /usr/share/libtuikit/schemes/default.scheme.  New: tui_scheme_load(),
+    tui_scheme_style(), tui_scheme_init(), tui_color_reduce() and the
+    strike and blink attributes.
   * 0.12.0: every entry of the action menu has a quick key (TUI-62), shown
     in the accent colour at the left; the library assigns it, and the same
     verb gets the same letter in every program.  New:
@@ -512,6 +522,10 @@ configure_file("${CMAKE_SOURCE_DIR}/cmake/libtuikit.pc.in"
 install(FILES "${CMAKE_BINARY_DIR}/libtuikit.pc"
         DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
         COMPONENT dev)
+
+install(FILES "${CMAKE_SOURCE_DIR}/data/schemes/default.scheme"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/libtuikit/schemes"
+        COMPONENT runtime)
 
 install(DIRECTORY "${TUIKIT_MAN_OUT}/man3" "${TUIKIT_MAN_OUT}/man7"
         DESTINATION "${CMAKE_INSTALL_MANDIR}"

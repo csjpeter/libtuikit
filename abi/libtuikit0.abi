@@ -33,6 +33,8 @@ size tui_lineedit 104 8
 size tui_listview 16 4
 size tui_readline_opts 32 8
 size tui_rect 16 4
+size tui_scheme 180 4
+size tui_scheme_report 196 4
 size tui_statusline 920 8
 size tui_style 12 4
 size tui_table 152 8
@@ -67,6 +69,7 @@ symbol tui_canvas_put_aligned
 symbol tui_canvas_set_cursor
 symbol tui_canvas_sub
 symbol tui_canvas_vline
+symbol tui_color_reduce
 symbol tui_cp_sanitize
 symbol tui_cp_width
 symbol tui_decoder_feed
@@ -149,6 +152,15 @@ symbol tui_rect_intersect
 symbol tui_rect_split_h
 symbol tui_rect_split_v
 symbol tui_registry_verb
+symbol tui_role_from_name
+symbol tui_role_name
+symbol tui_scheme_builtin
+symbol tui_scheme_defaults
+symbol tui_scheme_diagnostic
+symbol tui_scheme_init
+symbol tui_scheme_load
+symbol tui_scheme_parse
+symbol tui_scheme_style
 symbol tui_screen_clear
 symbol tui_screen_cols
 symbol tui_screen_fill
