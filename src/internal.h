@@ -92,4 +92,9 @@ static inline tui_key tui__nav_key(const tui_event *ev) {
     }
 }
 
+/* tui_scheme_load() with the three directories given, for the tests. */
+#include "tuikit/scheme.h"
+int tui__scheme_load_in(const char *user_dir, const char *etc_dir, const char *share_dir,
+                        const char *name, tui_scheme *sc, tui_scheme_report *rep);
+
 #endif /* LIBTUIKIT_INTERNAL_H */

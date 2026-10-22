@@ -265,6 +265,8 @@ static void sgr(tui_buf *out, tui_style st) {
     if (st.attrs & TUI_ATTR_ITALIC)    tui_buf_puts(out, ";3");
     if (st.attrs & TUI_ATTR_UNDERLINE) tui_buf_puts(out, ";4");
     if (st.attrs & TUI_ATTR_REVERSE)   tui_buf_puts(out, ";7");
+    if (st.attrs & TUI_ATTR_BLINK)     tui_buf_puts(out, ";5");
+    if (st.attrs & TUI_ATTR_STRIKE)    tui_buf_puts(out, ";9");
     sgr_color(out, st.fg, 0);
     sgr_color(out, st.bg, 1);
     tui_buf_puts(out, "m");

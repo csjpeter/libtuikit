@@ -107,6 +107,16 @@ name the ticket that closes the gap; there is none now.
 | `tui_screen_rows` | `tests/functional/cap_draw.c` | `cap_screen` |
 | `tui_screen_set_cursor` | `tests/functional/cap_draw.c` | `cap_screen` |
 | `tui_screen_set_sync` | `tests/functional/cap_draw.c` | `cap_screen` |
+| `tui_color_reduce` | `tests/functional/cap_draw.c` | `cap_scheme` |
+| `tui_role_from_name` | `tests/functional/cap_draw.c` | `cap_scheme` |
+| `tui_role_name` | `tests/functional/cap_draw.c` | `cap_scheme` |
+| `tui_scheme_builtin` | `tests/functional/cap_draw.c` | `cap_scheme` |
+| `tui_scheme_defaults` | `tests/functional/cap_draw.c` | `cap_scheme` |
+| `tui_scheme_diagnostic` | `tests/functional/cap_draw.c` | `cap_scheme` |
+| `tui_scheme_init` | `tests/functional/cap_draw.c` | `cap_scheme` |
+| `tui_scheme_load` | `tests/functional/cap_draw.c` | `cap_scheme` |
+| `tui_scheme_parse` | `tests/functional/cap_draw.c` | `cap_scheme` |
+| `tui_scheme_style` | `tests/functional/cap_draw.c` | `cap_scheme` |
 | `tui_rect_is_empty` (inline) | `tests/functional/cap_draw.c` | `cap_rect` |
 | `tui_rect_make` (inline) | `tests/functional/cap_draw.c` | `cap_rect` |
 | `tui_style_attrs` (inline) | `tests/functional/cap_draw.c` | `cap_style` |

@@ -1,0 +1,22 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (c) 2026 Peter Csaszar (Császár Péter)
+# Created: 2026-10-22
+# The default colour scheme of libtuikit: exactly the built-in palette (a unit test compares them).
+#
+# key = foreground background attribute,attribute
+# A part may be '-' for the terminal's own.  See tui_scheme_load(3).
+text         = - - -
+header       = white blue bold
+status       = - - reverse
+selection    = - #00005f -
+cursor       = - - reverse
+accent       = cyan - bold
+frame        = cyan - bold
+input        = - - -
+input.focus  = - - underline
+tab.active   = cyan - bold
+tab.inactive = - - -
+ok           = green - bold
+error        = red - bold
+hint         = yellow - -
+progress     = yellow - italic

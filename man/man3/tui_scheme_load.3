@@ -1,0 +1,205 @@
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_SCHEME_LOAD 3 2026-10-22 "libtuikit 0.13" "libtuikit Manual"
+.SH NAME
+tui_scheme_load, tui_scheme_parse, tui_scheme_defaults, tui_scheme_builtin,
+tui_scheme_init, tui_scheme_style, tui_scheme_diagnostic, tui_role_name,
+tui_role_from_name, tui_color_reduce \-
+colour schemes: the style of every role from a scheme file
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/scheme.h>
+.PP
+.BI "int  tui_scheme_load(tui_scheme *" sc ", const char *" name ", tui_scheme_report *" rep );
+.BI "int  tui_scheme_parse(tui_scheme *" sc ", const char *" text ", const char *" origin ", tui_scheme_report *" rep );
+.BI "void tui_scheme_defaults(tui_scheme *" sc );
+.BI "tui_style tui_scheme_builtin(tui_role " role );
+.B "int  tui_scheme_init(void);"
+.BI "tui_style tui_scheme_style(tui_role " role );
+.B "const char *tui_scheme_diagnostic(void);"
+.BI "const char *tui_role_name(tui_role " role );
+.BI "int  tui_role_from_name(const char *" name );
+.BI "tui_color tui_color_reduce(tui_color " c ", int " colors );
+.fi
+.SH DESCRIPTION
+The roles of the interface (the workspace's TUI model) each have a style.
+They are read from a scheme file so that the user can change them; a program
+asks the library for a role and chooses no colour of its own.  The palette
+macros of
+.I tuikit/screen.h
+keep their values.
+.SS Roles
+.B TUI_ROLE_TEXT ,
+.B HEADER ,
+.B STATUS ,
+.B SELECTION ,
+.B CURSOR ,
+.B ACCENT ,
+.B FRAME ,
+.B INPUT ,
+.B INPUT_FOCUS ,
+.B TAB_ACTIVE ,
+.B TAB_INACTIVE ,
+.B OK ,
+.B ERROR ,
+.B HINT
+and
+.BR PROGRESS .
+The keys in a file are
+.BR text ,
+.BR header ,
+.BR status ,
+.BR selection ,
+.BR cursor ,
+.BR accent ,
+.BR frame ,
+.BR input ,
+.BR input.focus ,
+.BR tab.active ,
+.BR tab.inactive ,
+.BR ok ,
+.BR error ,
+.B hint
+and
+.BR progress .
+.BR tui_role_name ()
+gives the key of a role (NULL for a value that is none) and
+.BR tui_role_from_name ()
+the role of a key (\-1 for none).
+.SS File format
+A scheme is a plain text file
+.IB NAME .scheme
+with one
+.RI "``" "key = fg bg attr,attr" ''
+per line.
+A line whose first non-blank character is
+.B #
+is a comment, and so is everything from a
+.B #
+in the third place on; in the first two places a
+.B #
+starts a
+.B #rrggbb
+colour.
+A part may be
+.B \-
+for the terminal's own, and trailing parts may be left out.
+.PP
+Colours:
+.BR default ,
+.BR black ,
+.BR red ,
+.BR green ,
+.BR yellow ,
+.BR blue ,
+.BR magenta ,
+.BR cyan ,
+.BR white ,
+each also with
+.B bright\-
+before it, an index from 0 to 255, or
+.BR #rrggbb .
+Attributes:
+.BR bold ,
+.BR dim ,
+.BR italic ,
+.BR underline ,
+.BR strike ,
+.B reverse
+and
+.BR blink .
+Lines are at most 255 bytes and a file at most 65536 bytes.
+.PP
+.nf
+# example
+error      = red - bold
+selection  = - #000080 -
+header     = white blue bold
+tab.active = cyan - bold,underline
+.fi
+.SS Search order
+.IB NAME .scheme
+is looked up in
+.I $XDG_CONFIG_HOME/tuikit/schemes/
+(or
+.I ~/.config/tuikit/schemes/
+when that is unset or not an absolute path) first, then in
+.IR /usr/share/libtuikit/schemes/ ;
+a user's scheme of a name wins over the system's.
+A name is letters, digits,
+.BR _ ,
+.B \-
+and
+.BR . ,
+at most 63 characters, not starting with a dot.
+.PP
+The name in use is set by the line
+.B "scheme = NAME"
+in
+.I ~/.config/tuikit/tuikit.conf
+(the user directory above), then in
+.IR /etc/tuikit/tuikit.conf ;
+when neither names one, the built-in palette is used.
+The package installs
+.I /usr/share/libtuikit/schemes/default.scheme
+with exactly the built-in styles.
+.SH FUNCTIONS
+.BR tui_scheme_load ()
+fills
+.I sc
+with the built-in styles and applies the scheme
+.I name
+over them; with
+.I name
+NULL the name comes from
+.IR tuikit.conf .
+The scheme named
+.B default
+is the built-in palette when its file is not installed.
+It returns the number of problems; the scheme is usable whatever it is.
+.PP
+.BR tui_scheme_parse ()
+applies the lines of
+.I text
+to
+.IR sc ;
+.I origin
+names the text in the report.
+It returns the number of problems found in it.
+.PP
+.BR tui_scheme_defaults ()
+sets every role to
+.BR tui_scheme_builtin ().
+.PP
+.BR tui_scheme_init ()
+loads the active scheme, the one
+.I tuikit.conf
+selects, and returns the number of problems; the first query does it by
+itself, and calling it again reloads.
+.BR tui_scheme_style ()
+is the style of a role in it (the terminal's default for a bad role) and
+.BR tui_scheme_diagnostic ()
+the first problem of that load, or NULL: the program shows it once.
+The active scheme is process-wide; initialise it before starting threads.
+.PP
+.BR tui_color_reduce ()
+maps a colour to what a terminal of
+.I colors
+(256, 16 or 8) shows: at 256 the nearest of the colour cube and the greys,
+below that the channels from 64 up decide the hue (a dark blue stays blue)
+and, at 16, a channel from 192 up makes it bright.
+The default colour is unchanged.
+.SS The report
+.nf
+typedef struct tui_scheme_report {
+    int  problems;
+    char first[192];   /* "origin:line: what" */
+} tui_scheme_report;
+.fi
+.SH ERRORS
+None is an error in the sense of the return value: a missing, unreadable, too
+long or malformed file, line, key or value is counted as a problem, and the
+role keeps its built-in style.
+.SH SEE ALSO
+.BR libtuikit (3),
+.BR tui_screen_new (3)

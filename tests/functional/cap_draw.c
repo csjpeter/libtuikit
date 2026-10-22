@@ -5,6 +5,8 @@
 
 #include "cap_common.h"
 
+#include <sys/stat.h>
+
 static void cap_screen(void) {
     tui_screen *s = tui_screen_new(4, 20);
     CHECK(s != NULL, "new");
@@ -180,7 +182,68 @@ static void cap_canvas(void) {
     tui_screen_free(s);
 }
 
+static void cap_scheme(void) {
+    CHECK_STR(tui_role_name(TUI_ROLE_TAB_ACTIVE), "tab.active", "role_name");
+    CHECK_INT(tui_role_from_name("input.focus"), TUI_ROLE_INPUT_FOCUS, "role_from_name");
+    CHECK_INT(tui_role_from_name("nope"), -1, "role_from_name of an unknown key");
+    CHECK(tui_style_eq(tui_scheme_builtin(TUI_ROLE_ERROR), TUI_STYLE_ERROR), "builtin is the palette's");
+
+    tui_scheme sc;
+    tui_scheme_defaults(&sc);
+    CHECK(tui_style_eq(sc.styles[TUI_ROLE_HEADER], TUI_STYLE_HEADER), "defaults");
+    tui_scheme_report rep;
+    CHECK_INT(tui_scheme_parse(&sc, "error = green - underline,strike\nbogus = 1\n", "cap", &rep), 1,
+              "parse reports a problem");
+    CHECK_INT(rep.problems, 1, "report");
+    CHECK_HAS(rep.first, "cap:2: unknown key", "report text");
+    CHECK(tui_style_eq(sc.styles[TUI_ROLE_ERROR],
+                       tui_style_make(TUI_GREEN, TUI_COLOR_DEFAULT, TUI_ATTR_UNDERLINE | TUI_ATTR_STRIKE)),
+          "parsed style");
+
+    /* a user scheme, selected by tuikit.conf, through the environment */
+    const char *tmp = getenv("TMPDIR");
+    char dir[256], path[300];
+    snprintf(dir, sizeof dir, "%s/cap-scheme-%d", tmp ? tmp : "/tmp", (int)getpid());
+    snprintf(path, sizeof path, "%s", dir);
+    (void)mkdir(path, 0700);
+    snprintf(path, sizeof path, "%s/tuikit", dir);
+    (void)mkdir(path, 0700);
+    snprintf(path, sizeof path, "%s/tuikit/schemes", dir);
+    (void)mkdir(path, 0700);
+    snprintf(path, sizeof path, "%s/tuikit/schemes/cap.scheme", dir);
+    FILE *f = fopen(path, "w");
+    CHECK(f != NULL, "scheme file written");
+    if (f) { fputs("hint = blue - dim\n", f); fclose(f); }
+    snprintf(path, sizeof path, "%s/tuikit/tuikit.conf", dir);
+    f = fopen(path, "w");
+    CHECK(f != NULL, "conf written");
+    if (f) { fputs("scheme = cap\n", f); fclose(f); }
+    setenv("XDG_CONFIG_HOME", dir, 1);
+    CHECK_INT(tui_scheme_load(&sc, "cap", &rep), 0, "load by name");
+    CHECK_INT(sc.styles[TUI_ROLE_HINT].fg, TUI_BLUE, "loaded");
+    CHECK_INT(tui_scheme_init(), 0, "init selects by tuikit.conf");
+    CHECK(tui_style_eq(tui_scheme_style(TUI_ROLE_HINT), tui_style_make(TUI_BLUE, TUI_COLOR_DEFAULT, TUI_ATTR_DIM)),
+          "the active style");
+    CHECK(tui_scheme_diagnostic() == NULL, "no diagnostic");
+    CHECK_INT(tui_scheme_load(&sc, "no-such-scheme", &rep), 1, "a missing scheme is one problem");
+    unlink(path);
+    snprintf(path, sizeof path, "%s/tuikit/schemes/cap.scheme", dir);
+    unlink(path);
+    snprintf(path, sizeof path, "%s/tuikit/schemes", dir);
+    rmdir(path);
+    snprintf(path, sizeof path, "%s/tuikit", dir);
+    rmdir(path);
+    rmdir(dir);
+    unsetenv("XDG_CONFIG_HOME");
+    CHECK_INT(tui_scheme_init() >= 0, 1, "init again");
+    (void)tui_scheme_diagnostic();
+
+    CHECK_INT(tui_color_reduce(TUI_COLOR_RGB(0, 0, 0x5f), 256), TUI_COLOR_256(17), "reduce to 256");
+    CHECK_INT(tui_color_reduce(TUI_COLOR_RGB(0, 0, 0x5f), 8), TUI_BLUE, "reduce to 8");
+}
+
 int main(void) {
+    cap_scheme();
     cap_screen();
     cap_rect();
     cap_style();
