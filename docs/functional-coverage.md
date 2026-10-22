@@ -363,9 +363,11 @@ name the ticket that closes the gap; there is none now.
 | `tui_actionmenu_free` | `tests/functional/cap_widgets.c` | `cap_actions` |
 | `tui_actionmenu_handle` | `tests/functional/cap_widgets.c` | `cap_actions` |
 | `tui_actionmenu_open` | `tests/functional/cap_widgets.c` | `cap_actions` |
+| `tui_actionmenu_open_keys` | `tests/functional/cap_widgets.c` | `cap_actions` |
 | `tui_actionmenu_render` | `tests/functional/cap_widgets.c` | `cap_actions` |
 | `tui_actionmenu_run` | `tests/functional/cap_widgets.c` | `cap_actions` |
 | `tui_key_reserved` | `tests/functional/cap_widgets.c` | `cap_actions` |
+| `tui_keytable_assign_quick` | `tests/functional/cap_widgets.c` | `cap_actions` |
 | `tui_keycode_name` | `tests/functional/cap_widgets.c` | `cap_actions` |
 | `tui_keycode_of` | `tests/functional/cap_widgets.c` | `cap_actions` |
 | `tui_keyhelp_free` | `tests/functional/cap_widgets.c` | `cap_actions` |

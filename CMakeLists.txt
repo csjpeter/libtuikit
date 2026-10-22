@@ -4,7 +4,7 @@
 # The build, test, install and package definition of libtuikit.
 
 cmake_minimum_required(VERSION 3.20)
-project(libtuikit VERSION 0.11.0 LANGUAGES C)
+project(libtuikit VERSION 0.12.0 LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Version
@@ -356,7 +356,8 @@ set(TUIKIT_MAN3_ALIASES
     tui_dialog_handle:tui_dialog_message tui_dialog_render:tui_dialog_message
     tui_dialog_checklist:tui_dialog_message tui_dialog_is_checked:tui_dialog_message
     tui_dialog_help:tui_dialog_message
-    tui_actionmenu_open:tui_keytable_init tui_keytable_find:tui_keytable_init tui_registry_verb:tui_keytable_init
+    tui_actionmenu_open:tui_keytable_init tui_actionmenu_open_keys:tui_keytable_init
+    tui_keytable_assign_quick:tui_keytable_init tui_keytable_find:tui_keytable_init tui_registry_verb:tui_keytable_init
     tui_key_reserved:tui_keytable_init tui_keycode_of:tui_keytable_init
     tui_keycode_name:tui_keytable_init tui_nav_key:tui_keytable_init
     tui_actionmenu_run:tui_keytable_init tui_actionmenu_handle:tui_keytable_init
@@ -446,6 +447,10 @@ function(tuikit_write_changelog _pkg)
 "${_pkg} (${TUIKIT_VERSION}) stable; urgency=medium
 
   * Build from git commit ${TUIKIT_GIT_COMMIT}.
+  * 0.12.0: every entry of the action menu has a quick key (TUI-62), shown
+    in the accent colour at the left; the library assigns it, and the same
+    verb gets the same letter in every program.  New:
+    tui_keytable_assign_quick(), tui_actionmenu_open_keys().
   * The per-change history is the git history; this file exists because
     Debian policy requires a changelog in every binary package.
 

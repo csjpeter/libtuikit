@@ -323,7 +323,8 @@ static const PtyStyleKey legend[] = {
     { 'A', PTY_ATTR_BOLD, PTY_FG_CYAN, PTY_BG_DEFAULT },      /* the frame and the title */
     { 'S', PTY_ATTR_BOLD | PTY_ATTR_REVERSE, 0, 0 },          /* the focused button */
     { 'B', PTY_ATTR_NONE, 97, PTY_COLOR_IDX(17) },            /* the selected row: 256 colours */
-    { 'M', PTY_ATTR_BOLD, 97, PTY_COLOR_IDX(17) },            /* its '>' */
+    { 'M', PTY_ATTR_BOLD, 97, PTY_COLOR_IDX(17) },            /* its '>' and its quick key */
+    { 'Q', PTY_ATTR_BOLD, PTY_FG_CYAN, PTY_BG_DEFAULT },      /* a quick key: the accent colour */
     { 0, 0, 0, 0 } };
 
 static void test_menu_lists_the_actions_with_their_keys(void) {
@@ -338,27 +339,27 @@ static void test_menu_lists_the_actions_with_their_keys(void) {
     /* Every action of the view but the harmless Reload, the direct key beside it. */
     const char *const expect[] = {
         "", "", "",
-        "        ┌─ Actions ───────────────────────────────┐",
-        "        │ > *  Star                               │",
-        "        │   d  Delete                             │",
-        "        │      Restart service - starts a process │",
-        "        │      Rotate secret                      │",
-        "        └─────────────────────────────────────────┘",
+        "       ┌─ Actions ──────────────────────────────────┐",
+        "       │ > s  *  Star                               │",
+        "       │   d  d  Delete                             │",
+        "       │   t     Restart service - starts a process │",
+        "       │   r     Rotate secret                      │",
+        "       └────────────────────────────────────────────┘",
         "", "", "", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
     const char *const map[] = {
-        "A.MBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB.A",     /* the selected row */
-        "A.........................................A",     /* the next one */
+        "A.MBMBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB.A",    /* the selected row */
+        "A...Q........................................A",       /* the next one: its quick key */
         NULL };
-    ASSERT_REGION_STYLE(f.s, PTY_REGION(4, 8, 2, 43), map, legend);
-    ASSERT_EQ_STR(pty_cell_text(f.s, 4, 10), ">", "the selection marker");
+    ASSERT_REGION_STYLE(f.s, PTY_REGION(4, 7, 2, 46), map, legend);
+    ASSERT_EQ_STR(pty_cell_text(f.s, 4, 9), ">", "the selection marker");
     ASSERT_EQ_INT(pty_cell_bg(f.s, 4, 13), PTY_COLOR_IDX(17), "the selected row: dark blue");
     ASSERT_EQ_INT(pty_cell_bg(f.s, 5, 13), PTY_BG_DEFAULT, "the other rows: the terminal's own");
     ASSERT_EQ_INT(pty_cell_fg(f.s, 3, 9), PTY_FG_CYAN, "the frame is the accent");
     /* Movement keys move; Esc cancels. */
     ASSERT_EQ_INT(menu_send(&m, "j"), TUI_ACTION_OPEN, "j moves");
     fx_draw(&f, &m);
-    ASSERT_EQ_STR(pty_cell_text(f.s, 5, 10), ">", "the marker follows");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 5, 9), ">", "the marker follows");
     ASSERT_EQ_INT(menu_send(&m, "\x1b"), TUI_ACTION_CANCELLED, "Esc cancels");
     ASSERT_EQ_INT(menu_send(&m, "\r"), TUI_ACTION_CANCELLED, "a cancelled menu stays so");
     tui_actionmenu_free(&m);
@@ -505,7 +506,7 @@ static void test_menu_256_colours_and_8_colours(void) {
     char d[160];
     pty_cell_describe(f.s, 4, 13, d, sizeof d);
     ASSERT(strstr(d, "bold") != NULL, "8 colours: the selection is bold");
-    ASSERT_EQ_STR(pty_cell_text(f.s, 4, 10), ">", "the marker is there as well");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 4, 9), ">", "the marker is there as well");
     tui_actionmenu_free(&m);
     if (term) setenv("TERM", term, 1);
     else unsetenv("TERM");
@@ -988,6 +989,251 @@ static void test_help_search_scrolls_and_survives_failures(void) {
 
 /* ── Allocation failures ─────────────────────────────────────────────── */
 
+
+/* ── The quick keys ──────────────────────────────────────────────────── */
+
+#define SIMPLE(name) E("v", TUI_KC_NONE, TUI_VERB_NONE, name, NULL, TUI_ACT_RARE, 0, NULL, 0)
+
+static void assert_quick(const tui_keyentry *e, int n, const char *given, const char *expect,
+                         int missing, const char *what) {
+    tui_keytable t;
+    char out[64];
+    ASSERT_EQ_INT(tui_keytable_init(&t, e, n, NULL, 0), 0, what);
+    ASSERT_EQ_INT(tui_keytable_assign_quick(&t, "v", given, out), missing, what);
+    for (int i = 0; i < n; i++) {
+        char w[96];
+        snprintf(w, sizeof w, "%s: entry %d", what, i);
+        ASSERT_EQ_INT(out[i], expect[i] == '-' ? 0 : expect[i], w);
+    }
+}
+
+static void test_quick_keys_assignment(void) {
+    /* The first free letter of the name, then the next ones, then a digit. */
+    static const tui_keyentry share[] = { SIMPLE("Share"), SIMPLE("Sync"), SIMPLE("Save") };
+    assert_quick(share, 3, NULL, "sya", 0, "automatic: the first free letter");
+    static const tui_keyentry zz[] = { SIMPLE("Zz"), SIMPLE("Zz"), SIMPLE("Zz") };
+    assert_quick(zz, 3, NULL, "z12", 0, "a clash falls to the next letter, then a digit");
+    static const tui_keyentry words[] = { SIMPLE("Show all"), SIMPLE("Sort all") };
+    assert_quick(words, 2, NULL, "sa", 0, "the next word's first letter");
+    /* The list keys are never assigned. */
+    static const tui_keyentry lk[] = { SIMPLE("Jack"), SIMPLE("Quit it"), SIMPLE("Kgj"), SIMPLE("Gq") };
+    assert_quick(lk, 4, NULL, "ai12", 0, "j k g G q are never assigned");
+    /* Explicit letters win and stay unique; unusable ones are ignored. */
+    static const tui_keyentry ex[] = { SIMPLE("Alpha"), SIMPLE("Bravo"), SIMPLE("Charlie"), SIMPLE("Delta") };
+    assert_quick(ex, 4, "bbxx", "brxd", 0, "explicit letters win, a repeated one is automatic");
+    assert_quick(ex, 4, "jqG\0", "abcd", 0, "list keys given are ignored");
+    assert_quick(ex, 4, "\x80\x01:?", "abcd", 0, "unusable letters given are ignored");
+    assert_quick(ex, 4, "D5\0\0", "D5ce", 0, "an uppercase letter and a digit may be given");
+    static const tui_keyentry ver[] = { SIMPLE("Delete"), SIMPLE("Drop") };
+    assert_quick(ver, 2, "-d", "ed", 0, "a given d beats the verb table");
+    /* The verb table: the same letter in every program. */
+    static const tui_keyentry verbs[] = {
+        SIMPLE("Archive"), SIMPLE("Start"), SIMPLE("Copy"), SIMPLE("Delete"), SIMPLE("Edit"),
+        SIMPLE("Forward"), SIMPLE("Label"), SIMPLE("Move"), SIMPLE("New"), SIMPLE("Open"),
+        SIMPLE("Pause"), SIMPLE("Reload"), SIMPLE("Restart"), SIMPLE("Unarchive"),
+        SIMPLE("Revert"), SIMPLE("Rename"), SIMPLE("Stop") };
+    assert_quick(verbs, 17, NULL, "abcdeflmnoprtuvwx", 0, "the verb table");
+    static const tui_keyentry cased[] = { SIMPLE("DELETE all"), SIMPLE("Deleted"), SIMPLE("Del") };
+    assert_quick(cased, 3, NULL, "del", 0, "the verb is the first whole word, any case");
+    /* Delete is d in two menus with different other entries. */
+    static const tui_keyentry m1[] = { SIMPLE("Dump"), SIMPLE("Delete"), SIMPLE("Dig") };
+    static const tui_keyentry m2[] = { SIMPLE("Disable"), SIMPLE("Delete messages") };
+    assert_quick(m1, 3, NULL, "udi", 0, "menu one: delete is d");
+    assert_quick(m2, 2, NULL, "id", 0, "menu two: delete is d");
+    /* More entries than characters: the rest has none and is counted. */
+    static const tui_keyentry many[] = {
+        SIMPLE("Zz"), SIMPLE("Zz"), SIMPLE("Zz"), SIMPLE("Zz"), SIMPLE("Zz"), SIMPLE("Zz"),
+        SIMPLE("Zz"), SIMPLE("Zz"), SIMPLE("Zz"), SIMPLE("Zz"), SIMPLE("Zz"), SIMPLE("Zz") };
+    assert_quick(many, 12, NULL, "z123456789--", 2, "too many entries are counted");
+    /* Only the menu's entries have one. */
+    tui_keytable t;
+    char out[N_TABLE];
+    ASSERT_EQ_INT(tui_keytable_init(&t, g_table, N_TABLE, NULL, 0), 0, "table");
+    ASSERT_EQ_INT(tui_keytable_assign_quick(&t, "list", NULL, out), 0, "list");
+    ASSERT(memcmp(out, "sdtr\0\0\0", 7) == 0, "list: s d t r, none for the harmless and the other view");
+    errno = 0;
+    ASSERT_EQ_INT(tui_keytable_assign_quick(NULL, "list", NULL, out), -1, "no table");
+    ASSERT_EQ_INT(errno, EINVAL, "EINVAL");
+    ASSERT_EQ_INT(tui_keytable_assign_quick(&t, "list", NULL, NULL), -1, "no output");
+}
+
+static void test_quick_key_runs_its_entry(void) {
+    tui_keytable t;
+    tui_keytable_init(&t, g_table, N_TABLE, NULL, 0);
+    tui_actionmenu m;
+    /* A routine entry: chosen at once, as Enter on it does. */
+    ASSERT_EQ_INT(tui_actionmenu_open(&m, &t, "list", "mail 7"), 0, "open");
+    ASSERT_EQ_INT(menu_send(&m, "s"), TUI_ACTION_CHOSEN, "s runs Star");
+    ASSERT_EQ_INT(m.entry, 0, "the entry");
+    tui_actionmenu_free(&m);
+    /* A menu-only entry. */
+    tui_actionmenu_open(&m, &t, "list", "mail 7");
+    ASSERT_EQ_INT(menu_send(&m, "r"), TUI_ACTION_CHOSEN, "r runs Rotate secret");
+    ASSERT_EQ_INT(m.entry, 3, "the entry");
+    tui_actionmenu_free(&m);
+    /* A serious entry opens its confirmation first, and No performs nothing. */
+    Fx f;
+    ASSERT(fx_open(&f, 12, 60) == 0, "fixtures");
+    tui_actionmenu_open(&m, &t, "list", "mail 7");
+    ASSERT_EQ_INT(menu_send(&m, "d"), TUI_ACTION_OPEN, "d asks first");
+    fx_draw(&f, &m);
+    ASSERT(pty_screen_contains(f.s, "Delete mail 7? It cannot be undone."), "the target is named");
+    ASSERT_EQ_INT(menu_send(&m, "\r"), TUI_ACTION_CANCELLED, "Enter on the default No");
+    tui_actionmenu_free(&m);
+    tui_actionmenu_open(&m, &t, "list", "mail 7");
+    menu_send(&m, "t");
+    ASSERT_EQ_INT(m.state, TUI_ACTION_OPEN, "t asks first");
+    ASSERT_EQ_INT(menu_send(&m, "y"), TUI_ACTION_CHOSEN, "Yes performs");
+    ASSERT_EQ_INT(m.entry, 2, "Restart service");
+    tui_actionmenu_free(&m);
+    /* A letter that is no quick key changes nothing; the list keys still work. */
+    tui_actionmenu_open(&m, &t, "list", "mail 7");
+    ASSERT_EQ_INT(menu_send(&m, "zjk"), TUI_ACTION_OPEN, "z, j, k change nothing but the row");
+    ASSERT_EQ_INT(menu_send(&m, "G"), TUI_ACTION_OPEN, "G goes last");
+    ASSERT_EQ_INT(menu_send(&m, "\r"), TUI_ACTION_CHOSEN, "Enter runs the row");
+    ASSERT_EQ_INT(m.entry, 3, "the last entry");
+    tui_actionmenu_free(&m);
+    /* q and Backspace close the menu like Esc. */
+    tui_actionmenu_open(&m, &t, "list", "x");
+    ASSERT_EQ_INT(menu_send(&m, "q"), TUI_ACTION_CANCELLED, "q closes");
+    tui_actionmenu_free(&m);
+    tui_actionmenu_open(&m, &t, "list", "x");
+    ASSERT_EQ_INT(menu_send(&m, "\x7f"), TUI_ACTION_CANCELLED, "Backspace closes");
+    tui_actionmenu_free(&m);
+    /* In a confirmation q is not the menu's: the dialog keeps its own keys. */
+    tui_actionmenu_open(&m, &t, "list", "x");
+    menu_send(&m, "d");
+    ASSERT_EQ_INT(menu_send(&m, "s"), TUI_ACTION_OPEN, "a quick key is no answer to a question");
+    ASSERT_EQ_INT(menu_send(&m, "\x1b"), TUI_ACTION_CANCELLED, "Esc refuses");
+    tui_actionmenu_free(&m);
+    /* Events that are no plain character are not quick keys. */
+    tui_actionmenu_open(&m, &t, "list", "x");
+    tui_event alt = key_ev("\x1b" "s"), ctl = key_ev("\x13");
+    tui_event rs = { .type = TUI_EV_RESIZE };
+    ASSERT_EQ_INT(tui_actionmenu_handle(&m, &alt), TUI_ACTION_OPEN, "Alt+s is not s");
+    ASSERT_EQ_INT(tui_actionmenu_handle(&m, &ctl), TUI_ACTION_OPEN, "ctrl-s is not s");
+    ASSERT_EQ_INT(tui_actionmenu_handle(&m, &rs), TUI_ACTION_OPEN, "a resize is not a key");
+    tui_actionmenu_free(&m);
+    fx_close(&f);
+}
+
+static void test_open_keys_gives_the_programs_letters(void) {
+    tui_keytable t;
+    tui_keytable_init(&t, g_table, N_TABLE, NULL, 0);
+    tui_actionmenu m;
+    /* The program wants x for Star and w for Rotate secret. */
+    char given[N_TABLE] = { 'x', 0, 0, 'w', 0, 0, 0 };
+    ASSERT_EQ_INT(tui_actionmenu_open_keys(&m, &t, "list", "mail 7", given), 0, "open");
+    ASSERT_EQ_INT(menu_send(&m, "s"), TUI_ACTION_OPEN, "s is nothing now");
+    ASSERT_EQ_INT(menu_send(&m, "x"), TUI_ACTION_CHOSEN, "x runs Star");
+    ASSERT_EQ_INT(m.entry, 0, "the entry");
+    tui_actionmenu_free(&m);
+    tui_actionmenu_open_keys(&m, &t, "list", "mail 7", given);
+    ASSERT_EQ_INT(menu_send(&m, "w"), TUI_ACTION_CHOSEN, "w runs Rotate secret");
+    ASSERT_EQ_INT(m.entry, 3, "the entry");
+    tui_actionmenu_free(&m);
+    /* More entries than characters: the rest stay reachable by the list keys. */
+    static tui_keyentry many[12];
+    for (int i = 0; i < 12; i++) many[i] = (tui_keyentry)SIMPLE("Zz");
+    tui_keytable_init(&t, many, 12, NULL, 0);
+    ASSERT_EQ_INT(tui_actionmenu_open(&m, &t, "v", NULL), 0, "open");
+    ASSERT_EQ_INT(menu_send(&m, "GG"), TUI_ACTION_OPEN, "G goes last");
+    ASSERT_EQ_INT(menu_send(&m, "\r"), TUI_ACTION_CHOSEN, "Enter runs it");
+    ASSERT_EQ_INT(m.entry, 11, "the entry with no quick key");
+    tui_actionmenu_free(&m);
+    ASSERT_EQ_INT(tui_actionmenu_open_keys(NULL, &t, "v", NULL, NULL), -1, "no menu");
+}
+
+/* The menu of ten entries, at 80x24 and at 40 columns: the letters are in the
+ * accent colour in a column of their own, and a long entry is cut with an
+ * ellipsis while its letter stays. */
+static const tui_keyentry g_ten[] = {
+    E("v", TUI_KC_DELETE_D, TUI_VERB_DELETE, "Delete", NULL, TUI_ACT_SERIOUS, 1, "Delete %s?", 1),
+    E("v", TUI_KC_NONE, TUI_VERB_NONE, "Restart the whole service and its workers", NULL,
+      TUI_ACT_SERIOUS, 0, "Restart %s?", 2),
+    E("v", TUI_KC_NONE, TUI_VERB_NONE, "Rename", NULL, TUI_ACT_RARE, 0, NULL, 3),
+    E("v", TUI_KC_NONE, TUI_VERB_NONE, "Archive", NULL, TUI_ACT_RARE, 0, NULL, 4),
+    E("v", TUI_KC_NONE, TUI_VERB_NONE, "Label", NULL, TUI_ACT_RARE, 0, NULL, 5),
+    E("v", TUI_KC_MOVE, TUI_VERB_MOVE, "Move", NULL, TUI_ACT_ROUTINE, 0, NULL, 6),
+    E("v", TUI_KC_NONE, TUI_VERB_NONE, "Export", NULL, TUI_ACT_RARE, 0, NULL, 7),
+    E("v", TUI_KC_NONE, TUI_VERB_NONE, "Import", NULL, TUI_ACT_RARE, 0, NULL, 8),
+    E("v", TUI_KC_NONE, TUI_VERB_NONE, "Verify", NULL, TUI_ACT_RARE, 0, NULL, 9),
+    E("v", TUI_KC_NONE, TUI_VERB_NONE, "Zip", NULL, TUI_ACT_RARE, 0, NULL, 10),
+};
+
+static void check_ten(int rows, int cols) {
+    tui_keytable t;
+    ASSERT_EQ_INT(tui_keytable_init(&t, g_ten, 10, NULL, 0), 0, "table");
+    tui_actionmenu m;
+    ASSERT_EQ_INT(tui_actionmenu_open(&m, &t, "v", "x"), 0, "open");
+    char out[10];
+    ASSERT_EQ_INT(tui_keytable_assign_quick(&t, "v", NULL, out), 0, "all assigned");
+    Fx f;
+    ASSERT(fx_open(&f, rows, cols) == 0, "fixtures");
+    fx_draw(&f, &m);
+    /* The box: its top-left corner; the letter column is 4 cells in. */
+    int r0 = -1, c0 = -1;
+    for (int r = 0; r < rows && r0 < 0; r++)
+        for (int c = 0; c < cols; c++)
+            if (strcmp(pty_cell_text(f.s, r, c), "┌") == 0) {
+                r0 = r;
+                c0 = c;
+                break;
+            }
+    ASSERT(r0 >= 0, "the menu is drawn");
+    for (int i = 0; i < 10; i++) {
+        char want[2] = { out[i], '\0' }, w[64];
+        snprintf(w, sizeof w, "row %d: its letter in the letter column", i);
+        ASSERT_EQ_STR(pty_cell_text(f.s, r0 + 1 + i, c0 + 4), want, w);
+        snprintf(w, sizeof w, "row %d: the letter's colour", i);
+        if (i > 0) ASSERT_EQ_INT(pty_cell_fg(f.s, r0 + 1 + i, c0 + 4), PTY_FG_CYAN, w);
+        ASSERT_EQ_STR(pty_cell_text(f.s, r0 + 1 + i, c0 + 5), " ", "a gap after the letter");
+    }
+    ASSERT_EQ_INT(pty_cell_fg(f.s, r0 + 1, c0 + 4), 97, "the selected row keeps the selection's colours");
+    ASSERT(strstr(out, "d") && out[0] == 'd' && out[2] == 'w' && out[3] == 'a' && out[4] == 'l' &&
+           out[5] == 'm', "delete d, rename w, archive a, label l, move m");
+    if (cols >= 60) {
+        ASSERT(pty_screen_contains(f.s, "Restart the whole service and its workers"), "the whole name at 80");
+    } else {
+        ASSERT_EQ_STR(pty_cell_text(f.s, r0 + 2, c0 + 4), "t",
+                      "the long entry keeps its letter at 40 columns");
+        ASSERT(!pty_screen_contains(f.s, "workers"), "the long entry is cut");
+        ASSERT(pty_screen_contains(f.s, "…"), "with an ellipsis");
+    }
+    tui_actionmenu_free(&m);
+    fx_close(&f);
+}
+
+static void test_quick_keys_at_80x24_and_40_columns(void) {
+    check_ten(24, 80);
+    check_ten(24, 40);
+}
+
+static void test_menu_help_lists_the_quick_keys(void) {
+    tui_keytable t;
+    tui_keytable_init(&t, g_table, N_TABLE, NULL, 0);
+    tui_actionmenu m;
+    Fx f;
+    ASSERT(fx_open(&f, 14, 70) == 0, "fixtures");
+    tui_actionmenu_open(&m, &t, "list", "mail 7");
+    menu_send(&m, "jj");
+    ASSERT_EQ_INT(menu_send(&m, "?"), TUI_ACTION_OPEN, "? opens the help");
+    fx_draw(&f, &m);
+    ASSERT(pty_screen_contains(f.s, "letter"), "the help names the letter");
+    ASSERT(pty_screen_contains(f.s, "run the entry"), "letter: run the entry");
+    ASSERT(pty_screen_contains(f.s, "Esc, q, Backspace"), "and the list keys");
+    ASSERT_EQ_INT(menu_send(&m, "s"), TUI_ACTION_OPEN, "a quick key does nothing in the help");
+    ASSERT_EQ_INT(m.state, TUI_ACTION_OPEN, "still open");
+    ASSERT_EQ_INT(menu_send(&m, "q"), TUI_ACTION_OPEN, "q closes the help only");
+    fx_draw(&f, &m);
+    ASSERT(pty_screen_contains(f.s, "Actions"), "the menu is back");
+    ASSERT_EQ_INT(menu_send(&m, "\r"), TUI_ACTION_OPEN, "Enter on the row it stood on (Restart) asks");
+    ASSERT_EQ_INT(menu_send(&m, "y"), TUI_ACTION_CHOSEN, "Yes");
+    ASSERT_EQ_INT(m.entry, 2, "the row the list stood on before the help");
+    tui_actionmenu_free(&m);
+    fx_close(&f);
+}
+
 static void test_allocation_failures(void) {
     fault_reset();
     tui_keytable t;
@@ -995,11 +1241,16 @@ static void test_allocation_failures(void) {
     tui_actionmenu m;
     tui_keyhelp h;
     errno = 0;
-    fault_arm(F_MALLOC, 0, 1, ENOMEM);
+    fault_arm(F_MALLOC, 0, 1, ENOMEM);                      /* the quick keys */
+    ASSERT_EQ_INT(tui_actionmenu_open(&m, &t, "list", "x"), -1, "menu: the quick keys");
+    ASSERT_EQ_INT(errno, ENOMEM, "errno");
+    fault_reset();
+    errno = 0;
+    fault_arm(F_MALLOC, 1, 1, ENOMEM);                      /* the block */
     ASSERT_EQ_INT(tui_actionmenu_open(&m, &t, "list", "x"), -1, "menu: the block");
     ASSERT_EQ_INT(errno, ENOMEM, "errno");
     fault_reset();
-    fault_arm(F_MALLOC, 1, 1, ENOMEM);                      /* the dialog's title copy */
+    fault_arm(F_MALLOC, 2, 1, ENOMEM);                      /* the dialog's title copy */
     ASSERT_EQ_INT(tui_actionmenu_open(&m, &t, "list", "x"), -1, "menu: the dialog");
     fault_reset();
     errno = 0;
@@ -1028,6 +1279,26 @@ static void test_allocation_failures(void) {
     ASSERT_EQ_INT(menu_send(&m, "\r"), TUI_ACTION_CANCELLED, "the question fails: cancelled");
     fault_reset();
     tui_actionmenu_free(&m);
+
+    /* The same through a quick key. */
+    ASSERT_EQ_INT(tui_actionmenu_open(&m, &t, "list", "x"), 0, "open");
+    fault_arm(F_MALLOC, 0, 1, ENOMEM);
+    ASSERT_EQ_INT(menu_send(&m, "d"), TUI_ACTION_CANCELLED, "quick key: the question fails");
+    fault_reset();
+    tui_actionmenu_free(&m);
+
+    /* The menu's help cannot be built, or the menu cannot come back. */
+    ASSERT_EQ_INT(tui_actionmenu_open(&m, &t, "list", "x"), 0, "open");
+    fault_arm(F_MALLOC, 0, 1, ENOMEM);
+    ASSERT_EQ_INT(menu_send(&m, "?"), TUI_ACTION_CANCELLED, "help: no memory, cancelled");
+    fault_reset();
+    tui_actionmenu_free(&m);
+    ASSERT_EQ_INT(tui_actionmenu_open(&m, &t, "list", "x"), 0, "open");
+    ASSERT_EQ_INT(menu_send(&m, "?"), TUI_ACTION_OPEN, "help open");
+    fault_arm(F_MALLOC, 0, 1, ENOMEM);
+    ASSERT_EQ_INT(menu_send(&m, "\x1b"), TUI_ACTION_CANCELLED, "help closed, menu cannot return");
+    fault_reset();
+    tui_actionmenu_free(&m);
 }
 
 static const TestCase tests[] = {
@@ -1047,6 +1318,11 @@ static const TestCase tests[] = {
     TEST_CASE(test_menu_serious_action_asks_naming_the_target),
     TEST_CASE(test_run_by_direct_key),
     TEST_CASE(test_menu_256_colours_and_8_colours),
+    TEST_CASE(test_quick_keys_assignment),
+    TEST_CASE(test_quick_key_runs_its_entry),
+    TEST_CASE(test_open_keys_gives_the_programs_letters),
+    TEST_CASE(test_quick_keys_at_80x24_and_40_columns),
+    TEST_CASE(test_menu_help_lists_the_quick_keys),
     TEST_CASE(test_help_matches_the_handler),
     TEST_CASE(test_help_back_entry),
     TEST_CASE(test_help_picture),

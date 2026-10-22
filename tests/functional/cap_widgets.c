@@ -449,10 +449,16 @@ static void cap_actions(void) {
     char *txt = cap_screen_text(scr, NULL);
     CHECK_HAS(txt, "Actions", "the menu title");
     CHECK_HAS(txt, "Delete", "the action listed");
-    CHECK_HAS(txt, "> *  Star", "the direct key beside the action");
+    CHECK_HAS(txt, "> s  *  Star", "the quick key, then the direct key beside the action");
     CHECK_HAS(txt, "Rotate", "a menu-only action");
     free(txt);
     CAP_TYPE(tui_actionmenu_handle, &m, "j");
+    {
+        char q[8];
+        CHECK_INT(tui_keytable_assign_quick(&t, "list", NULL, q), 0, "every entry has a quick key");
+        CHECK_INT(q[0], 's', "Star is s");
+        CHECK_INT(q[1], 'd', "Delete is d, the verb table's letter");
+    }
     tui_event ent = cap_ev("\r");
     CHECK_INT(tui_actionmenu_handle(&m, &ent), TUI_ACTION_OPEN, "Delete asks first");
     tui_actionmenu_render(&m, tui_canvas_of(scr));
@@ -470,6 +476,20 @@ static void cap_actions(void) {
     tui_event y = cap_ev("y");
     CHECK_INT(tui_actionmenu_handle(&m, &y), TUI_ACTION_CHOSEN, "y performs it");
     tui_actionmenu_free(&m);
+
+    /* A quick key runs its entry as Enter does; the program may give the letters. */
+    {
+        char given[8] = { 'x', 0 };
+        CHECK_INT(tui_actionmenu_open_keys(&m, &t, "list", "mail 7", given), 0, "menu with a given letter");
+        tui_event ks = cap_ev("x");
+        CHECK_INT(tui_actionmenu_handle(&m, &ks), TUI_ACTION_CHOSEN, "the given letter runs Star");
+        tui_actionmenu_free(&m);
+        CHECK_INT(tui_actionmenu_open(&m, &t, "list", "mail 7"), 0, "menu");
+        tui_event kd = cap_ev("d"), kn = cap_ev("n");
+        CHECK_INT(tui_actionmenu_handle(&m, &kd), TUI_ACTION_OPEN, "d asks first");
+        CHECK_INT(tui_actionmenu_handle(&m, &kn), TUI_ACTION_CANCELLED, "n refuses");
+        tui_actionmenu_free(&m);
+    }
 
     tui_keyhelp h;
     CHECK_INT(tui_keyhelp_open(&h, &t, "list", "List shortcuts"), 0, "help");

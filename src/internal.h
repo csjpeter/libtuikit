@@ -37,6 +37,8 @@ int tui__cp_is_bidi_control(uint32_t cp);
 #define TUI__HELP_TEXT_COLS 64
 struct tui_dialog;
 int tui__dialog_help_text(struct tui_dialog *d, const char *text);
+int tui__dialog_quickmenu(struct tui_dialog *d, const char *title, const char *const *items, int n,
+                          int selected);
 
 /* Milliseconds of a monotonic clock. */
 int64_t tui__now_ms(void);

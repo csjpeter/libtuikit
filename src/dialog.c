@@ -81,6 +81,13 @@ int tui_dialog_menu(tui_dialog *d, const char *title, const char *const *items, 
     return 0;
 }
 
+int tui__dialog_quickmenu(tui_dialog *d, const char *title, const char *const *items, int n,
+                          int selected) {
+    if (tui_dialog_menu(d, title, items, n, selected) != 0) return -1;
+    d->kind = TUI_DIALOG_QUICKMENU;
+    return 0;
+}
+
 int tui_dialog_checklist(tui_dialog *d, const char *title, const char *const *items,
                          int n, const unsigned char *initial, int selected) {
     if (tui_dialog_menu(d, title, items, n, selected) != 0) return -1;
@@ -261,6 +268,7 @@ tui_dialog_state tui_dialog_handle(tui_dialog *d, const tui_event *ev) {
         /* Everything else is the menu's. */
         /* FALLTHROUGH */
     case TUI_DIALOG_MENU:
+    case TUI_DIALOG_QUICKMENU:
         if (cancel) return close_with(d, TUI_DIALOG_CANCELLED);
         if (is_key && ev->key == TUI_KEY_ENTER && d->nitems > 0) {
             d->answer = d->list.selected;
@@ -367,6 +375,18 @@ static void draw_item(void *ctx, tui_canvas row, int index, int selected) {
         tui_canvas_put(row, 0, 0, d->checked[index] ? "[x] " : "[ ] ", st);
         row = tui_canvas_sub(row, tui_rect_make(0, 4, 1, tui_canvas_cols(row) - 4));
     }
+    if (d->kind == TUI_DIALOG_QUICKMENU) {
+        /* The first cell of the item is its quick key, in the accent colour
+         * (the selected row keeps the selection's colours, in bold). */
+        tui_style qk = st;
+        qk.attrs = (uint16_t)(qk.attrs | TUI_ATTR_BOLD);
+        if (!selected) qk.fg = TUI_STYLE_ACCENT.fg;
+        char letter[2] = { d->items[index][0], '\0' };
+        tui_canvas_put(row, 0, 0, letter, qk);
+        row = tui_canvas_sub(row, tui_rect_make(0, 1, 1, tui_canvas_cols(row) - 1));
+        tui_canvas_put_aligned(row, 0, d->items[index] + 1, TUI_ALIGN_LEFT, st);
+        return;
+    }
     tui_canvas_put_aligned(row, 0, d->items[index] ? d->items[index] : "", TUI_ALIGN_LEFT, st);
 }
 
@@ -415,7 +435,8 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
         }
         if (key_w + 2 + what_w > want) want = key_w + 2 + what_w;
     }
-    if (d->kind == TUI_DIALOG_MENU || d->kind == TUI_DIALOG_CHECKLIST) {
+    if (d->kind == TUI_DIALOG_MENU || d->kind == TUI_DIALOG_QUICKMENU ||
+        d->kind == TUI_DIALOG_CHECKLIST) {
         int mark = d->kind == TUI_DIALOG_CHECKLIST ? 4 : 0;      /* "[x] " */
         for (int i = 0; i < d->nitems; i++) {
             int w = tui_str_width(d->items[i]) + 2 + mark;
@@ -438,6 +459,7 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     case TUI_DIALOG_CONFIRM: extra = lines > 0 ? 2 : 1; break;   /* blank + buttons */
     case TUI_DIALOG_PROMPT:  extra = 1; break;                     /* the input line */
     case TUI_DIALOG_MENU:
+    case TUI_DIALOG_QUICKMENU:
     case TUI_DIALOG_CHECKLIST: extra = d->nitems > 0 ? d->nitems : 1; break;
     case TUI_DIALOG_HELP:    extra = (d->nitems > 0 ? d->nitems : 1) +
                                      (help_searching(d) || help_filtered(d) ? 1 : 0);
@@ -454,7 +476,8 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     tui_canvas cc = tui_canvas_sub(c, content);
     int rows = tui_canvas_rows(cc);
     /* A menu has no text: its list takes every row. */
-    int is_list = d->kind == TUI_DIALOG_MENU || d->kind == TUI_DIALOG_CHECKLIST ||
+    int is_list = d->kind == TUI_DIALOG_MENU || d->kind == TUI_DIALOG_QUICKMENU ||
+                  d->kind == TUI_DIALOG_CHECKLIST ||
                   d->kind == TUI_DIALOG_HELP;
     int below = is_list ? rows : extra;
     if (d->kind == TUI_DIALOG_HELP) {
@@ -492,6 +515,7 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
         tui_lineedit_render(&d->edit, last, NULL, d->fill);
         break;
     case TUI_DIALOG_MENU:
+    case TUI_DIALOG_QUICKMENU:
     case TUI_DIALOG_CHECKLIST: {
         menu_ctx ctx = { d };
         tui_canvas list = tui_canvas_sub(cc, tui_rect_make(text_rows, 0, below, inner_w));
