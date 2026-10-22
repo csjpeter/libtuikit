@@ -24,6 +24,8 @@ size tui_event 56 8
 size tui_field 152 8
 size tui_fieldset 632 8
 size tui_history 16 8
+size tui_histview 1336 8
+size tui_histview_row 80 8
 size tui_keyentry 56 8
 size tui_keyhelp 288 8
 size tui_keytable 16 8
@@ -98,6 +100,15 @@ symbol tui_history_count
 symbol tui_history_free
 symbol tui_history_get
 symbol tui_history_init
+symbol tui_histview_free
+symbol tui_histview_handle
+symbol tui_histview_init
+symbol tui_histview_modal
+symbol tui_histview_notice
+symbol tui_histview_render
+symbol tui_histview_selected
+symbol tui_histview_set_failed
+symbol tui_histview_set_rows
 symbol tui_key_reserved
 symbol tui_keycode_name
 symbol tui_keycode_of

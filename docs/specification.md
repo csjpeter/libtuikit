@@ -221,6 +221,7 @@ Non-goals:
 | `tuikit/canvas.h` | `tui_rect`, layout splits, clipped drawing, boxes | yes | M4 |
 | `tuikit/listview.h` | scroll + selection, row rendering | yes | M4 |
 | `tuikit/tree.h` | the opening and closing tree over the list view | yes | |
+| `tuikit/histview.h` | the history view: recorded steps in a table, a Revert entry with a confirmation | yes | TUI-63 |
 | `tuikit/table.h` | columns, header, the selection the widget owns | yes | TUI-48 |
 | `tuikit/statusline.h` | the one bottom line: hints that fit, message, wait, position, prompt | yes | TUI-51 |
 | `tuikit/textview.h` | wrapped, scrollable text | yes | M4 |
@@ -531,6 +532,21 @@ widget the program routes events to first.
   close all are functions for the program's `:` menu. Each point has a unit
   test (`tests/unit/test_tree.c`) and the demo has a pty test
   (`tests/pty/test_tree.c`).
+- **`tui_histview`** (TUI-63) — the history view of `policies/undo-model.md`,
+  over `tui_table`. The program gives the steps (`tui_histview_row`: id, time,
+  who, operation, object, thing, old and new value, `reverts`, `revertable`)
+  and a revert callback `(ctx, id, refusal, size)` that returns 0 or -1 with
+  the server's words. Columns: time, who, operation, [object in the recent
+  changes mode], thing, old value, new value and a note ("reverts N", "not
+  revertable"; the second wins when both apply). Keys: the list keys, Esc/q/
+  Backspace back, `?` help from the widget's own key table, `:` the action
+  menu with "Revert" (quick key from the verb table), Enter the same
+  confirmation, which names the step, the thing and what it becomes, No the
+  default. A not-revertable step shows a notice and opens no dialog; a
+  refusal is shown in one line at the bottom; success returns
+  `TUI_HISTVIEW_REVERTED` so the program reloads. Empty state "no recorded
+  changes", error state "could not be read". Tests: `tests/unit/test_histview.c`
+  and `tests/pty/test_histview.c` (fixture `tests/pty/histview_fixture.c`).
 - **`tui_table`** (TUI-48) — columns, a header and the selection, so that a
   program supplies data and column definitions and never paints a row
   (`policies/tui-interface-model.md`, "Lists"). The requirement set is the

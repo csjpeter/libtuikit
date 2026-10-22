@@ -211,6 +211,74 @@ static void cap_tree(void) {
     tui_tree_free(&t);
 }
 
+static int hv_calls;
+static int hv_revert(void *ctx, uint64_t id, char *why, size_t size) {
+    (void)ctx;
+    hv_calls++;
+    if (id == 2) {
+        snprintf(why, size, "a later change overtook step 2");
+        return -1;
+    }
+    return 0;
+}
+
+static void cap_histview(void) {
+    static const tui_histview_row rows[] = {
+        { 1, "2026-10-21 10:00", "ann", "set", "T-1", "status", "NEW", "DONE", 0, 1 },
+        { 2, "2026-10-21 10:05", "bob", "set", "T-1", "title", "a", "b", 0, 1 },
+        { 3, "2026-10-21 10:06", "bob", "send", "T-1", "mail", "", "sent", 0, 0 } };
+    tui_histview h;
+    CHECK_INT(tui_histview_init(&h, TUI_HISTVIEW_OBJECT, hv_revert, NULL), 0, "init");
+    CHECK_INT(tui_histview_selected(&h), -1, "no rows, no selection");
+    tui_screen *s = tui_screen_new(24, 80);
+    tui_histview_render(&h, tui_canvas_of(s));
+    char *txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "no recorded changes", "empty state");
+    free(txt);
+    tui_histview_set_rows(&h, rows, 3);
+    CHECK_INT(tui_histview_selected(&h), 0, "first step selected");
+    tui_histview_set_failed(&h, 1);
+    tui_histview_render(&h, tui_canvas_of(s));
+    txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "could not be read", "error state");
+    free(txt);
+    tui_histview_set_failed(&h, 0);
+    tui_event ev = cap_ev("\r");
+    CHECK_INT(tui_histview_handle(&h, &ev), TUI_HISTVIEW_OPEN, "Enter opens the question");
+    CHECK_INT(tui_histview_modal(&h), 1, "modal");
+    ev = cap_ev("n");
+    tui_histview_handle(&h, &ev);
+    CHECK_INT(hv_calls, 0, "No calls nothing");
+    ev = cap_ev("j");
+    tui_histview_handle(&h, &ev);
+    ev = cap_ev("\r");
+    tui_histview_handle(&h, &ev);
+    ev = cap_ev("y");
+    CHECK_INT(tui_histview_handle(&h, &ev), TUI_HISTVIEW_OPEN, "refused: stay");
+    CHECK_STR(tui_histview_notice(&h), "a later change overtook step 2", "the server's words");
+    tui_histview_render(&h, tui_canvas_of(s));
+    txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "a later change overtook step 2", "refusal drawn");
+    free(txt);
+    ev = cap_ev("k");
+    tui_histview_handle(&h, &ev);
+    ev = cap_ev(":");
+    tui_histview_handle(&h, &ev);
+    ev = cap_ev("\r");
+    tui_histview_handle(&h, &ev);
+    ev = cap_ev("y");
+    CHECK_INT(tui_histview_handle(&h, &ev), TUI_HISTVIEW_REVERTED, "reverted");
+    ev = cap_ev("G");
+    tui_histview_handle(&h, &ev);
+    ev = cap_ev("\r");
+    tui_histview_handle(&h, &ev);
+    CHECK_INT(tui_histview_modal(&h), 0, "not revertable: no dialog");
+    ev = cap_ev("q");
+    CHECK_INT(tui_histview_handle(&h, &ev), TUI_HISTVIEW_BACK, "q goes back");
+    tui_histview_free(&h);
+    tui_screen_free(s);
+}
+
 struct draw_ctx { tui_screen *s; };
 static void draw_row(void *ctx, tui_canvas row, int index, int selected) {
     (void)ctx;
@@ -272,5 +340,6 @@ int main(void) {
     cap_textview();
     cap_listview();
     cap_tree();
+    cap_histview();
     return cap_finish("cap-edit");
 }

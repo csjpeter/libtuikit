@@ -45,6 +45,8 @@ int main(void) {
     SHOW(tui_term_opts);
     SHOW(tui_textedit);
     SHOW(tui_textview);
+    SHOW(tui_histview);
+    SHOW(tui_histview_row);
     SHOW(tui_tree);
     SHOW(tui_treerow);
     SHOW(tui_treeset);
