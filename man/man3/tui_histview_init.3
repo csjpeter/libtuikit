@@ -1,0 +1,99 @@
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_HISTVIEW_INIT 3 2026-10-21 "libtuikit 0.11" "libtuikit Manual"
+.SH NAME
+tui_histview_init, tui_histview_free, tui_histview_set_rows,
+tui_histview_set_failed, tui_histview_selected, tui_histview_notice,
+tui_histview_modal, tui_histview_handle,
+tui_histview_render \- the history view: recorded steps with a Revert entry
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/histview.h>
+.PP
+.B typedef struct tui_histview_row {
+.B "    uint64_t id;  const char *time, *who, *operation, *object, *thing,"
+.B "                  *old_value, *new_value;"
+.B "    uint64_t reverts;  int revertable;"
+.B } tui_histview_row;
+.PP
+.BI "typedef int (*tui_histview_revert_fn)(void *" ctx ", uint64_t " id ,
+.BI "                                     char *" refusal ", size_t " size );
+.PP
+.BI "int  tui_histview_init(tui_histview *" h ", tui_histview_mode " mode ,
+.BI "                       tui_histview_revert_fn " revert ", void *" ctx );
+.BI "void tui_histview_free(tui_histview *" h );
+.BI "void tui_histview_set_rows(tui_histview *" h ", const tui_histview_row *" rows ", int " n );
+.BI "void tui_histview_set_failed(tui_histview *" h ", int " failed );
+.BI "int  tui_histview_selected(const tui_histview *" h );
+.BI "const char *tui_histview_notice(const tui_histview *" h );
+.BI "int  tui_histview_modal(const tui_histview *" h );
+.BI "tui_histview_state tui_histview_handle(tui_histview *" h ", const tui_event *" ev );
+.BI "void tui_histview_render(tui_histview *" h ", tui_canvas " c );
+.fi
+.SH DESCRIPTION
+The history view of policies/undo-model.md, shared by the terminal interfaces.
+The program reads the recorded steps from its server, gives them with
+.BR tui_histview_set_rows ()
+and a callback that asks the server to revert one; the widget draws them in a
+.BR tui_table (3)
+(columns time, who, operation, thing, old value, new value and a note), scrolls
+them with the common list keys and goes back with Esc, q and Backspace.
+.PP
+.I mode
+is
+.B TUI_HISTVIEW_OBJECT
+(the history of one object) or
+.B TUI_HISTVIEW_RECENT
+(recent changes: a column "Object" is added from
+.IR object ).
+The strings of a row are not copied and must stay valid until the next
+.BR tui_histview_set_rows ();
+the selection is kept by step
+.IR id .
+The note column shows "reverts N" for a step with
+.I reverts
+set and "not revertable" for a step with
+.I revertable
+0; a step that is both shows "not revertable".
+With no rows the view shows "no recorded changes";
+.BR tui_histview_set_failed (h,\ 1)
+shows "could not be read" instead.
+.PP
+.BR tui_histview_handle ()
+returns
+.B TUI_HISTVIEW_OPEN
+(stay),
+.B TUI_HISTVIEW_BACK
+(Esc, q or Backspace),
+.B TUI_HISTVIEW_QUIT
+(ctrl-c) or
+.B TUI_HISTVIEW_REVERTED
+(the callback reverted the step: reload the rows).
+The colon key opens the action menu with the entry "Revert" (its quick key comes from
+the library's verb table, see
+.BR tui_keytable_init (3));
+Enter opens the same confirmation at once.
+The confirmation names the step, the thing and what it will become, and No is
+the default: Enter on it does nothing and the callback is not called.
+On Yes the callback is called once with the step's id; it returns 0, or \-1 with
+the server's words in
+.IR refusal ,
+which are shown in one line at the bottom
+.RB ( tui_histview_notice ()).
+A step marked not revertable shows the notice "step N is not revertable" and
+opens no dialog.
+The question mark opens the help, made from the widget's own key table.
+.BR tui_histview_modal ()
+is 1 while the menu, the confirmation or the help is open.
+.BR tui_histview_render ()
+draws everything into
+.IR c ,
+the dialogs centred on top; the table's colours are the table's
+.RB ( tui_table_set_colors (3)
+on the
+.I table
+member).
+.SH SEE ALSO
+.BR tui_table_init (3),
+.BR tui_keytable_init (3),
+.BR libtuikit (7)

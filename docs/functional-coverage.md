@@ -194,6 +194,20 @@ name the ticket that closes the gap; there is none now.
 | `tui_textedit_set_text` | `tests/functional/cap_edit.c` | `cap_textedit` |
 | `tui_textedit_summary` | `tests/functional/cap_edit.c` | `cap_textedit` |
 
+## History view
+
+| Capability | Functional test | Phase |
+|---|---|---|
+| `tui_histview_free` | `tests/functional/cap_edit.c` | `cap_histview` |
+| `tui_histview_handle` | `tests/functional/cap_edit.c` | `cap_histview` |
+| `tui_histview_init` | `tests/functional/cap_edit.c` | `cap_histview` |
+| `tui_histview_modal` | `tests/functional/cap_edit.c` | `cap_histview` |
+| `tui_histview_notice` | `tests/functional/cap_edit.c` | `cap_histview` |
+| `tui_histview_render` | `tests/functional/cap_edit.c` | `cap_histview` |
+| `tui_histview_selected` | `tests/functional/cap_edit.c` | `cap_histview` |
+| `tui_histview_set_failed` | `tests/functional/cap_edit.c` | `cap_histview` |
+| `tui_histview_set_rows` | `tests/functional/cap_edit.c` | `cap_histview` |
+
 ## Tree
 
 | Capability | Functional test | Phase |

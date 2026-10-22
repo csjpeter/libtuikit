@@ -18,6 +18,7 @@
 #include "tuikit/dialog.h"
 #include "tuikit/event.h"
 #include "tuikit/fieldset.h"
+#include "tuikit/histview.h"
 #include "tuikit/lineedit.h"
 #include "tuikit/listview.h"
 #include "tuikit/tree.h"
