@@ -101,6 +101,40 @@ left="$(cd "$FIX/src/build/packages" && find . -mindepth 1 | wc -l)"
 if [ "$left" -eq 0 ]; then pass "build/packages is empty"
 else fail "build/packages holds $left entries after a failed run"; fi
 
+echo "--- a package build in a git checkout is tagged vX.Y.Z.N"
+(
+    cd "$FIX/src"
+    git init -q .
+    git config user.email t@example.org
+    git config user.name t
+    git add -A -- . ':!build'
+    git commit -q -m "TUI-1 first"
+    git commit -q --allow-empty -m "TUI-2 second"
+    git init -q --bare "$FIX/origin.git"
+    git remote add origin "$FIX/origin.git"
+)
+rc=0
+"$FIX/src/manage.sh" package deb > "$FIX/tag.log" 2>&1 || rc=$?
+if [ "$rc" -eq 0 ]; then pass "package deb in a checkout exits 0"
+else fail "package deb in a checkout exits $rc; log follows"; cat "$FIX/tag.log" >&2; fi
+pver="$(dpkg-deb -f "$(find "$FIX/src/build/packages" -name 'libtuikit0_*.deb' | head -n 1)" Version)"
+if [ "$pver" = "$(cd "$FIX/src" && sed -n 's/^project(libtuikit VERSION \([0-9.]*\) .*/\1/p' CMakeLists.txt).2" ]; then
+    pass "version is project version + commit count ($pver)"
+else fail "unexpected version '$pver'"; fi
+if [ "$(git -C "$FIX/src" rev-parse "v$pver^{commit}")" = "$(git -C "$FIX/src" rev-parse HEAD)" ]; then
+    pass "v$pver is on the built commit"
+else fail "v$pver is missing or on another commit"; fi
+if [ "$(git -C "$FIX/src" cat-file -t "v$pver")" = "tag" ]; then pass "the tag is annotated"
+else fail "the tag is not annotated"; fi
+if git -C "$FIX/src" tag -l --format='%(contents)' "v$pver" | grep -q 'TUI-1 TUI-2'; then pass "the tag message names the tickets"
+else fail "the tag message lacks the ticket keys"; fi
+if git -C "$FIX/origin.git" rev-parse -q --verify "refs/tags/v$pver" > /dev/null; then pass "the tag is pushed"
+else fail "the tag is not pushed"; fi
+rc=0
+"$FIX/src/manage.sh" package deb > "$FIX/tag2.log" 2>&1 || rc=$?
+if [ "$rc" -eq 0 ]; then pass "the same build again, same tag, exits 0"
+else fail "second package run exits $rc; log follows"; cat "$FIX/tag2.log" >&2; fi
+
 echo "Assertions run: $run, failed: $failed"
 if [ "$run" -lt 10 ]; then
     echo "FAIL: $run assertions, fewer than the floor of 10" >&2

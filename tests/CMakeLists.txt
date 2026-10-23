@@ -151,6 +151,7 @@ project_test(unit check-license  SCRIPT unit/check_license.sh ARGS ${CMAKE_SOURC
 project_test(unit check-headers  SCRIPT unit/check_headers.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
 # No widget names a colour: they take the roles of the scheme (TUI-65).
 project_test(unit check-roles    SCRIPT unit/check_roles.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
+project_test(unit check-version  SCRIPT unit/check_version.sh ARGS ${CMAKE_SOURCE_DIR} ${TUIKIT_TEST_TMPDIR} TIMEOUT 60)
 project_test(unit check-platform  SCRIPT unit/check_platform.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
 project_test(unit check-private-names SCRIPT unit/check_private_names.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
 # Every declared test is in bin/, and nothing else is.
