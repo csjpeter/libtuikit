@@ -445,13 +445,17 @@ typedef uint32_t tui_color;    /* TUI_COLOR_DEFAULT, TUI_COLOR_16(n),
                                   TUI_COLOR_256(n), TUI_COLOR_RGB(r,g,b) */
 typedef struct { tui_color fg, bg; uint16_t attrs; } tui_style;
 
-/* The palette of policies/tui-interface-model.md, the widgets' defaults:
- * TUI_STYLE_HEADER (bold white on blue), TUI_STYLE_SELECTION (the
+/* The palette of policies/tui-interface-model.md, the widgets' defaults.
+ * Each macro is a run-time lookup of a role of the active colour scheme
+ * (section 4.5a), a value and not a constant (no static initialiser):
+ * TUI_STYLE_HEADER (role header; bold white on blue by default),
+ * TUI_STYLE_SELECTION (tui_selection_style(): role selection; the
  * selection of tui_table, drawn by it, tui_dialog menus and tui_fieldset
  * candidate lists for the colour depth of COLORTERM/TERM; bold reverse
- * video is its value as a style), TUI_STYLE_ACCENT (bold cyan), TUI_STYLE_OK (bold green),
- * TUI_STYLE_ERROR (bold red), TUI_STYLE_HINT (yellow),
- * TUI_STYLE_PROGRESS (italic yellow). */
+ * video is the built-in's value as a style), TUI_STYLE_ACCENT (accent; bold
+ * cyan), TUI_STYLE_OK (ok; bold green), TUI_STYLE_ERROR (error; bold red),
+ * TUI_STYLE_HINT (hint; yellow), TUI_STYLE_PROGRESS (progress; italic
+ * yellow). */
 
 typedef struct tui_screen tui_screen;            /* opaque: owns two grids */
 tui_screen *tui_screen_new(int rows, int cols);
@@ -487,8 +491,8 @@ header, status, selection, cursor, accent, frame, input, input.focus,
 tab.active, tab.inactive, ok, error, hint, progress; the key in a file is
 `tui_role_name()`.  `tui_scheme_builtin()` is the built-in style of a role
 and is what `/usr/share/libtuikit/schemes/default.scheme` holds, key by key
-(a unit test compares the two).  The palette macros of `screen.h` keep their
-values; the widgets do not read the scheme yet.
+(a unit test compares the two).  The widgets draw with the roles (TUI-65,
+below) and the palette macros of `screen.h` are run-time lookups of them.
 
 **File format.** `NAME.scheme`, plain text, one `key = fg bg attr,attr` per
 line.  A line whose first non-blank character is `#` is a comment, and so is
@@ -522,6 +526,34 @@ colors)` maps a colour to what a terminal of 256, 16 or 8 colours shows: the
 nearest of the cube and greys at 256, a channel-threshold map keeping the hue
 below (a dark blue stays blue).  The active scheme is process-wide and not
 thread safe: initialise it before starting threads.
+
+**Roles in the widgets (TUI-65).** With no scheme chosen the output is cell
+for cell what it was.  A style a program sets on a widget stays its own
+choice and is drawn as it is; only the widgets' defaults are roles.
+
+| Widget | Roles |
+|---|---|
+| `tui_table`, `tui_histview` | `text` (unstyled rows, blank, message in dim), `text`+bold (header row), `selection` (the one selection, by colour depth) |
+| `tui_dialog` message, confirm, prompt, menu, checklist, quick menu, help | `text` (fill), `frame` (the frame, and the matched words of the help), `selection` (a menu row; the buttons in focus in bold, bold reverse built-in), `accent` (a quick key), `input.focus` over `input` (the prompt's field) |
+| `tui_fieldset` | `text` (labels, candidates), `accent` (the focused label, a choice), `input` and `input.focus` (a text value), `selection` (the chosen candidate), `error` |
+| `tui_statusline` | `status` (the bar), `text` (a message, plus reverse), `progress` (the wait text), the style the program passes for a message (`error`, `ok`) |
+| `tui_actionmenu` | as the quick menu |
+
+Not drawn by a widget: `cursor` (the terminal's own cursor is positioned),
+`tab.active`, `tab.inactive` (there is no tabs widget yet).  Information is
+never carried by colour alone: the `>` mark, the bold button, the `[x]`
+boxes and the status line's reverse video stay whatever the scheme.  The
+built-in `input.focus` has no attribute (the focused field is told by its
+label and the cursor).
+
+**API change for consumers.** `TUI_STYLE_HEADER`, `_SELECTION`, `_ACCENT`,
+`_OK`, `_ERROR`, `_HINT` and `_PROGRESS` were compound-literal constants and
+are expressions now: used as values (an argument, an assignment, a local
+initialiser) they compile unchanged; as a static initialiser they no longer
+compile and must be set at run time.  `TUI_STYLE_DEFAULT` stays a constant.
+`tui_selection_style()` is `TUI_STYLE_SELECTION`.  The number moved is the
+minor, 0.14.0 (no function or struct changed; abi/libtuikit0.abi gains
+`tui_selection_style`).
 
 ### 4.6 `tui_canvas` — rectangles, layout, clipping (M4)
 

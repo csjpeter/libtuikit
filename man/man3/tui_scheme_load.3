@@ -1,10 +1,10 @@
 .\" SPDX-License-Identifier: GPL-3.0-only
 .\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
-.TH TUI_SCHEME_LOAD 3 2026-10-22 "libtuikit 0.13" "libtuikit Manual"
+.TH TUI_SCHEME_LOAD 3 2026-10-22 "libtuikit 0.14" "libtuikit Manual"
 .SH NAME
 tui_scheme_load, tui_scheme_parse, tui_scheme_defaults, tui_scheme_builtin,
 tui_scheme_init, tui_scheme_style, tui_scheme_diagnostic, tui_role_name,
-tui_role_from_name, tui_color_reduce \-
+tui_role_from_name, tui_color_reduce, tui_selection_style \-
 colour schemes: the style of every role from a scheme file
 .SH SYNOPSIS
 .nf
@@ -20,14 +20,60 @@ colour schemes: the style of every role from a scheme file
 .BI "const char *tui_role_name(tui_role " role );
 .BI "int  tui_role_from_name(const char *" name );
 .BI "tui_color tui_color_reduce(tui_color " c ", int " colors );
+.B "tui_style tui_selection_style(void);"
 .fi
 .SH DESCRIPTION
 The roles of the interface (the workspace's TUI model) each have a style.
 They are read from a scheme file so that the user can change them; a program
-asks the library for a role and chooses no colour of its own.  The palette
+asks the library for a role and chooses no colour of its own.
+Every widget draws with the roles of the active scheme, and the palette
 macros of
 .I tuikit/screen.h
-keep their values.
+(TUI_STYLE_HEADER, _SELECTION, _ACCENT, _OK, _ERROR, _HINT, _PROGRESS)
+are run-time lookups of the roles
+.BR header ,
+.BR selection ,
+.BR accent ,
+.BR ok ,
+.BR error ,
+.B hint
+and
+.BR progress :
+still values, but not constants, so they cannot initialise a static object.
+.BR tui_selection_style ()
+is TUI_STYLE_SELECTION: the scheme's selection, and bold reverse video for the
+built-in one (the built-in dark blue row is drawn by the table, the menus and
+the candidate lists, by colour depth, and needs the row's own colours).
+With no scheme chosen every widget draws exactly as before.
+.SS Which role each widget uses
+.TP
+.B table, list, tree rows
+text; the header row text and bold; selection
+.TP
+.B dialog fill, text
+text; frame: frame; buttons in focus: selection, bold
+.TP
+.B menu, checklist, quick keys
+text; selection; quick key: accent
+.TP
+.B fieldset
+text (labels), accent (focused label), input / input.focus (a text value), selection (candidates), error
+.TP
+.B status line
+status (the bar), text (a message), error, ok, progress
+.TP
+.B prompt line of a dialog
+input.focus
+.TP
+.B help overlay
+text, frame (the matched words)
+The roles
+.BR cursor
+(the terminal's own cursor is used),
+.B tab.active
+and
+.B tab.inactive
+(there is no tabs widget yet) are not drawn by a widget.
 .SS Roles
 .B TUI_ROLE_TEXT ,
 .B HEADER ,

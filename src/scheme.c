@@ -46,7 +46,6 @@ tui_style tui_scheme_builtin(tui_role role) {
     case TUI_ROLE_CURSOR:       return tui_style_attrs(TUI_ATTR_REVERSE);
     case TUI_ROLE_ACCENT:       return tui_style_make(TUI_CYAN, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD);
     case TUI_ROLE_FRAME:        return tui_style_make(TUI_CYAN, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD);
-    case TUI_ROLE_INPUT_FOCUS:  return tui_style_attrs(TUI_ATTR_UNDERLINE);
     case TUI_ROLE_TAB_ACTIVE:   return tui_style_make(TUI_CYAN, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD);
     case TUI_ROLE_OK:           return tui_style_make(TUI_GREEN, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD);
     case TUI_ROLE_ERROR:        return tui_style_make(TUI_RED, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD);

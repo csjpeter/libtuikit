@@ -176,10 +176,10 @@ static void layout(const tui_statusline *sl, int cols, int hints_only, line *ln)
 void tui_statusline_init(tui_statusline *sl) {
     if (!sl) return;
     memset(sl, 0, sizeof(*sl));
-    sl->bar = tui_style_attrs(TUI_ATTR_REVERSE);
+    sl->bar = tui_scheme_style(TUI_ROLE_STATUS);
     sl->help_key = "?";
     sl->help_label = "help";
-    sl->msg_style = TUI_STYLE_DEFAULT;
+    sl->msg_style = tui_scheme_style(TUI_ROLE_TEXT);
     tui_lineedit_init(&sl->le, sl->pbuf, sizeof(sl->pbuf), "");
 }
 

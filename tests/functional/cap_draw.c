@@ -238,6 +238,8 @@ static void cap_scheme(void) {
     CHECK_INT(tui_scheme_init() >= 0, 1, "init again");
     (void)tui_scheme_diagnostic();
 
+    CHECK(tui_style_eq(tui_selection_style(), tui_style_attrs(TUI_ATTR_BOLD | TUI_ATTR_REVERSE)),
+          "the built-in selection is bold reverse as a value");
     CHECK_INT(tui_color_reduce(TUI_COLOR_RGB(0, 0, 0x5f), 256), TUI_COLOR_256(17), "reduce to 256");
     CHECK_INT(tui_color_reduce(TUI_COLOR_RGB(0, 0, 0x5f), 8), TUI_BLUE, "reduce to 8");
 }

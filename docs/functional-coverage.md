@@ -117,6 +117,7 @@ name the ticket that closes the gap; there is none now.
 | `tui_scheme_load` | `tests/functional/cap_draw.c` | `cap_scheme` |
 | `tui_scheme_parse` | `tests/functional/cap_draw.c` | `cap_scheme` |
 | `tui_scheme_style` | `tests/functional/cap_draw.c` | `cap_scheme` |
+| `tui_selection_style` | `tests/functional/cap_draw.c` | `cap_scheme` |
 | `tui_rect_is_empty` (inline) | `tests/functional/cap_draw.c` | `cap_rect` |
 | `tui_rect_make` (inline) | `tests/functional/cap_draw.c` | `cap_rect` |
 | `tui_style_attrs` (inline) | `tests/functional/cap_draw.c` | `cap_style` |

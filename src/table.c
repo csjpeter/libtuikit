@@ -182,8 +182,10 @@ void tui_table_init(tui_table *t, const tui_table_col *cols, int ncols,
     t->cols = cols;
     t->ncols = cols && ncols > 0 ? ncols : 0;
     if (model) t->model = *model;
-    t->header = tui_style_attrs(TUI_ATTR_BOLD);
-    t->message_style = tui_style_attrs(TUI_ATTR_DIM);
+    t->header = tui_scheme_style(TUI_ROLE_TEXT);
+    t->header.attrs = (uint16_t)(t->header.attrs | TUI_ATTR_BOLD);
+    t->message_style = tui_scheme_style(TUI_ROLE_TEXT);
+    t->message_style.attrs = (uint16_t)(t->message_style.attrs | TUI_ATTR_DIM);
     tui_table_set_colors(t, tui__colors_from_env());
 }
 
@@ -466,6 +468,16 @@ int tui_table_widths(const tui_table *t, int cols, int *widths) {
 
 /* ── Styles ────────────────────────────────────────────────────────── */
 
+/* A row's style over the text role: what the row leaves to the terminal is
+ * the scheme's own plain text. */
+static tui_style over_text(tui_style st) {
+    tui_style tx = tui_scheme_style(TUI_ROLE_TEXT);
+    if (st.fg == TUI_COLOR_DEFAULT) st.fg = tx.fg;
+    if (st.bg == TUI_COLOR_DEFAULT) st.bg = tx.bg;
+    st.attrs = (uint16_t)(st.attrs | tx.attrs);
+    return st;
+}
+
 /* The style of a span: see tui__selection_compose(). */
 static tui_style compose(const tui_table *t, tui_style row, tui_style span, int selected) {
     return tui__selection_compose(t->selection, row, span, selected);
@@ -593,6 +605,7 @@ static void draw_row(const tui_table *t, tui_canvas row, int index, int selected
                      tui_style blank) {
     tui_table_row r;
     row_describe(t, index, &r);
+    r.style = over_text(r.style);
     int sel = selected && r.kind == TUI_ROW_DATA;
     tui_style base = compose(t, r.style, TUI_STYLE_DEFAULT, 0);
     tui_canvas_clear(row, sel ? selected_base(t, r.style)
@@ -669,7 +682,8 @@ int tui_table_render_row(tui_table *t, tui_canvas c, int index) {
         return 0;
     int line = header_rows(t) + (index - t->lv.scroll_top);
     if (line >= tui_canvas_rows(c)) return 0;
-    draw_row(t, row_canvas(c, line), index, index == t->lv.selected, TUI_STYLE_DEFAULT);
+    draw_row(t, row_canvas(c, line), index, index == t->lv.selected,
+             tui_scheme_style(TUI_ROLE_TEXT));
     return 1;
 }
 

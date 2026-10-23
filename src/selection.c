@@ -21,10 +21,49 @@ int tui__colors_from_env(void) {
     return 16;
 }
 
+static int same_style(tui_style a, tui_style b) {
+    return a.fg == b.fg && a.bg == b.bg && a.attrs == b.attrs;
+}
+
 tui_style tui__selection_base(int colors) {
+    tui_style cur = tui_scheme_style(TUI_ROLE_SELECTION);
+    if (!same_style(cur, tui_scheme_builtin(TUI_ROLE_SELECTION))) {
+        /* The scheme's own selection: its colours at the colour depth. */
+        if (colors < 256) {
+            cur.fg = tui_color_reduce(cur.fg, colors);
+            cur.bg = tui_color_reduce(cur.bg, colors);
+        }
+        return cur;
+    }
+    /* The built-in one: a dark blue background by depth, bold at 8. */
     if (colors >= 256) return tui_style_make(TUI_COLOR_DEFAULT, TUI_COLOR_256(17), 0);
     if (colors >= 16) return tui_style_make(TUI_COLOR_DEFAULT, TUI_BLUE, 0);
     return tui_style_attrs(TUI_ATTR_BOLD);
+}
+
+tui_style tui_selection_style(void) {
+    tui_style cur = tui_scheme_style(TUI_ROLE_SELECTION);
+    if (same_style(cur, tui_scheme_builtin(TUI_ROLE_SELECTION)))
+        return tui_style_attrs(TUI_ATTR_BOLD | TUI_ATTR_REVERSE);
+    return cur;
+}
+
+tui_style tui__button_focus(tui_style focus) {
+    if (!tui__is_default_selection(focus)) return focus;
+    tui_style cur = tui_selection_style();
+    cur.attrs = (uint16_t)(cur.attrs | TUI_ATTR_BOLD);  /* not by colour alone */
+    return cur;
+}
+
+tui_style tui__input_style(tui_style st, int focused) {
+    tui_style in = tui_scheme_style(TUI_ROLE_INPUT);
+    if (!same_style(st, in)) return st;  /* the program's own choice */
+    if (!focused) return in;
+    tui_style fo = tui_scheme_style(TUI_ROLE_INPUT_FOCUS);
+    if (fo.fg != TUI_COLOR_DEFAULT) in.fg = fo.fg;
+    if (fo.bg != TUI_COLOR_DEFAULT) in.bg = fo.bg;
+    in.attrs = (uint16_t)(in.attrs | fo.attrs);
+    return in;
 }
 
 tui_style tui__selection_compose(tui_style sel, tui_style row, tui_style span, int selected) {
@@ -52,6 +91,5 @@ tui_style tui__selection_compose(tui_style sel, tui_style row, tui_style span, i
 }
 
 int tui__is_default_selection(tui_style st) {
-    tui_style d = TUI_STYLE_SELECTION;
-    return st.fg == d.fg && st.bg == d.bg && st.attrs == d.attrs;
+    return same_style(st, tui_selection_style());
 }

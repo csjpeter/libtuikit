@@ -30,9 +30,9 @@ static int setup(tui_dialog *d, tui_dialog_kind kind, const char *title, const c
     memset(d, 0, sizeof(*d));
     d->kind = kind;
     d->state = TUI_DIALOG_OPEN;
-    d->frame = TUI_STYLE_ACCENT;          /* the palette's roles */
-    d->fill = TUI_STYLE_DEFAULT;
-    d->focus = TUI_STYLE_SELECTION;
+    d->frame = tui_scheme_style(TUI_ROLE_FRAME);   /* the scheme's roles */
+    d->fill = tui_scheme_style(TUI_ROLE_TEXT);
+    d->focus = tui_selection_style();
     tui_textview_init(&d->body);
     tui_listview_init(&d->list);
     d->title = dup_or_empty(title);
@@ -360,7 +360,7 @@ static void draw_item(void *ctx, tui_canvas row, int index, int selected) {
     if (selected) {
         if (tui__is_default_selection(d->focus))
             st = tui__selection_compose(tui__selection_base(tui__colors_from_env()), d->fill,
-                                        TUI_STYLE_DEFAULT, 1);
+                                        tui_style_attrs(0), 1);
         else
             st = d->focus;
     }
@@ -380,7 +380,7 @@ static void draw_item(void *ctx, tui_canvas row, int index, int selected) {
          * (the selected row keeps the selection's colours, in bold). */
         tui_style qk = st;
         qk.attrs = (uint16_t)(qk.attrs | TUI_ATTR_BOLD);
-        if (!selected) qk.fg = TUI_STYLE_ACCENT.fg;
+        if (!selected) qk.fg = tui_scheme_style(TUI_ROLE_ACCENT).fg;
         char letter[2] = { d->items[index][0], '\0' };
         tui_canvas_put(row, 0, 0, letter, qk);
         row = tui_canvas_sub(row, tui_rect_make(0, 1, 1, tui_canvas_cols(row) - 1));
@@ -502,17 +502,17 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     tui_screen_set_cursor(c.screen, 0, 0, 0);
     switch (d->kind) {
     case TUI_DIALOG_MESSAGE:
-        tui_canvas_put_aligned(last, 0, "[ OK ]", TUI_ALIGN_CENTER, d->focus);
+        tui_canvas_put_aligned(last, 0, "[ OK ]", TUI_ALIGN_CENTER, tui__button_focus(d->focus));
         break;
     case TUI_DIALOG_CONFIRM: {
         int start = (tui_canvas_cols(last) - 15) / 2;
         if (start < 0) start = 0;
-        tui_canvas_put(last, 0, start, "[ Yes ]", d->answer ? d->focus : d->fill);
-        tui_canvas_put(last, 0, start + 9, "[ No ]", d->answer ? d->fill : d->focus);
+        tui_canvas_put(last, 0, start, "[ Yes ]", d->answer ? tui__button_focus(d->focus) : d->fill);
+        tui_canvas_put(last, 0, start + 9, "[ No ]", d->answer ? d->fill : tui__button_focus(d->focus));
         break;
     }
     case TUI_DIALOG_PROMPT:
-        tui_lineedit_render(&d->edit, last, NULL, d->fill);
+        tui_lineedit_render(&d->edit, last, NULL, tui__input_style(tui_scheme_style(TUI_ROLE_INPUT), 1));
         break;
     case TUI_DIALOG_MENU:
     case TUI_DIALOG_QUICKMENU:

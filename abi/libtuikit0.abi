@@ -161,6 +161,7 @@ symbol tui_scheme_init
 symbol tui_scheme_load
 symbol tui_scheme_parse
 symbol tui_scheme_style
+symbol tui_selection_style
 symbol tui_screen_clear
 symbol tui_screen_cols
 symbol tui_screen_fill

@@ -69,7 +69,7 @@ static void model_cell(void *ctx, int index, int col, tui_table_cell *c) {
     text[k++] = s(r->old_value);
     text[k++] = s(r->new_value);
     if (col < k) {
-        tui_table_cell_put(c, text[col], TUI_STYLE_DEFAULT);
+        tui_table_cell_put(c, text[col], tui_scheme_style(TUI_ROLE_TEXT));
         return;
     }
     char note[48];
@@ -250,9 +250,9 @@ void tui_histview_render(tui_histview *h, tui_canvas c) {
     if (!h) return;
     int rows = tui_canvas_rows(c), cols = tui_canvas_cols(c);
     if (rows < 2) return;
-    tui_canvas_clear(c, TUI_STYLE_DEFAULT);
+    tui_canvas_clear(c, tui_scheme_style(TUI_ROLE_TEXT));
     tui_canvas body = tui_canvas_sub(c, tui_rect_make(0, 0, rows - 1, cols));
-    tui_table_render(&h->table, body, TUI_STYLE_DEFAULT);
+    tui_table_render(&h->table, body, tui_scheme_style(TUI_ROLE_TEXT));
     if (h->notice[0])
         tui_canvas_put(c, rows - 1, 0, h->notice, h->notice_ok ? TUI_STYLE_OK : TUI_STYLE_ERROR);
     if (h->overlay == OV_HELP) tui_dialog_render(&h->help.dialog, c);
