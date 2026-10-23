@@ -372,7 +372,10 @@ tag_package_build() {
             git -C "$SCRIPT_DIR" tag -a "$tag" -m "$msg" || return 1
     fi
     if git -C "$SCRIPT_DIR" remote get-url origin > /dev/null 2>&1; then
-        git -C "$SCRIPT_DIR" push origin "refs/tags/$tag" || return 1
+        # An unreachable origin does not undo the package: the tag is local
+        # and the next run that reaches origin pushes it.
+        git -C "$SCRIPT_DIR" push origin "refs/tags/$tag" ||
+            echo "tag: WARNING: $tag was made but not pushed (see the message above)" >&2
     fi
     echo "tag: $tag"
 }

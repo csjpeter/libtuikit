@@ -107,7 +107,7 @@ echo "--- a package build in a git checkout is tagged vX.Y.Z.N"
     git init -q .
     git config user.email t@example.org
     git config user.name t
-    git add -A -- . ':!build'
+    git add -A
     git commit -q -m "TUI-1 first"
     git commit -q --allow-empty -m "TUI-2 second"
     git init -q --bare "$FIX/origin.git"
