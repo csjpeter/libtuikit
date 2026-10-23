@@ -951,8 +951,8 @@ Per `policies/testing-model.md`:
 ## 8. Packaging and documentation
 
 As libptytest, per `policies/packaging-and-release-model.md`: CPack from
-`CMakeLists.txt`, version from `project()` refined by commits since the last
-tag, `XB-Git-Commit` / `XB-Build-Date`, `libtuikit0` + `libtuikit-dev`,
+`CMakeLists.txt`, version `project()` + total commit count (the tag takes no part;
+`manage.sh package` tags the built commit `vX.Y.Z.N`), `XB-Git-Commit` / `XB-Build-Date`, `libtuikit0` + `libtuikit-dev`,
 pkg-config `libtuikit`, CMake `find_package(tuikit)` → `tuikit::tuikit`,
 gzipped man pages, copyright and changelog, ldconfig trigger, lintian
 clean, `umask 022`. `./manage.sh` answers to `deps build debug test pty

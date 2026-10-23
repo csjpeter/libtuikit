@@ -10,13 +10,14 @@ project(libtuikit VERSION 0.14.0 LANGUAGES C)
 # Version
 #
 # project(... VERSION ...) above is the single source: there is no VERSION
-# file and no version written into any packaging metadata.  A build between
-# releases is refined with the number of commits since the last tag, so
-# successive builds sort correctly for apt.  No "-" in the result: in a
+# file and no version written into any packaging metadata.  The version is
+# project_version.<total commit count>; a tag takes no part in it, so
+# successive builds always sort correctly for apt.  No "-" in the result: in a
 # Debian version the last "-" separates the upstream version from the
 # Debian revision.  See policies/packaging-and-release-model.md.
 # ---------------------------------------------------------------------------
-set(TUIKIT_VERSION "${PROJECT_VERSION}")
+include(cmake/TuikitVersion.cmake)
+tuikit_derive_version("${CMAKE_CURRENT_SOURCE_DIR}" "${PROJECT_VERSION}" TUIKIT_VERSION)
 set(TUIKIT_GIT_COMMIT "unknown")
 
 find_package(Git QUIET)
@@ -29,29 +30,6 @@ if(Git_FOUND AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/.git")
         RESULT_VARIABLE _tuikit_sha_rc)
     if(_tuikit_sha_rc EQUAL 0 AND _tuikit_sha)
         set(TUIKIT_GIT_COMMIT "${_tuikit_sha}")
-    endif()
-
-    # A repository without a tag yet is a normal state, not an error, so
-    # the tag list is asked for rather than "git describe" failing on it.
-    execute_process(
-        COMMAND "${GIT_EXECUTABLE}" tag --list "v*" --sort=-v:refname --merged HEAD
-        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-        OUTPUT_VARIABLE _tuikit_tags
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        RESULT_VARIABLE _tuikit_tags_rc)
-    if(_tuikit_tags_rc EQUAL 0 AND _tuikit_tags)
-        string(REPLACE "\n" ";" _tuikit_tags "${_tuikit_tags}")
-        list(GET _tuikit_tags 0 _tuikit_tag)
-        execute_process(
-            COMMAND "${GIT_EXECUTABLE}" rev-list --count "${_tuikit_tag}..HEAD"
-            WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
-            OUTPUT_VARIABLE _tuikit_commits
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-            RESULT_VARIABLE _tuikit_commits_rc)
-        if(_tuikit_commits_rc EQUAL 0 AND _tuikit_commits
-           AND NOT _tuikit_commits STREQUAL "0")
-            set(TUIKIT_VERSION "${PROJECT_VERSION}.${_tuikit_commits}")
-        endif()
     endif()
 endif()
 

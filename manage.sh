@@ -335,6 +335,49 @@ do_package() {
     echo
     echo "Packages in $PKG_DIR:"
     find "$PKG_DIR" -mindepth 1 | sort
+
+    tag_package_build
+}
+
+# Tags the built commit vX.Y.Z.N, the exact Debian version of the package, and
+# pushes the tag.  The tag follows the version and never decides it
+# (policies/packaging-and-release-model.md, "Deriving the version").  Not in a
+# tree that is not a git checkout, and not with uncommitted changes: the built
+# commit is then not what was built.  Recreating the same tag at the same
+# commit is fine.
+tag_package_build() {
+    local deb version tag prev msg
+    [ -e "$SCRIPT_DIR/.git" ] || { echo "tag: not a git checkout, no tag made"; return 0; }
+    if [ -n "$(git -C "$SCRIPT_DIR" status --porcelain --untracked-files=no)" ]; then
+        echo "tag: uncommitted changes, the built commit is not what was built; no tag made"
+        return 0
+    fi
+    deb="$(find "$PKG_DIR" -name '*.deb' | sort | head -n 1)"
+    [ -n "$deb" ] || { echo "tag: no .deb package, no tag made"; return 0; }
+    version="$(dpkg-deb -f "$deb" Version)"
+    tag="v$version"
+    if git -C "$SCRIPT_DIR" rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
+        if [ "$(git -C "$SCRIPT_DIR" rev-parse "$tag^{commit}")" != "$(git -C "$SCRIPT_DIR" rev-parse HEAD)" ]; then
+            echo "tag: $tag exists on another commit" >&2
+            return 1
+        fi
+    else
+        prev="$(git -C "$SCRIPT_DIR" tag --list 'v*' --sort=-v:refname --merged HEAD | head -n 1)"
+        msg="libtuikit $version"$'\n'"Tickets: $(git -C "$SCRIPT_DIR" log ${prev:+"$prev..HEAD"} --format=%B |
+            { grep -oE '\bTUI-[0-9]+\b' || [ $? -eq 1 ]; } | sort -u -t- -k2,2n | paste -sd' ')"
+        # The tagger is the author of the built commit when no identity is
+        # configured (a container, a CI worker).
+        GIT_COMMITTER_NAME="$(git -C "$SCRIPT_DIR" log -1 --format=%cn)" \
+        GIT_COMMITTER_EMAIL="$(git -C "$SCRIPT_DIR" log -1 --format=%ce)" \
+            git -C "$SCRIPT_DIR" tag -a "$tag" -m "$msg" || return 1
+    fi
+    if git -C "$SCRIPT_DIR" remote | grep -qx origin; then
+        # An unreachable origin does not undo the package: the tag is local
+        # and the next run that reaches origin pushes it.
+        git -C "$SCRIPT_DIR" push origin "refs/tags/$tag" ||
+            echo "tag: WARNING: $tag was made but not pushed (see the message above)" >&2
+    fi
+    echo "tag: $tag"
 }
 
 # Removes build/packages/ with everything in it and creates it again.
