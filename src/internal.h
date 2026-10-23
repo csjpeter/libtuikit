@@ -65,7 +65,17 @@ tui_style tui__selection_base(int colors);
  * its bright variant, in bold: the hue, and so the meaning, stays. */
 tui_style tui__selection_compose(tui_style sel, tui_style row, tui_style span, int selected);
 
-/* Whether @p st is the palette's TUI_STYLE_SELECTION, the default of the
+/* The style of a focused button: the scheme's selection in bold, and bold
+ * reverse video for the built-in selection (what a button always looked
+ * like); a style the program set in focus is kept. */
+tui_style tui__button_focus(tui_style focus);
+
+/* An input field's style: @p st, when it is the input role's, becomes the
+ * input.focus role laid over it when @p focused; any other style is the
+ * program's own and is kept. */
+tui_style tui__input_style(tui_style st, int focused);
+
+/* Whether @p st is the active scheme's selection role, the default of the
  * widgets' selection styles; any other style is the program's own choice. */
 int tui__is_default_selection(tui_style st);
 

@@ -125,6 +125,7 @@ project_test(unit test-term      SOURCES unit/test_term.c)
 project_test(unit test-screen    SOURCES unit/test_screen.c)
 project_test(unit test-widgets   SOURCES unit/test_widgets.c)
 project_test(unit test-scheme    SOURCES unit/test_scheme.c)
+project_test(unit test-roles     SOURCES unit/test_roles.c)
 target_compile_definitions(test-scheme PRIVATE TUIKIT_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
 project_test(unit test-table     SOURCES unit/test_table.c)
 project_test(unit test-tree      SOURCES unit/test_tree.c)
@@ -148,6 +149,8 @@ project_test(unit check-abi      SCRIPT unit/check_abi.sh ARGS $<TARGET_FILE:tui
 project_test(unit check-coverage-map SCRIPT unit/check_coverage_map.sh ARGS $<TARGET_FILE:tuikit> ${CMAKE_SOURCE_DIR} TIMEOUT 60)
 project_test(unit check-license  SCRIPT unit/check_license.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
 project_test(unit check-headers  SCRIPT unit/check_headers.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
+# No widget names a colour: they take the roles of the scheme (TUI-65).
+project_test(unit check-roles    SCRIPT unit/check_roles.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
 project_test(unit check-platform  SCRIPT unit/check_platform.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
 project_test(unit check-private-names SCRIPT unit/check_private_names.sh ARGS ${CMAKE_SOURCE_DIR} TIMEOUT 60)
 # Every declared test is in bin/, and nothing else is.

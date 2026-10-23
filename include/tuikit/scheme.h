@@ -17,7 +17,8 @@
  * name is set by `scheme = NAME` in ~/.config/tuikit/tuikit.conf or
  * /etc/tuikit/tuikit.conf, and without one the built-in palette is used.
  * Every problem is reported and harmless: the role keeps its built-in
- * style.  The palette macros of screen.h keep their values.  See
+ * style.  The palette macros of screen.h and every widget read the active
+ * scheme.  See
  * tui_scheme_load(3).
  */
 
@@ -28,25 +29,7 @@
 extern "C" {
 #endif
 
-/** @brief The roles; the key in a scheme file is tui_role_name(). */
-typedef enum tui_role {
-    TUI_ROLE_TEXT,
-    TUI_ROLE_HEADER,
-    TUI_ROLE_STATUS,
-    TUI_ROLE_SELECTION,
-    TUI_ROLE_CURSOR,
-    TUI_ROLE_ACCENT,
-    TUI_ROLE_FRAME,
-    TUI_ROLE_INPUT,
-    TUI_ROLE_INPUT_FOCUS,
-    TUI_ROLE_TAB_ACTIVE,
-    TUI_ROLE_TAB_INACTIVE,
-    TUI_ROLE_OK,
-    TUI_ROLE_ERROR,
-    TUI_ROLE_HINT,
-    TUI_ROLE_PROGRESS,
-    TUI_ROLE_COUNT
-} tui_role;
+/* The roles (enum tui_role) are declared in screen.h, with the palette macros. */
 
 /** @brief A style for every role. */
 typedef struct tui_scheme {
@@ -100,8 +83,7 @@ TUI_API int tui_scheme_load(tui_scheme *sc, const char *name, tui_scheme_report 
  */
 TUI_API int tui_scheme_init(void);
 
-/** @brief The style of a role in the active scheme. */
-TUI_API tui_style tui_scheme_style(tui_role role);
+/* tui_scheme_style(): declared in screen.h. */
 
 /** @brief The first problem of the active scheme's load, or NULL: a
  *         program shows it once. */

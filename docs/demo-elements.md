@@ -51,6 +51,15 @@ policies/tui-interface-model.md. Every full screen is also a position check.
 | Discard | nothing typed: at once; typed: confirmation (No focused), No keeps the text, Yes discards; from the fields and from the body | text, style, status | `test_compose_refusals_and_discard` |
 | Sent message | added to the list and selected, the list's header counts it, the body shows To and Labels | full screen, style, status ok | `test_compose_and_send` |
 
+## Colour schemes
+
+| Element | States | Checked | Test |
+|---|---|---|---|
+| Header bar, frames, hints, selection | `scheme = NAME` in a temporary `tuikit.conf` (XDG_CONFIG_HOME), the scheme giving each role its own colour | the cells' colours: header = role header, hints = role hint, list selection row = role selection, the focused frame = role accent | `test_scheme_colours` |
+
+The role each element draws with is in docs/specification.md, section 4.5a
+("Roles in the widgets").
+
 ## Not checked, and why
 
 - **Colours on a terminal without colour.** libptytest emulates a colour

@@ -74,32 +74,70 @@ typedef struct tui_style {
 /** @brief The terminal's default colours, no attribute. */
 #define TUI_STYLE_DEFAULT ((tui_style){ TUI_COLOR_DEFAULT, TUI_COLOR_DEFAULT, 0 })
 
+/** @brief The roles; the key in a scheme file is tui_role_name().  A role
+ *         is a style a widget or a program asks for by meaning; the active
+ *         colour scheme (tuikit/scheme.h) says how it looks. */
+typedef enum tui_role {
+    TUI_ROLE_TEXT,
+    TUI_ROLE_HEADER,
+    TUI_ROLE_STATUS,
+    TUI_ROLE_SELECTION,
+    TUI_ROLE_CURSOR,
+    TUI_ROLE_ACCENT,
+    TUI_ROLE_FRAME,
+    TUI_ROLE_INPUT,
+    TUI_ROLE_INPUT_FOCUS,
+    TUI_ROLE_TAB_ACTIVE,
+    TUI_ROLE_TAB_INACTIVE,
+    TUI_ROLE_OK,
+    TUI_ROLE_ERROR,
+    TUI_ROLE_HINT,
+    TUI_ROLE_PROGRESS,
+    TUI_ROLE_COUNT
+} tui_role;
+
+/** @brief The style of a role in the active scheme (tuikit/scheme.h). */
+TUI_API tui_style tui_scheme_style(tui_role role);
+
+/**
+ * @brief The selection role as a style value: the scheme's own selection
+ *        style, and for the built-in selection bold reverse video (what a
+ *        button in focus always was; the built-in dark blue row is drawn by
+ *        the widgets that own a selection, by colour depth).  This is what
+ *        TUI_STYLE_SELECTION is.
+ */
+TUI_API tui_style tui_selection_style(void);
+
 /**
  * @name The workspace palette
  * The roles of policies/tui-interface-model.md, "Palette": a program uses
- * these and no other styles for these meanings.  All but the hints also
- * carry an attribute, so that a selection, a frame or an error is told
- * apart without colour.  The widgets use them as their defaults.
+ * these and no other styles for these meanings.  Each is an expression that
+ * looks the role up in the active colour scheme at run time (the default
+ * scheme holds the colours named below), so it is a value and not a
+ * constant: it cannot initialise a static object.  All but the hints also
+ * carry an attribute in the default scheme, so that a selection, a frame or
+ * an error is told apart without colour.  The widgets draw with the roles.
  * @{
  */
-/** @brief The header bar: bold white on blue. */
-#define TUI_STYLE_HEADER    ((tui_style){ TUI_WHITE, TUI_BLUE, TUI_ATTR_BOLD })
-/** @brief The row or choice under the cursor.  As a style value it is bold
- *  reverse video, which is what the buttons of a dialog use; tui_table,
- *  the menus of tui_dialog and the candidate lists of tui_fieldset draw it
- *  as the one selection of the policy (a dark blue row for the colour
- *  depth, '>' in the first column) when a style is left at this value. */
-#define TUI_STYLE_SELECTION ((tui_style){ TUI_COLOR_DEFAULT, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD | TUI_ATTR_REVERSE })
-/** @brief The active tab, a modal's frame, the focused field's label: bold cyan. */
-#define TUI_STYLE_ACCENT    ((tui_style){ TUI_CYAN, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD })
-/** @brief The message after a write that worked: bold green. */
-#define TUI_STYLE_OK        ((tui_style){ TUI_GREEN, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD })
-/** @brief A refusal, a failure, an invalid field: bold red. */
-#define TUI_STYLE_ERROR     ((tui_style){ TUI_RED, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD })
-/** @brief Key hints and secondary columns: yellow. */
-#define TUI_STYLE_HINT      ((tui_style){ TUI_YELLOW, TUI_COLOR_DEFAULT, 0 })
-/** @brief What is going on while the user waits: italic yellow. */
-#define TUI_STYLE_PROGRESS  ((tui_style){ TUI_YELLOW, TUI_COLOR_DEFAULT, TUI_ATTR_ITALIC })
+/** @brief The header bar, role "header": bold white on blue by default. */
+#define TUI_STYLE_HEADER    tui_scheme_style(TUI_ROLE_HEADER)
+/** @brief The row or choice under the cursor, role "selection" (a dark blue
+ *  background by default, bold reverse video as a style value).  tui_table, the menus of tui_dialog and the
+ *  candidate lists of tui_fieldset draw it as the one selection of the
+ *  policy ('>' in the first column, the colours composed with the row's)
+ *  when a style is left at this value; the buttons of a dialog draw it in
+ *  bold, and in reverse video by default. */
+#define TUI_STYLE_SELECTION tui_selection_style()
+/** @brief Role "accent": the focused field's label, a quick key; bold cyan. */
+#define TUI_STYLE_ACCENT    tui_scheme_style(TUI_ROLE_ACCENT)
+/** @brief Role "ok", the message after a write that worked: bold green. */
+#define TUI_STYLE_OK        tui_scheme_style(TUI_ROLE_OK)
+/** @brief Role "error", a refusal, a failure, an invalid field: bold red. */
+#define TUI_STYLE_ERROR     tui_scheme_style(TUI_ROLE_ERROR)
+/** @brief Role "hint", key hints and secondary columns: yellow. */
+#define TUI_STYLE_HINT      tui_scheme_style(TUI_ROLE_HINT)
+/** @brief Role "progress", what is going on while the user waits: italic yellow. */
+#define TUI_STYLE_PROGRESS  tui_scheme_style(TUI_ROLE_PROGRESS)
 /** @} */
 
 /** @brief A style from its parts. */

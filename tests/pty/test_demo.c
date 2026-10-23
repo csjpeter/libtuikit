@@ -17,6 +17,9 @@
 #include "test_helpers.h"
 
 #include <signal.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
 
 int g_tests_run = 0;
 int g_tests_failed = 0;
@@ -1000,6 +1003,58 @@ static void test_not_a_tty(void) {
     pty_close(s);
 }
 
+/* Writes a scheme and the tuikit.conf that selects it under @p root, the
+ * user directory of the demo's colour scheme. */
+static int write_scheme_conf(const char *root, const char *scheme_text) {
+    char path[600];
+    snprintf(path, sizeof path, "%s", root);
+    (void)mkdir(path, 0700);
+    snprintf(path, sizeof path, "%s/tuikit", root);
+    (void)mkdir(path, 0700);
+    snprintf(path, sizeof path, "%s/tuikit/schemes", root);
+    (void)mkdir(path, 0700);
+    snprintf(path, sizeof path, "%s/tuikit/schemes/pty.scheme", root);
+    FILE *f = fopen(path, "w");
+    if (!f) return -1;
+    fputs(scheme_text, f);
+    fclose(f);
+    snprintf(path, sizeof path, "%s/tuikit/tuikit.conf", root);
+    f = fopen(path, "w");
+    if (!f) return -1;
+    fputs("scheme = pty\n", f);
+    fclose(f);
+    return 0;
+}
+
+/* `scheme = NAME` in a temporary tuikit.conf: the demo's header bar, its
+ * focused frame, its selected row and its hints take the scheme's colours
+ * (TUI-65); the text is the same as with no scheme. */
+static void test_scheme_colours(void) {
+    char root[512];
+    snprintf(root, sizeof root, "%s/demo-scheme-%d", TUIKIT_TEST_TMPDIR, (int)getpid());
+    ASSERT_EQ_INT(write_scheme_conf(root,
+        "header = black magenta bold\n"
+        "accent = blue - bold\n"
+        "selection = - 52 -\n"
+        "hint = green - -\n"), 0, "scheme written");
+    setenv("XDG_CONFIG_HOME", root, 1);
+    PtySession *s = start_demo(80, 24);
+    unsetenv("XDG_CONFIG_HOME");
+    ASSERT(s != NULL, "start");
+    ASSERT_WAIT_REGION(s, PTY_REGION(0, 0, 1, 40), ((const char *const[]){ " Inbox \xC2\xB7 6 messages", NULL }), 5000);
+    ASSERT_CELL_FG(s, 0, 3, PTY_FG_BLACK);
+    ASSERT_CELL_BG(s, 0, 3, PTY_BG_MAGENTA);
+    ASSERT_CELL_ATTR(s, 0, 3, PTY_ATTR_BOLD);
+    ASSERT_CELL_BG(s, 0, 79, PTY_BG_MAGENTA);       /* the bar is full width */
+    ASSERT_CELL_FG(s, 1, 0, PTY_FG_BLUE);           /* the focused frame: accent */
+    ASSERT_CELL_ATTR(s, 1, 0, PTY_ATTR_BOLD);
+    ASSERT_CELL_BG(s, 3, 1, PTY_COLOR_IDX(52));     /* the selected row */
+    ASSERT_CELL_FG(s, 23, 2, PTY_FG_GREEN);         /* the hints */
+    pty_send_key(s, PTY_KEY_ESC);
+    ASSERT_EXIT_STATUS(s, 0, 3000);
+    pty_close(s);
+}
+
 static const TestCase tests[] = {
     TEST_CASE(test_reader_at_rest),
     TEST_CASE(test_reader_list_and_body),
@@ -1012,6 +1067,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_suspend),
     TEST_CASE(test_ctrl_c_everywhere),
     TEST_CASE(test_not_a_tty),
+    TEST_CASE(test_scheme_colours),
 };
 
 int main(int argc, char **argv) {

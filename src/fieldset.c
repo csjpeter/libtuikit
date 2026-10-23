@@ -45,12 +45,12 @@ void tui_fieldset_init(tui_fieldset *f, tui_field *fields, int n) {
     f->nfields = fields && n > 0 ? n : 0;
     f->state = TUI_DIALOG_OPEN;
     /* The palette's roles (policies/tui-interface-model.md). */
-    f->label_style = TUI_STYLE_DEFAULT;
-    f->focus_style = TUI_STYLE_ACCENT;
-    f->value_style = TUI_STYLE_DEFAULT;
-    f->cand_style = TUI_STYLE_DEFAULT;
-    f->cand_sel_style = TUI_STYLE_SELECTION;
-    f->error_style = TUI_STYLE_ERROR;
+    f->label_style = tui_scheme_style(TUI_ROLE_TEXT);
+    f->focus_style = tui_scheme_style(TUI_ROLE_ACCENT);
+    f->value_style = tui_scheme_style(TUI_ROLE_INPUT);
+    f->cand_style = tui_scheme_style(TUI_ROLE_TEXT);
+    f->cand_sel_style = tui_selection_style();
+    f->error_style = tui_scheme_style(TUI_ROLE_ERROR);
 }
 
 void tui_fieldset_free(tui_fieldset *f) {
@@ -265,7 +265,7 @@ int tui_fieldset_render(tui_fieldset *f, tui_canvas c) {
                 tui_canvas_put(value, 0, 0, text, f->value_style);
             }
         } else if (is_focus) {
-            tui_lineedit_render(&fl->edit, value, NULL, f->value_style);
+            tui_lineedit_render(&fl->edit, value, NULL, tui__input_style(f->value_style, 1));
         } else if (fl->edit.buf) {
             tui_canvas_put(value, 0, 0, fl->edit.buf, f->value_style);
         }
