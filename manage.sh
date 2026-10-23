@@ -356,22 +356,22 @@ tag_package_build() {
     [ -n "$deb" ] || { echo "tag: no .deb package, no tag made"; return 0; }
     version="$(dpkg-deb -f "$deb" Version)"
     tag="v$version"
-    prev="$(git -C "$SCRIPT_DIR" describe --tags --abbrev=0 --match 'v*' HEAD 2>/dev/null)" || prev=""
-    msg="libtuikit $version"$'\n'"Tickets: $(git -C "$SCRIPT_DIR" log ${prev:+"$prev..HEAD"} --format=%B |
-        grep -oE '\bTUI-[0-9]+\b' | sort -u -t- -k2,2n | paste -sd' ')"
     if git -C "$SCRIPT_DIR" rev-parse -q --verify "refs/tags/$tag" > /dev/null; then
         if [ "$(git -C "$SCRIPT_DIR" rev-parse "$tag^{commit}")" != "$(git -C "$SCRIPT_DIR" rev-parse HEAD)" ]; then
             echo "tag: $tag exists on another commit" >&2
             return 1
         fi
     else
+        prev="$(git -C "$SCRIPT_DIR" tag --list 'v*' --sort=-v:refname --merged HEAD | head -n 1)"
+        msg="libtuikit $version"$'\n'"Tickets: $(git -C "$SCRIPT_DIR" log ${prev:+"$prev..HEAD"} --format=%B |
+            { grep -oE '\bTUI-[0-9]+\b' || [ $? -eq 1 ]; } | sort -u -t- -k2,2n | paste -sd' ')"
         # The tagger is the author of the built commit when no identity is
         # configured (a container, a CI worker).
         GIT_COMMITTER_NAME="$(git -C "$SCRIPT_DIR" log -1 --format=%cn)" \
         GIT_COMMITTER_EMAIL="$(git -C "$SCRIPT_DIR" log -1 --format=%ce)" \
             git -C "$SCRIPT_DIR" tag -a "$tag" -m "$msg" || return 1
     fi
-    if git -C "$SCRIPT_DIR" remote get-url origin > /dev/null 2>&1; then
+    if git -C "$SCRIPT_DIR" remote | grep -qx origin; then
         # An unreachable origin does not undo the package: the tag is local
         # and the next run that reaches origin pushes it.
         git -C "$SCRIPT_DIR" push origin "refs/tags/$tag" ||
