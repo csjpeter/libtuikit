@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (c) 2026 Peter Csaszar (Created: 2026-10-23)
+# Copyright (c) 2026 Peter Csaszar (Császár Péter)
+# Created: 2026-10-23
 # Derives the package version: project version + total commit count.
 
 #

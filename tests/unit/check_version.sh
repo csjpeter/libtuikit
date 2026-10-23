@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-only
-# Copyright (c) 2026 Peter Csaszar (Created: 2026-10-23)
+# Copyright (c) 2026 Peter Csaszar (Császár Péter)
+# Created: 2026-10-23
 # Checks the package version derivation: project version + total commit count.
 
 #

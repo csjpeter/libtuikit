@@ -365,7 +365,11 @@ tag_package_build() {
             return 1
         fi
     else
-        git -C "$SCRIPT_DIR" tag -a "$tag" -m "$msg" || return 1
+        # The tagger is the author of the built commit when no identity is
+        # configured (a container, a CI worker).
+        GIT_COMMITTER_NAME="$(git -C "$SCRIPT_DIR" log -1 --format=%cn)" \
+        GIT_COMMITTER_EMAIL="$(git -C "$SCRIPT_DIR" log -1 --format=%ce)" \
+            git -C "$SCRIPT_DIR" tag -a "$tag" -m "$msg" || return 1
     fi
     if git -C "$SCRIPT_DIR" remote get-url origin > /dev/null 2>&1; then
         git -C "$SCRIPT_DIR" push origin "refs/tags/$tag" || return 1
