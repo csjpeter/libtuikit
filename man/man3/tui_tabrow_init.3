@@ -1,0 +1,78 @@
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_TABROW_INIT 3 2026-10-25 "libtuikit 0.8" "libtuikit Manual"
+.SH NAME
+tui_tabrow_init, tui_tabrow_set, tui_tabrow_set_active, tui_tabrow_active,
+tui_tabrow_count, tui_tabrow_handle, tui_tabrow_render, tui_tabrow_format \-
+the tab row of a screen with sub-views
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/tabrow.h>
+.PP
+.BI "void tui_tabrow_init(tui_tabrow *" tr );
+.BI "int  tui_tabrow_set(tui_tabrow *" tr ", const char *const *" labels ", int " n ", int " active );
+.BI "void tui_tabrow_set_active(tui_tabrow *" tr ", int " i );
+.BI "int  tui_tabrow_active(const tui_tabrow *" tr );
+.BI "int  tui_tabrow_count(const tui_tabrow *" tr );
+.BI "tui_tabrow_result tui_tabrow_handle(tui_tabrow *" tr ", const tui_event *" ev );
+.BI "void tui_tabrow_render(tui_tabrow *" tr ", tui_canvas " c );
+.BI "int  tui_tabrow_format(const tui_tabrow *" tr ", int " cols ", char *" out ", size_t " outsz );
+.fi
+.SH DESCRIPTION
+.B tui_tabrow
+draws the tabs of a screen with sub-views on one row.
+Each tab is its label between two blanks, with one blank between tabs.
+The active tab is drawn in the role
+.B tab.active
+with bold and underline added, the others in
+.BR tab.inactive ,
+so the active tab never depends on colour alone.
+.PP
+.BR tui_tabrow_init ()
+makes an empty row.
+.BR tui_tabrow_set ()
+sets the labels (an array of at most
+.B TUI_TABROW_MAX
+(64) strings; neither the array nor the strings are copied) and the active
+index, which is clamped to the range; it fails with
+.B EINVAL
+for more tabs, a NULL array or a NULL label.
+Controls in a label are drawn as blanks.
+.BR tui_tabrow_set_active ()
+moves the active tab (clamped);
+.BR tui_tabrow_active ()
+and
+.BR tui_tabrow_count ()
+read it back.
+.PP
+When the tabs are wider than the canvas the row scrolls: the active tab is
+always whole on the row (it is cut with an ellipsis only when it alone is
+wider than the room), the first and last column are kept for the marks
+\(lq\[u2039]\(rq (tabs hidden before the window) and \(lq\[u203A]\(rq (tabs
+hidden after it), and a step to a neighbouring tab moves the window no further
+than needed.
+.PP
+.BR tui_tabrow_handle ()
+moves the active tab on Tab (next) and Shift-Tab (previous), both wrapping,
+and on the digits 1 to 9 (that tab, when it exists), and returns
+.BR TUI_TABROW_CHANGED ;
+any other event, or a key that changes nothing, is
+.B TUI_TABROW_IGNORED
+and the program's.
+.PP
+.BR tui_tabrow_render ()
+draws on the first row of the canvas, over its whole width.
+.BR tui_tabrow_format ()
+writes the same row as plain text for
+.I cols
+columns, without trailing blanks; it returns the length, or \-1 when
+.I outsz
+was too small (the text is then cut at a character).
+.SH RETURN VALUES
+.BR tui_tabrow_set ()
+returns 0, or \-1 with
+.BR errno .
+.SH SEE ALSO
+.BR libtuikit (7),
+.BR tui_statusline_init (3),
+.BR tui_scheme_style (3)

@@ -204,7 +204,7 @@ Non-goals:
   tui_term ──► tui_decoder ──► tui_event     tui_canvas ──► tui_screen ──► tui_buf ──► fd
    (fds, termios,  (bytes → keys)          (clipped rect)  (cells, diff)  (bytes)
     signals, size)
-                         widgets: tui_listview  tui_tree  tui_table  tui_statusline  tui_textview  tui_lineedit  tui_dialog
+                         widgets: tui_listview  tui_tree  tui_table  tui_statusline  tui_tabrow  tui_textview  tui_lineedit  tui_dialog
                          helpers: tui_text (UTF-8, width, sanitise)  tui_rect (layout)
 ```
 
@@ -224,6 +224,7 @@ Non-goals:
 | `tuikit/histview.h` | the history view: recorded steps in a table, a Revert entry with a confirmation | yes | TUI-63 |
 | `tuikit/table.h` | columns, header, the selection the widget owns | yes | TUI-48 |
 | `tuikit/statusline.h` | the one bottom line: hints that fit, message, wait, position, prompt | yes | TUI-51 |
+| `tuikit/tabrow.h` | the tab row of a screen with sub-views, the active tab by attribute | yes | TUI-69 |
 | `tuikit/textview.h` | wrapped, scrollable text | yes | M4 |
 | `tuikit/lineedit.h` | single-line editor model, history | yes | M5 |
 | `tuikit/dialog.h` | message, confirm, prompt, menu | yes | M6 |
@@ -537,6 +538,7 @@ choice and is drawn as it is; only the widgets' defaults are roles.
 | `tui_dialog` message, confirm, prompt, menu, checklist, quick menu, help | `text` (fill), `frame` (the frame, and the matched words of the help), `selection` (a menu row; the buttons in focus in bold, bold reverse built-in), `accent` (a quick key), `input.focus` over `input` (the prompt's field) |
 | `tui_fieldset` | `text` (labels, candidates), `accent` (the focused label, a choice), `input` and `input.focus` (a text value), `selection` (the chosen candidate), `error` |
 | `tui_statusline` | `status` (the bar), `text` (a message, plus reverse), `progress` (the wait text), the style the program passes for a message (`error`, `ok`) |
+| `tui_tabrow` | `tab.active` (the active tab, plus bold and underline), `tab.inactive` (the others and the marks) |
 | `tui_actionmenu` | as the quick menu |
 
 Not drawn by a widget: `cursor` (the terminal's own cursor is positioned),
@@ -700,6 +702,23 @@ widget the program routes events to first.
     stays readable.
   - *Plain text*: `tui_statusline_format` lays the line out exactly as
     `render` for any width, so a CLI and a test see the same.
+- **`tui_tabrow`** (TUI-69) — the tab row of a screen with sub-views
+  (`policies/tui-interface-model.md`, "Navigation"), drawn on the first row of
+  a canvas.
+  - *Tabs*: the labels (at most 64, not copied) and the active index
+    (`tui_tabrow_set`, clamped). A tab is its label between two blanks, one
+    blank between tabs; controls in a label are blanks.
+  - *Active tab*: role `tab.active` with bold and underline added, so it is told
+    apart without colour; the others use `tab.inactive`.
+  - *Scrolling*: a row wider than the canvas keeps the first and last column
+    for the marks `‹` (tabs hidden before the window) and `›` (tabs hidden
+    after it); the active tab is always whole on the row (cut with an ellipsis
+    only when it alone is wider than the room), and the window moves no more
+    than needed. A row that fits has no marks.
+  - *Keys*: `tui_tabrow_handle` moves on Tab and Shift-Tab (wrapping) and on
+    the digits 1 to 9 (that tab, if it exists); the result says whether the
+    program has to show another view.
+  - *Plain text*: `tui_tabrow_format` lays the row out exactly as `render`.
 - **`tui_textview`** — word-wrapped, scrollable text (message history, mail
   body, issue description): set text, wrap to width on render, scroll by
   line/page, "at end" query for follow-the-tail.

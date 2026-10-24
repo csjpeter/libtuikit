@@ -338,6 +338,19 @@ name the ticket that closes the gap; there is none now.
 | `tui_statusline_set_position_index` | `tests/functional/cap_widgets.c` | `cap_statusline` |
 | `tui_statusline_set_wait` | `tests/functional/cap_widgets.c` | `cap_statusline` |
 
+## Tab row
+
+| Capability | Functional test | Phase |
+|---|---|---|
+| `tui_tabrow_active` | `tests/functional/cap_widgets.c` | `cap_tabrow` |
+| `tui_tabrow_count` | `tests/functional/cap_widgets.c` | `cap_tabrow` |
+| `tui_tabrow_format` | `tests/functional/cap_widgets.c` | `cap_tabrow` |
+| `tui_tabrow_handle` | `tests/functional/cap_widgets.c` | `cap_tabrow` |
+| `tui_tabrow_init` | `tests/functional/cap_widgets.c` | `cap_tabrow` |
+| `tui_tabrow_render` | `tests/functional/cap_widgets.c` | `cap_tabrow` |
+| `tui_tabrow_set` | `tests/functional/cap_widgets.c` | `cap_tabrow` |
+| `tui_tabrow_set_active` | `tests/functional/cap_widgets.c` | `cap_tabrow` |
+
 ## Dialogs
 
 | Capability | Functional test | Phase |
