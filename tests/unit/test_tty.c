@@ -15,6 +15,7 @@
 #include "tuikit/tty.h"
 
 #include <errno.h>
+#include <poll.h>
 #include <termios.h>
 
 int g_tests_run = 0;
@@ -268,7 +269,14 @@ static void masked(int *rc_out, const char *ahead, const char *typed, char *pw, 
                   char *screen, size_t screen_size) {
     TPair p;
     ASSERT(tpair_open(&p, 24, 80) == 0, "openpty");
-    if (ahead) tpair_type(&p, ahead);
+    if (ahead) {
+        tpair_type(&p, ahead);
+        /* The line discipline takes the bytes over asynchronously: wait
+         * until the type-ahead line is readable on the slave, so that the
+         * flush under test finds it there. */
+        struct pollfd pf = { .fd = p.slave, .events = POLLIN };
+        ASSERT(poll(&pf, 1, 2000) == 1, "the type-ahead reached the slave");
+    }
     pid_t typist = tpair_type_when_raw(&p, typed);
     ASSERT(typist > 0, "typist");
     int rc = tui_tty_read_password_masked(p.slave, p.slave, "Password", pw, size);
