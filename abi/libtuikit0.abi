@@ -40,6 +40,7 @@ size tui_style 12 4
 size tui_table 152 8
 size tui_table_col 32 8
 size tui_table_model 24 8
+size tui_tabrow 24 8
 size tui_term_opts 16 4
 size tui_textedit 56 8
 size tui_textview 64 8
@@ -230,6 +231,14 @@ symbol tui_table_set_row_id
 symbol tui_table_set_total
 symbol tui_table_toggle_mark
 symbol tui_table_widths
+symbol tui_tabrow_active
+symbol tui_tabrow_count
+symbol tui_tabrow_format
+symbol tui_tabrow_handle
+symbol tui_tabrow_init
+symbol tui_tabrow_render
+symbol tui_tabrow_set
+symbol tui_tabrow_set_active
 symbol tui_term_close
 symbol tui_term_fd
 symbol tui_term_flush_buf

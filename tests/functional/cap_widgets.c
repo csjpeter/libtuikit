@@ -150,6 +150,41 @@ static void cap_table(void) {
     tui_table_free(&t);
 }
 
+/* ---- tab row -------------------------------------------------------- */
+
+static void cap_tabrow(void) {
+    static const char *const labels[] = { "Overview", "Tests", "Log", "Config", "Hosts",
+                                          "Queue", "Metrics", "Alerts", "Help" };
+    tui_tabrow tr;
+    tui_tabrow_init(&tr);
+    CHECK_INT(tui_tabrow_set(&tr, labels, 9, 0), 0, "tabrow set");
+    CHECK_INT(tui_tabrow_count(&tr), 9, "tabrow count");
+    char out[256];
+    CHECK(tui_tabrow_format(&tr, 80, out, sizeof out) > 0, "tabrow format");
+    CHECK_INT(tui_str_width(out) <= 80, 1, "the row fits 80 columns");
+    tui_tabrow_set_active(&tr, 8);
+    CHECK_INT(tui_tabrow_active(&tr), 8, "tabrow set_active");
+    tui_tabrow_format(&tr, 80, out, sizeof out);
+    CHECK_HAS(out, " Help", "the active tab is visible at 80 columns");
+    tui_tabrow_format(&tr, 40, out, sizeof out);
+    CHECK_HAS(out, " Help", "and at 40, where the row scrolls");
+    CHECK_HAS(out, "\xE2\x80\xB9", "with a mark for the tabs hidden before it");
+
+    tui_screen *scr = tui_screen_new(3, 80);
+    tui_tabrow_render(&tr, tui_canvas_of(scr));
+    char *txt = cap_screen_text(scr, NULL);
+    CHECK_HAS(txt, " Help", "tabrow render");
+    free(txt);
+    tui_screen_free(scr);
+
+    tui_event ev = cap_ev("\t");
+    CHECK_INT(tui_tabrow_handle(&tr, &ev), TUI_TABROW_CHANGED, "Tab cycles");
+    CHECK_INT(tui_tabrow_active(&tr), 0, "and wraps");
+    ev = cap_ev("3");
+    CHECK_INT(tui_tabrow_handle(&tr, &ev), TUI_TABROW_CHANGED, "a digit jumps");
+    CHECK_INT(tui_tabrow_active(&tr), 2, "to that tab");
+}
+
 /* ---- statusline ----------------------------------------------------- */
 
 static void cap_statusline(void) {
@@ -530,6 +565,7 @@ static void cap_actions(void) {
 int main(void) {
     cap_table();
     cap_statusline();
+    cap_tabrow();
     cap_dialog();
     cap_fieldset();
     cap_actions();
