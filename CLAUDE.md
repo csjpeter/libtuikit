@@ -52,7 +52,7 @@ descriptors; everything else is pure and renders into a `tui_buf`.
 - **The width table is generated**, never edited: `cmake --build <dir>
   --target regen-width`. `test-text` compares it with the running glibc.
 - The library never prints. Errors are return values with `errno`.
-- **Every line of `src/` is run by a test** (`./manage.sh coverage` fails
+- **Every line of `src/` is run by a test** (`./manage.sh coverage` also enforces unit alone >= 80 % and PTY + functional caps >= 80 %, and fails
   below 100 %). Failure paths are reached through `tests/common/faults.c`:
   link-time wrappers (`-Wl,--wrap`) in the test binaries, armed per test.
   Never add a test hook to the library itself.
