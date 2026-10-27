@@ -19,7 +19,6 @@ BUILD_DIR="$SCRIPT_DIR/build"
 PKG_DIR="$BUILD_DIR/packages"
 BUILD_DIR_DEBUG="$BUILD_DIR/_debug"
 BUILD_DIR_TEST="$BUILD_DIR/_test"
-BUILD_DIR_COVERAGE="$BUILD_DIR/_coverage"
 BUILD_DIR_VALGRIND="$BUILD_DIR/_valgrind"
 BUILD_DIR_CONSUMER="$BUILD_DIR/_consumer"
 
@@ -56,8 +55,10 @@ Commands:
   test [ctest args]     Unit tests, ASAN + UBSan -- the command run most often
   pty [ctest args]      PTY tests: real programs through a real PTY, ASAN + UBSan
   functional [ctest args]  Functional tests: manage.sh itself, with mocks of our own
-  coverage              Line coverage of the library; fails below the threshold
-  valgrind              Unit and PTY tests under Valgrind on a clean Release build
+  coverage              Line coverage of the library (unit, external = functional + pty,
+                        all together); fails below the thresholds; leaves the counters
+                        in build/coverage/unit and build/coverage/external
+  valgrind              Every unit suite under Valgrind on a clean Release build
   consumer              Build and run the example against the built .deb packages
   check                 Every gate, with a summary to compare against CI
   package [deb|rpm|all] Build the packages with CPack into build/packages/ (libtuikit0,
@@ -66,6 +67,9 @@ Commands:
                         comment it on that ticket (issue-cli)
   clean                 Remove build/
   help                  This message
+
+test, pty, functional, valgrind and coverage write build/result/<verb>.result
+(policies/manage-sh-model.md); an unknown command exits 2.
 
 libptytest, the test instrument, comes as the submodule deps/libptytest
 (WORKSPACE_LIBS=bundled, the default; deps and the test builds initialise it
@@ -183,14 +187,16 @@ build_release() {
 }
 
 # build_debug_into <dir> [<test bin root>]
+# Each step is chained: a failure is the function's status, also where a
+# caller has switched "set -e" off (an "if" or "||" list).
 build_debug_into() {
     local dir="$1" bin_root="${2:-$1/tests}"
-    ensure_libs
+    ensure_libs &&
     cmake -S "$SCRIPT_DIR" -B "$dir" -DCMAKE_BUILD_TYPE=Debug \
           -DENABLE_COVERAGE=OFF -DTUIKIT_ENABLE_ASAN=ON \
           -DTUIKIT_BUILD_TESTS=ON -DTUIKIT_TEST_WRAPPER= \
           "-DWORKSPACE_LIBS=$(libs_mode)" \
-          "-DTUIKIT_TEST_BIN_ROOT=$bin_root"
+          "-DTUIKIT_TEST_BIN_ROOT=$bin_root" &&
     cmake --build "$dir" --parallel "$JOBS"
 }
 
@@ -200,85 +206,247 @@ build_debug() {
 }
 
 # ---------------------------------------------------------------------------
+# The result file (policies/manage-sh-model.md, "The integrator reads the
+# output").  test, functional, pty, integration, valgrind and coverage write
+# build/result/<verb>.result: deleted at the start, "running" while the
+# suites run, final on every exit path (res_end, and the EXIT trap of
+# "timed" for a path that did not get there).
+# ---------------------------------------------------------------------------
+
+RES_DIR="$BUILD_DIR/result"
+RES_VERB=""
+RES_START=0
+RES_STARTED=""
+RES_SCOPES=()
+RES_SUITES=()
+
+# short_commit: the short id of HEAD, with + after it for a dirty tree.
+short_commit() {
+    local commit dirty=""
+    commit="$(git -C "$SCRIPT_DIR" rev-parse --short HEAD)" || commit=unknown
+    if [ "$commit" != unknown ] &&
+       [ -n "$(git -C "$SCRIPT_DIR" status --porcelain)" ]; then
+        dirty="+"
+    fi
+    printf '%s%s' "$commit" "$dirty"
+}
+
+res_begin() {
+    RES_VERB="$1"
+    RES_START="$(date +%s)"
+    RES_STARTED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    RES_SCOPES=()
+    RES_SUITES=()
+    mkdir -p "$RES_DIR"
+    rm -f "$RES_DIR/$RES_VERB.result"
+    res_write running 0
+}
+
+# res_write <status> <exit>: the file as it is now, replaced in one step.
+res_write() {
+    local status="$1" code="$2" line a=0 f=0 n=0 file="$RES_DIR/$RES_VERB.result"
+    for line in "${RES_SUITES[@]}"; do
+        set -- $line
+        n=$((n + 1)); a=$((a + $3)); f=$((f + $4))
+    done
+    {
+        echo "format: manage-result/1"
+        echo "verb: $RES_VERB"
+        echo "commit: $(short_commit)"
+        echo "started: $RES_STARTED"
+        echo "seconds: $(( $(date +%s) - RES_START ))"
+        echo "exit: $code"
+        echo "status: $status"
+        echo "suites: $n"
+        echo "assertions: $a"
+        echo "failed: $f"
+        for line in "${RES_SCOPES[@]}"; do echo "scope: $line"; done
+        for line in "${RES_SUITES[@]}"; do echo "suite: $line"; done
+    } > "$file.new"
+    mv "$file.new" "$file"
+}
+
+# res_end <exit>: the final file.  pass = exit 0; fail = suites ran and the
+# verb failed (a suite, or a threshold); error = the verb could not run them.
+res_end() {
+    local code="$1" status=pass line
+    [ -n "$RES_VERB" ] || return 0
+    if [ "$code" -ne 0 ]; then
+        status=error
+        [ "${#RES_SUITES[@]}" -eq 0 ] || status=fail
+    fi
+    res_write "$status" "$code"
+    RES_VERB=""
+}
+
+# parse_counts <log> <exit>: P_A assertions and P_F failed, as the suite's
+# own runner counted.  The runners differ (libptytest's "Assertions run:",
+# the checking scripts' "checked: N, failed: M" or "N checks, M failed");
+# a suite that prints none counts as one assertion, its own exit status.
+parse_counts() {
+    local log="$1" code="$2" s
+    P_A=""; P_F=""
+    if grep -q 'Assertions run: *[0-9]' "$log"; then
+        P_A="$(sed -n 's/.*Assertions run: *\([0-9][0-9]*\).*/\1/p' "$log" | awk '{ s += $1 } END { print s }')"
+        P_F="$(sed -n 's/.*Assertions failed: *\([0-9][0-9]*\).*/\1/p' "$log" | awk '{ s += $1 } END { print s + 0 }')"
+    elif s="$(grep -Eo 'checked: [0-9]+, failed: [0-9]+' "$log" | tail -n 1)" && [ -n "$s" ]; then
+        P_A="$(sed 's/checked: \([0-9]*\),.*/\1/' <<< "$s")"
+        P_F="$(sed 's/.*failed: //' <<< "$s")"
+    elif s="$(grep -Eo '[0-9]+ checks, [0-9]+ failed' "$log" | tail -n 1)" && [ -n "$s" ]; then
+        P_A="$(sed 's/ checks.*//' <<< "$s")"
+        P_F="$(sed 's/.*checks, \([0-9]*\) failed/\1/' <<< "$s")"
+    elif s="$(grep -Eo '[0-9]+ checks over' "$log" | tail -n 1)" && [ -n "$s" ]; then
+        P_A="${s%% *}"; P_F=0
+    else
+        P_A=1; P_F=0
+        [ "$code" -eq 0 ] || P_F=1
+    fi
+}
+
+# run_suites <prefix> <build dir> <label regex> [ctest args]
+# Runs every suite of the label, one ctest call each, and records it in the
+# result.  A failed suite does not stop the others; the status is non-zero
+# when any failed.  The suite's own output is shown.
+run_suites() {
+    local prefix="$1" dir="$2" label="$3" names name log t0 st rc=0 crc
+    shift 3
+    names="$(ctest --test-dir "$dir" -N -L "$label" "$@" | sed -n 's/^ *Test *#[0-9]*: //p')" || return 1
+    if [ -z "$names" ]; then
+        echo "no tests found for label $label in $dir" >&2
+        return 1
+    fi
+    mkdir -p "$BUILD_DIR/_logs"
+    for name in $names; do
+        log="$BUILD_DIR/_logs/suite-$prefix${name}.log"
+        log="${log//\/\//\/}"
+        mkdir -p "$(dirname "$log")"
+        t0="$(date +%s)"
+        crc=0
+        ctest --test-dir "$dir" -R "^${name//./\\.}\$" -V --no-tests=error 2>&1 | tee "$log" || crc=$?
+        parse_counts "$log" "$crc"
+        if [ "$crc" -eq 0 ] && [ "$P_F" -eq 0 ]; then
+            st=pass
+        else
+            rc=1
+            if grep -q '\*\*\*Timeout' "$log"; then st=timeout; P_A=0; P_F=0
+            elif grep -Eq 'SEGFAULT|Subprocess aborted|\*\*\*Exception' "$log"; then st=crash; P_A=0; P_F=0
+            else
+                st=fail
+                [ "$P_F" -gt 0 ] || P_F=1
+            fi
+        fi
+        RES_SUITES+=("$prefix${name#*.} $st $P_A $P_F $(( $(date +%s) - t0 ))")
+    done
+    return "$rc"
+}
+
+# ---------------------------------------------------------------------------
 # Tests
 # ---------------------------------------------------------------------------
 
-# run_label <label> [ctest args...]
+# run_label <verb> <label> [ctest args...]
 run_label() {
-    local label="$1"
-    shift
+    local verb="$1" label="$2" rc=0
+    shift 2
+    res_begin "$verb"
     # The test tree builds the tests where the integrator runs them from:
     # build/tests/<category>/bin/<name>.
-    build_debug_into "$BUILD_DIR_TEST" "$BUILD_DIR/tests"
+    if ! build_debug_into "$BUILD_DIR_TEST" "$BUILD_DIR/tests"; then
+        res_end 1
+        return 1
+    fi
     # Evidence of an earlier run would be taken for this run's.
     if [ -d "$SCRIPT_DIR/build/_test/evidence" ]; then
         ( cd "$SCRIPT_DIR/build/_test" && rm -rf evidence )
     fi
     # halt_on_error: a sanitiser finding fails the suite instead of being
     # printed and forgotten.  A failed screen assertion leaves its evidence
-    # (report, screen, screen with colours) under the build tree.  The
-    # status is kept, not discarded, and returned after the hint.
-    local rc=0
+    # (report, screen, screen with colours) under the build tree.
     PTYTEST_EVIDENCE_DIR="$BUILD_DIR_TEST/evidence" \
     ASAN_OPTIONS="halt_on_error=1:detect_leaks=1" \
     UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1" \
-        ctest --test-dir "$BUILD_DIR_TEST" -L "^${label}\$" \
-              --output-on-failure --no-tests=error "$@" || rc=$?
+        run_suites "" "$BUILD_DIR_TEST" "^${label}\$" "$@" || rc=1
     if [ -d "$BUILD_DIR_TEST/evidence" ]; then
         echo "Evidence of failed assertions: $BUILD_DIR_TEST/evidence"
     fi
+    res_end "$rc"
     return "$rc"
 }
 
-run_unit() { run_label unit "$@"; }
-run_pty()  { run_label pty "$@"; }
-run_functional() { run_label functional "$@"; }
+run_unit() { run_label test unit "$@"; }
+run_pty()  { run_label pty pty "$@"; }
+run_functional() { run_label functional functional "$@"; }
 
+# valgrind runs every unit suite (and only those: pty and functional have
+# verbs of their own) on a clean Release build.
 run_valgrind() {
+    local rc=0
+    res_begin valgrind
     if ! command -v valgrind >/dev/null; then
         echo "valgrind is not installed; install it with: ./manage.sh deps" >&2
+        res_end 1
         return 1
     fi
     # A clean Release build: sanitiser and coverage instrumentation both
     # interfere with Valgrind's own.  Children of the tests (the fixture,
     # cat, sh) are not traced: the library is what is under examination.
-    ensure_libs
-    cmake -S "$SCRIPT_DIR" -B "$BUILD_DIR_VALGRIND" -DCMAKE_BUILD_TYPE=Release \
-          -DENABLE_COVERAGE=OFF -DTUIKIT_ENABLE_ASAN=OFF -DTUIKIT_BUILD_TESTS=ON \
-          "-DWORKSPACE_LIBS=$(libs_mode)" \
-          "-DTUIKIT_TEST_WRAPPER=valgrind;--error-exitcode=1;--leak-check=full;--errors-for-leak-kinds=definite;--track-fds=no;--quiet"
-    cmake --build "$BUILD_DIR_VALGRIND" --parallel "$JOBS"
-    # Valgrind does not emulate SIGTSTP stops (measured); the one test that
-    # needs a real stop says so and is checked by the other runs.
-    TUIKIT_TEST_UNDER_VALGRIND=1 \
-        ctest --test-dir "$BUILD_DIR_VALGRIND" -L "^(unit|pty)$" --output-on-failure --no-tests=error
-}
-
-# cov_measure <name> <ctest args...>
-# Zeroes the counters, runs the selected suites (their verdict counts: a
-# failing suite fails the run), captures the counters, keeps the product
-# code only (src/), lists it per file and leaves the figure in $COV_PCT
-# and the tracefile in $BUILD_DIR_COVERAGE/<name>.info.
-cov_measure() {
-    local name="$1"
-    shift
-    local info="$BUILD_DIR_COVERAGE/$name.info"
-    lcov --zerocounters --directory "$BUILD_DIR_COVERAGE"
-    ctest --test-dir "$BUILD_DIR_COVERAGE" --output-on-failure --no-tests=error "$@" || return 1
-    lcov --capture --directory "$BUILD_DIR_COVERAGE" --output-file "$info.all"
-    # Product code only, one list for every report: the library sources.
-    lcov --extract "$info.all" "$SCRIPT_DIR/src/*" --output-file "$info"
-    echo "== per-file line coverage: $name =="
-    lcov --list "$info"
-    COV_PCT="$(cov_pct "$info")"
-    if [ -z "$COV_PCT" ]; then
-        echo "coverage: could not read the line rate of $name from lcov --summary" >&2
+    if ! { ensure_libs &&
+           cmake -S "$SCRIPT_DIR" -B "$BUILD_DIR_VALGRIND" -DCMAKE_BUILD_TYPE=Release \
+              -DENABLE_COVERAGE=OFF -DTUIKIT_ENABLE_ASAN=OFF -DTUIKIT_BUILD_TESTS=ON \
+              "-DWORKSPACE_LIBS=$(libs_mode)" \
+              "-DTUIKIT_TEST_WRAPPER=valgrind;--error-exitcode=1;--leak-check=full;--errors-for-leak-kinds=definite;--track-fds=no;--quiet" &&
+           cmake --build "$BUILD_DIR_VALGRIND" --parallel "$JOBS"; }; then
+        res_end 1
         return 1
     fi
+    # Valgrind does not emulate SIGTSTP stops (measured); the one test that
+    # needs a real stop says so and is checked by the other runs.
+    TUIKIT_TEST_UNDER_VALGRIND=1 run_suites "" "$BUILD_DIR_VALGRIND" '^unit$' || rc=1
+    res_end "$rc"
+    return "$rc"
+}
+
+# cov_build <dir>: an instrumented build tree of its own.
+cov_build() {
+    cmake -S "$SCRIPT_DIR" -B "$1" -DCMAKE_BUILD_TYPE=Debug \
+          -DENABLE_COVERAGE=ON -DTUIKIT_ENABLE_ASAN=OFF -DTUIKIT_BUILD_TESTS=ON \
+          "-DWORKSPACE_LIBS=$(libs_mode)" \
+          -DTUIKIT_TEST_WRAPPER= &&
+    cmake --build "$1" --parallel "$JOBS"
 }
 
 cov_pct() {
     lcov --summary "$1" | awk '/lines\.*:/ { sub("%", "", $2); print $2 }'
+}
+
+# cov_lines <tracefile>: "<covered> <total>" lines.
+cov_lines() {
+    lcov --summary "$1" | sed -n 's/.*(\([0-9][0-9]*\) of \([0-9][0-9]*\) lines).*/\1 \2/p'
+}
+
+# cov_scope <scope> <dir> <label regex>
+# The counters of <dir> are zeroed, the suites of the scope are run (their
+# verdict counts: a failing suite fails the run, the others still run), the
+# counters are captured and cut to the product code (src/), and listed per
+# file.  The tracefile is <dir>/<scope>.info, the figure is in $COV_PCT.
+# The counters themselves stay in <dir>, for the integrator's own gcov.
+cov_scope() {
+    local scope="$1" dir="$2" label="$3" info rc=0 lines
+    info="$dir/$scope.info"
+    lcov --zerocounters --directory "$dir" || return 1
+    run_suites "$scope/" "$dir" "$label" || rc=1
+    lcov --capture --directory "$dir" --output-file "$info.all" &&
+    lcov --extract "$info.all" "$SCRIPT_DIR/src/*" --output-file "$info" || return 1
+    echo "== per-file line coverage: $scope =="
+    lcov --list "$info" || return 1
+    COV_PCT="$(cov_pct "$info")"
+    lines="$(cov_lines "$info")"
+    if [ -z "$COV_PCT" ] || [ -z "$lines" ]; then
+        echo "coverage: could not read the line rate of $scope from lcov --summary" >&2
+        return 1
+    fi
+    RES_SCOPES+=("$scope build/coverage/$scope $lines")
+    return "$rc"
 }
 
 # cov_require <name> <pct> <threshold>
@@ -291,50 +459,50 @@ cov_require() {
 }
 
 # Three figures (policies/testing-model.md, Coverage): unit tests alone,
-# the externally driven suites (the PTY tests and the functional capability
-# tests through the shared library's public API) together, and every suite
-# together against the project's own, higher threshold.
+# the externally driven suites (functional, PTY and integration, through
+# the library's public interface) together, and every suite together
+# against the project's own, higher threshold.  The two scopes are two
+# instrumented build trees, build/coverage/unit and build/coverage/external,
+# each holding the counters of its own suites only.
 run_coverage() {
+    local unit_pct ext_pct all_pct rc=0 cov="$BUILD_DIR/coverage"
+    res_begin coverage
     if ! command -v lcov >/dev/null; then
         echo "lcov is not installed; install it with: ./manage.sh deps" >&2
+        res_end 1
         return 1
     fi
-    ensure_libs
-    cmake -S "$SCRIPT_DIR" -B "$BUILD_DIR_COVERAGE" -DCMAKE_BUILD_TYPE=Debug \
-          -DENABLE_COVERAGE=ON -DTUIKIT_ENABLE_ASAN=OFF -DTUIKIT_BUILD_TESTS=ON \
-          "-DWORKSPACE_LIBS=$(libs_mode)" \
-          -DTUIKIT_TEST_WRAPPER=
-    cmake --build "$BUILD_DIR_COVERAGE" --parallel "$JOBS"
-
-    local unit_pct ext_pct all_pct rc=0 cov="$BUILD_DIR_COVERAGE"
-    cov_measure unit -L '^unit$' || return 1
+    if ! { ensure_libs && cov_build "$cov/unit" && cov_build "$cov/external"; }; then
+        res_end 1
+        return 1
+    fi
+    cov_scope unit "$cov/unit" '^unit$' || rc=1
     unit_pct="$COV_PCT"
-    cov_measure pty -L '^pty$' || return 1
-    # The packaging scripts of the functional kind do not run src/; the
-    # capability tests do.
-    cov_measure cap -R '^functional\.cap-' || return 1
-    lcov --add-tracefile "$cov/pty.info" --add-tracefile "$cov/cap.info" \
-         --output-file "$cov/external.info"
-    echo "== per-file line coverage: externally driven (pty + functional) =="
-    lcov --list "$cov/external.info"
-    ext_pct="$(cov_pct "$cov/external.info")"
-    lcov --add-tracefile "$cov/unit.info" --add-tracefile "$cov/external.info" \
-         --output-file "$cov/coverage.info"
+    cov_scope external "$cov/external" '^(functional|pty)$' || rc=1
+    ext_pct="$COV_PCT"
+    if [ "$rc" -ne 0 ]; then
+        res_end 1
+        return 1
+    fi
+    lcov --add-tracefile "$cov/unit/unit.info" --add-tracefile "$cov/external/external.info" \
+         --output-file "$cov/coverage.info" || { res_end 1; return 1; }
     echo "== per-file line coverage: all suites together =="
-    lcov --list "$cov/coverage.info"
+    lcov --list "$cov/coverage.info" || { res_end 1; return 1; }
     all_pct="$(cov_pct "$cov/coverage.info")"
-    if [ -z "$ext_pct" ] || [ -z "$all_pct" ]; then
+    if [ -z "$all_pct" ]; then
         echo "coverage: could not read a line rate from lcov --summary" >&2
+        res_end 1
         return 1
     fi
     if command -v genhtml >/dev/null; then
-        genhtml --quiet "$cov/coverage.info" --output-directory "$cov/html"
+        genhtml --quiet "$cov/coverage.info" --output-directory "$cov/html" || rc=1
         echo "HTML report: $cov/html/index.html"
     fi
     cov_require "unit tests alone" "$unit_pct" "$COVERAGE_UNIT_THRESHOLD" || rc=1
-    cov_require "externally driven (pty + functional)" "$ext_pct" "$COVERAGE_EXTERNAL_THRESHOLD" || rc=1
+    cov_require "externally driven (functional + pty)" "$ext_pct" "$COVERAGE_EXTERNAL_THRESHOLD" || rc=1
     cov_require "all suites together" "$all_pct" "$COVERAGE_THRESHOLD" || rc=1
     echo "Line coverage of src/: ${all_pct}% (threshold ${COVERAGE_THRESHOLD}%)"
+    res_end "$rc"
     return "$rc"
 }
 
@@ -589,10 +757,13 @@ run_check() {
     echo
     echo "=== summary ==="
     for g in $gates; do printf '%-10s %s\n' "$g" "${result[$g]}"; done
-    if ! grep -h -E '^(Assertions run|Line coverage)' "$logdir/unit.log" \
-             "$logdir/pty.log" "$logdir/coverage.log"; then
-        echo "  (no assertion counts or coverage figure found in the logs)"
-    fi
+    local rf
+    for rf in "$RES_DIR"/*.result; do
+        [ -f "$rf" ] || continue
+        printf '%-12s %s assertions, %s failed\n' "$(sed -n 's/^verb: //p' "$rf")" \
+               "$(sed -n 's/^assertions: //p' "$rf")" "$(sed -n 's/^failed: //p' "$rf")"
+    done
+    grep -h '^Line coverage' "$logdir/coverage.log" || echo "  (no coverage figure found in the log)"
     if [ "$failed" -ne 0 ]; then
         echo "$failed gate(s) failed."
         return 1
@@ -617,18 +788,17 @@ TIMING_START=0
 # a function called in an "||" list runs without "set -e", and the verbs
 # rely on it.  The trap sees the exit status of the verb, ok or not.
 timing_record() {
-    local rc=$? secs state=ok commit dirty=""
+    local rc=$? secs state=ok commit
     trap - EXIT
+    # A result file still "running" is made final: a path that did not end
+    # the verb itself (an interrupted run) leaves no stale answer.
+    if [ -n "$RES_VERB" ]; then res_end "$rc"; fi
     secs=$(( $(date +%s) - TIMING_START ))
     [ "$rc" -eq 0 ] || state=fail
-    commit="$(git -C "$SCRIPT_DIR" rev-parse --short HEAD)" || commit=unknown
-    if [ "$commit" != unknown ] &&
-       [ -n "$(git -C "$SCRIPT_DIR" status --porcelain)" ]; then
-        dirty="+"
-    fi
+    commit="$(short_commit)"
     mkdir -p "$BUILD_DIR"
-    printf '%s %s %ss %s %s%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-           "$TIMING_VERB" "$secs" "$state" "$commit" "$dirty" >> "$TIMING_LOG"
+    printf '%s %s %ss %s %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+           "$TIMING_VERB" "$secs" "$state" "$commit" >> "$TIMING_LOG"
     exit "$rc"
 }
 
@@ -637,6 +807,8 @@ timed() {
     TIMING_VERB="$1"
     TIMING_START="$(date +%s)"
     trap timing_record EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
 }
 
 # timing_line: the gate line from the latest successful run of each verb of
@@ -738,6 +910,6 @@ case "$cmd" in
     *)
         echo "unknown command: $cmd" >&2
         usage >&2
-        exit 1
+        exit 2
         ;;
 esac

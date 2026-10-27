@@ -26,6 +26,8 @@ read, never changed; a fault found in them is reported to the human.
 build/tests/unit/bin/test-decoder <substring>   # one test
 ```
 
+`test`, `pty`, `functional`, `valgrind` and `coverage` write `build/result/<verb>.result` (`policies/manage-sh-model.md`); `coverage` leaves its counters in `build/coverage/unit` and `build/coverage/external`; `valgrind` runs the unit suites only; an unknown verb exits 2; `tests/functional/result.sh` tests this with mocks.
+
 ## Architecture
 
 `docs/specification.md` is the design; `man/man7/libtuikit.7` the user-facing
