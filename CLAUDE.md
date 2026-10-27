@@ -12,7 +12,6 @@ regularly: they change. They are never edited from here (see
 `policies/project-boundaries-model.md`); a disagreement is reported to the
 human.
 
-`requirements/`, if it exists, is human-authored and never edited by an agent.
 The other projects (tg-cli, email-cli, issue-manager, mamind, libptytest) are
 read, never changed; a fault found in them is reported to the human.
 
