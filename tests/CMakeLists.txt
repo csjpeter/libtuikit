@@ -195,6 +195,7 @@ project_test(functional package-output SCRIPT functional/package_output.sh ARGS 
 project_test(functional workspace-libs SCRIPT functional/workspace_libs.sh ARGS ${CMAKE_SOURCE_DIR} ${TUIKIT_TEST_TMPDIR} TIMEOUT 900)
 project_test(functional timing SCRIPT functional/timing.sh ARGS ${CMAKE_SOURCE_DIR} ${TUIKIT_TEST_TMPDIR} TIMEOUT 300)
 project_test(functional result SCRIPT functional/result.sh ARGS ${CMAKE_SOURCE_DIR} ${TUIKIT_TEST_TMPDIR} TIMEOUT 300)
+project_test(functional test-base SCRIPT functional/test_base.sh ARGS ${CMAKE_SOURCE_DIR} ${TUIKIT_TEST_TMPDIR} TIMEOUT 300)
 
 # --- functional: every capability of the library, through its public API ---
 # docs/functional-coverage.md maps each exported function to one of these;
