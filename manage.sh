@@ -49,7 +49,10 @@ usage() {
 Usage: ./manage.sh <command> [args]
 
 Commands:
-  deps                  Install build and test dependencies (apt or dnf; needs root)
+  deps                  Install build and test dependencies (apt or dnf; needs root);
+                        includes test-base
+  test-base             Create or refresh the test base containers in /var/lib/lxc-bases
+                        (this project has none: says so, exits 0)
   build                 Release build (build/)
   debug                 Debug build with ASAN + UBSan (build/_debug)
   test [ctest args]     Unit tests, ASAN + UBSan -- the command run most often
@@ -146,6 +149,12 @@ ensure_libs() {
     esac
 }
 
+# The project's test base containers (policies/agent-container-model.md, 4a).
+# libtuikit's tests need none: say so and succeed.  Idempotent.
+test_base() {
+    echo "test-base: libtuikit has no test base container; nothing to do."
+}
+
 install_deps() {
     local apt_deps="$APT_DEPS" dnf_deps="$DNF_DEPS"
     if [ "$(libs_mode)" = system ]; then
@@ -168,6 +177,7 @@ install_deps() {
     if [ "$(libs_mode)" = bundled ]; then
         ensure_libs
     fi
+    test_base
 }
 
 # ---------------------------------------------------------------------------
@@ -886,6 +896,7 @@ cmd="${1:-help}"
 [ $# -gt 0 ] && shift
 case "$cmd" in
     deps)      install_deps ;;
+    test-base) test_base ;;
     build)     timed build; build_release ;;
     debug)     timed debug; build_debug ;;
     test)      timed test; run_unit "$@" ;;
