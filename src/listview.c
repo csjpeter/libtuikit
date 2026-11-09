@@ -110,10 +110,14 @@ void tui_listview_render(tui_listview *lv, tui_canvas c, tui_style blank,
     if (!lv) return;
     int rows = tui_canvas_rows(c);
     tui_listview_set_viewport(lv, rows);
+    /* More items than rows: the scroll bar takes the last column. */
+    int cols = tui_canvas_cols(c);
+    int bar = tui__scrollbar_needed(lv->count, rows) && cols > 1;
     for (int r = 0; r < rows; r++) {
-        tui_canvas row = tui_canvas_sub(c, tui_rect_make(r, 0, 1, tui_canvas_cols(c)));
+        tui_canvas row = tui_canvas_sub(c, tui_rect_make(r, 0, 1, bar ? cols - 1 : cols));
         tui_canvas_clear(row, blank);
         int index = lv->scroll_top + r;
         if (draw && index < lv->count) draw(ctx, row, index, index == lv->selected);
     }
+    if (bar) tui__scrollbar(c, lv->count, lv->scroll_top, rows);
 }

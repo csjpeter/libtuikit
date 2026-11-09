@@ -474,6 +474,10 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     tui_canvas_box(c, box, d->title, d->frame);
     tui_rect content = tui_rect_make(box.row + 1, box.col + 2, box.rows - 2, box.cols - 4);
     tui_canvas cc = tui_canvas_sub(c, content);
+    /* The content and the padding column at its right: a scroll bar goes
+     * into that column, so the text keeps the width the box was sized for. */
+    tui_canvas wide = tui_canvas_sub(c, tui_rect_make(content.row, content.col, content.rows,
+                                                      content.cols + 1));
     int rows = tui_canvas_rows(cc);
     /* A menu has no text: its list takes every row. */
     int is_list = d->kind == TUI_DIALOG_MENU || d->kind == TUI_DIALOG_QUICKMENU ||
@@ -495,7 +499,8 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
         tui_textview_render(&d->body, tui_canvas_sub(cc, tui_rect_make(0, 0, shown, inner_w)),
                             d->fill);
     } else if (text_rows > 0 && lines > 0)
-        tui_textview_render(&d->body, tui_canvas_sub(cc, tui_rect_make(0, 0, text_rows, inner_w)),
+        tui_textview_render(&d->body,
+                            tui_canvas_sub(wide, tui_rect_make(0, 0, text_rows, inner_w + 1)),
                             d->fill);
 
     tui_canvas last = tui_canvas_sub(cc, tui_rect_make(rows - 1, 0, 1, inner_w));
@@ -518,7 +523,9 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     case TUI_DIALOG_QUICKMENU:
     case TUI_DIALOG_CHECKLIST: {
         menu_ctx ctx = { d };
-        tui_canvas list = tui_canvas_sub(cc, tui_rect_make(text_rows, 0, below, inner_w));
+        int bar = tui__scrollbar_needed(d->nitems, below);
+        tui_canvas list = tui_canvas_sub(bar ? wide : cc,
+                                         tui_rect_make(text_rows, 0, below, bar ? inner_w + 1 : inner_w));
         tui_listview_render(&d->list, list, d->fill, draw_item, &ctx);
         break;
     }
@@ -538,10 +545,15 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
         d->list.rows_visible = lrows;
         int max_top = shown - lrows;
         if (d->list.scroll_top > max_top) d->list.scroll_top = max_top > 0 ? max_top : 0;
+        /* More entries than rows: the scroll bar in the padding column
+         * beside the frame; the entries keep their width. */
+        int tw = inner_w;
+        tui__scrollbar(tui_canvas_sub(wide, tui_rect_make(text_rows, 0, lrows, inner_w + 1)), shown,
+                       d->list.scroll_top, lrows);
         for (int r = 0; r < lrows && d->list.scroll_top + r < shown; r++) {
             int i = help_nth(d, d->list.scroll_top + r);
-            tui_canvas row = tui_canvas_sub(cc, tui_rect_make(text_rows + r, 0, 1, inner_w));
-            tui_canvas what = tui_canvas_sub(row, tui_rect_make(0, key_w + 2, 1, inner_w - key_w - 2));
+            tui_canvas row = tui_canvas_sub(cc, tui_rect_make(text_rows + r, 0, 1, tw));
+            tui_canvas what = tui_canvas_sub(row, tui_rect_make(0, key_w + 2, 1, tw - key_w - 2));
             tui_canvas_put(row, 0, 0, help_str(d, 2 * i), key_st);
             tui_canvas_put_aligned(what, 0, help_str(d, 2 * i + 1), TUI_ALIGN_LEFT, d->fill);
             if (sline) {

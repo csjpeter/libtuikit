@@ -70,7 +70,7 @@ static void poison(tui_scheme *sc) {
 /* ── Roles and the built-in palette ─────────────────────────────────── */
 
 static void test_roles(void) {
-    ASSERT_EQ_INT(TUI_ROLE_COUNT, 15, "fifteen roles");
+    ASSERT_EQ_INT(TUI_ROLE_COUNT, 17, "seventeen roles");
     for (int i = 0; i < TUI_ROLE_COUNT; i++) {
         const char *n = tui_role_name((tui_role)i);
         ASSERT(n != NULL, "every role has a key");

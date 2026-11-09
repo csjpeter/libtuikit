@@ -42,7 +42,7 @@ mkdir -p "$FIX/src"
 
 # A package left over from an earlier version.
 mkdir -p "$FIX/src/build/packages"
-: > "$FIX/src/build/packages/libtuikit0_0.0.1_amd64.deb"
+: > "$FIX/src/build/packages/libtuikit1_0.0.1_amd64.deb"
 
 echo "--- a successful run"
 rc=0
@@ -54,7 +54,7 @@ mapfile -t files < <(cd "$FIX/src/build/packages" && find . -mindepth 1 -printf 
 echo "  build/packages: ${files[*]:-(empty)}"
 if [ "${#files[@]}" -eq 2 ]; then pass "two entries"
 else fail "expected two entries, found ${#files[@]}"; fi
-if [ ! -e "$FIX/src/build/packages/libtuikit0_0.0.1_amd64.deb" ]; then pass "the stale package is gone"
+if [ ! -e "$FIX/src/build/packages/libtuikit1_0.0.1_amd64.deb" ]; then pass "the stale package is gone"
 else fail "the stale package is still there"; fi
 
 names="" dates=""
@@ -74,8 +74,8 @@ for f in "${files[@]}"; do
     dates="$dates
 $date"
 done
-if [ "$(echo $names | tr ' ' '\n' | LC_ALL=C sort | tr '\n' ' ')" = "libtuikit-dev libtuikit0 " ]; then
-    pass "libtuikit0 and libtuikit-dev"
+if [ "$(echo $names | tr ' ' '\n' | LC_ALL=C sort | tr '\n' ' ')" = "libtuikit-dev libtuikit1 " ]; then
+    pass "libtuikit1 and libtuikit-dev"
 else
     fail "packages: '$names'"
 fi
@@ -116,7 +116,7 @@ rc=0
 "$FIX/src/manage.sh" package deb > "$FIX/tag.log" 2>&1 || rc=$?
 if [ "$rc" -eq 0 ]; then pass "package deb with an unreachable origin exits 0"
 else fail "package deb exits $rc; log follows"; cat "$FIX/tag.log" >&2; fi
-pver="$(dpkg-deb -f "$(find "$FIX/src/build/packages" -name 'libtuikit0_*.deb' | head -n 1)" Version)"
+pver="$(dpkg-deb -f "$(find "$FIX/src/build/packages" -name 'libtuikit1_*.deb' | head -n 1)" Version)"
 if [ "$pver" = "$(cd "$FIX/src" && sed -n 's/^project(libtuikit VERSION \([0-9.]*\) .*/\1/p' CMakeLists.txt).2" ]; then
     pass "version is project version + commit count ($pver)"
 else fail "unexpected version '$pver'"; fi

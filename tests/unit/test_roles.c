@@ -67,7 +67,9 @@ static const char g_scheme[] =
     "ok           = 40 - bold\n"
     "error        = 160 - bold\n"
     "hint         = 178 - -\n"
-    "progress     = 99 - italic\n";
+    "progress     = 99 - italic\n"
+    "scrollbar.track = 240 - dim\n"
+    "scrollbar.thumb = 250 - -\n";
 
 static void mkdir_one(const char *path) { (void)mkdir(path, 0700); }
 

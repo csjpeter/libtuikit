@@ -214,6 +214,18 @@ and
 give the same columns as plain text, for a list printed to a pipe;
 .I cols
 of 0 or less means no cut and no padding, the full strings.
+.SS Scroll bar
+When there are more rows than the window, the last column of the rows (not of
+the header) is a scroll bar: a track (role
+.BR scrollbar.track )
+with a thumb (role
+.BR scrollbar.thumb )
+that shows the size and place of the visible rows.  The columns are laid out
+one column narrower only while it is shown.
+.BR tui_table_render_row ()
+and
+.BR tui_table_render_header ()
+keep to the narrower width too.  The history view and the tree draw it the same way.
 .SH RETURN VALUE
 .BR tui_table_handle ()
 returns 1 when the key was a movement key, 0 otherwise.

@@ -1,4 +1,4 @@
-# The ABI of libtuikit.so.0, checked by tests/unit/check_abi.sh (TUI-15).
+# The ABI of libtuikit.so.1, checked by tests/unit/check_abi.sh (TUI-15).
 #
 # Within one SOVERSION a program built against any release runs on every
 # later one, so no struct below changes its size or alignment and no
@@ -6,11 +6,8 @@
 # (and a new record, abi/libtuikit<N>.abi).  New structs and functions are
 # added here as they are added to the headers.
 #
-# The ABI recorded here is that of 0.2.0 and later.  0.1.0 differs: its
-# tui_dialog was 272 bytes (it grew by the checklist's `checked` pointer
-# in 0.2.0, without a SOVERSION change).  Every package built against 0.1.0
-# depends on libtuikit0 (= 0.1.0), so apt never pairs it with a later
-# library; see TUI-15.
+# This record starts SOVERSION 1 (1.0.0, TUI-110): tui_scheme grew by the two
+# scroll bar roles.  libtuikit.so.0 is recorded in abi/libtuikit0.abi no more.
 #
 # size <struct> <bytes> <alignment>   symbol <exported function>
 arch x86_64
@@ -36,7 +33,7 @@ size tui_menu 16 8
 size tui_menu_entry 24 8
 size tui_readline_opts 32 8
 size tui_rect 16 4
-size tui_scheme 180 4
+size tui_scheme 204 4
 size tui_scheme_report 196 4
 size tui_statusline 920 8
 size tui_style 12 4

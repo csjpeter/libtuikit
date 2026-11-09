@@ -87,6 +87,16 @@ and, if an item is shown there, calls
 .IR draw ( ctx ", " row ", " index ", " selected )
 with a one-row canvas.
 The selected item is drawn by the program, usually in reverse video.
+.PP
+When there are more items than rows, the last column of the canvas is a
+scroll bar (a track, roles
+.B scrollbar.track
+and
+.BR scrollbar.thumb ,
+with a thumb that shows the size and place of the visible part) and the rows
+given to
+.I draw
+are one column narrower; with no more items than rows there is no bar.
 .SH EXAMPLE
 .nf
 static void draw_row(void *ctx, tui_canvas row, int i, int selected) {

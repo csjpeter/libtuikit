@@ -59,6 +59,9 @@ text; selection; quick key: accent
 .B fieldset
 text (labels), accent (focused label), input / input.focus (a text value), selection (candidates), error
 .TP
+.B scroll bar
+scrollbar.track (default: dim), scrollbar.thumb (default: plain)
+.TP
 .B status line
 status (the bar), text (a message), error, ok, progress
 .TP
@@ -105,9 +108,11 @@ The keys in a file are
 .BR tab.inactive ,
 .BR ok ,
 .BR error ,
-.B hint
+.BR hint ,
+.BR progress ,
+.B scrollbar.track
 and
-.BR progress .
+.BR scrollbar.thumb .
 .BR tui_role_name ()
 gives the key of a role (NULL for a value that is none) and
 .BR tui_role_from_name ()
