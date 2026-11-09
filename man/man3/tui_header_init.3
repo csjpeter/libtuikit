@@ -1,0 +1,81 @@
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_HEADER_INIT 3 2026-11-09 "libtuikit 0.8" "libtuikit Manual"
+.SH NAME
+tui_header_init, tui_header_set_left, tui_header_set_right,
+tui_header_set_notice, tui_header_set_warning, tui_header_clear_warning,
+tui_header_notice, tui_header_warning_active, tui_header_handle,
+tui_header_render, tui_header_format \-
+the header bar: view, program name and a notice area
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/header.h>
+.PP
+.BI "void tui_header_init(tui_header *" h );
+.BI "void tui_header_set_left(tui_header *" h ", const char *" text );
+.BI "void tui_header_set_right(tui_header *" h ", const char *" text );
+.BI "void tui_header_set_notice(tui_header *" h ", const char *" text ", tui_style " style );
+.BI "void tui_header_set_warning(tui_header *" h ", const char *" text );
+.BI "void tui_header_clear_warning(tui_header *" h );
+.BI "const char *tui_header_notice(const tui_header *" h );
+.BI "int  tui_header_warning_active(const tui_header *" h );
+.BI "tui_header_result tui_header_handle(tui_header *" h ", const tui_event *" ev );
+.BI "void tui_header_render(tui_header *" h ", tui_canvas " c );
+.BI "int  tui_header_format(const tui_header *" h ", int " cols ", char *" out ", size_t " outsz );
+.fi
+.SH DESCRIPTION
+.B tui_header
+is the top bar of a program, drawn on the first row of a canvas in the scheme's
+header role.
+It holds the view (and at most one count or filter) on the left, the program's
+name on the right, and between them a notice area for messages and standing
+warnings; the key hints stay on the bottom line,
+.BR tui_statusline_init (3).
+.PP
+.BR tui_header_init ()
+makes an empty bar; the struct must not be copied.
+.BR tui_header_set_left ()
+and
+.BR tui_header_set_right ()
+set the two texts (controls become spaces; NULL or "" clears).
+.PP
+.BR tui_header_set_notice ()
+shows a plain notice in
+.IR style ,
+.BR TUI_STYLE_OK ", " TUI_STYLE_ERROR ", " TUI_STYLE_PROGRESS
+or the default; the style's colour becomes the notice's background and its
+attributes are added, so no new colour is used.
+A plain notice is cleared by the next key or paste that reaches
+.BR tui_header_handle ()
+(it returns
+.BR TUI_HEADER_CHANGED ;
+a resize and every other event are
+.BR TUI_HEADER_IGNORED ).
+.PP
+.BR tui_header_set_warning ()
+shows a standing warning in the error role.
+It stays across keys until
+.BR tui_header_clear_warning ()
+or until another warning is set.
+It replaces a plain notice that shows, and a plain notice set while a warning
+stands is not shown.
+.BR tui_header_notice ()
+gives the text that shows ("" when none) and
+.BR tui_header_warning_active ()
+tells whether it is a warning.
+.PP
+When the row is too narrow, the left text is cut first (with an ellipsis, then
+dropped), then the notice; the name is never cut unless it alone is wider than
+the row.
+.BR tui_header_render ()
+draws the bar over the whole width of the canvas.
+.BR tui_header_format ()
+writes the same row as plain text for
+.I cols
+columns, without trailing blanks; it returns the length, or \-1 when
+.I outsz
+was too small (the text is then cut at a character).
+.SH SEE ALSO
+.BR libtuikit (7),
+.BR tui_statusline_init (3),
+.BR tui_scheme_style (3)

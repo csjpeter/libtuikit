@@ -127,7 +127,7 @@ static void layout_hints(const tui_statusline *sl, int avail, line *ln) {
 static void layout(const tui_statusline *sl, int cols, int hints_only, line *ln) {
     /* out holds tmp plus the progress suffix (up to 47 bytes): sized so that
      * the concatenation can never be truncated. */
-    char tmp[1024], out[1024 + 48], pos[256];
+    char tmp[1024], out[1024], pos[256];
     ln->n = 0;
     ln->used = 0;
     ln->shown = 0;
@@ -135,10 +135,8 @@ static void layout(const tui_statusline *sl, int cols, int hints_only, line *ln)
     if (cols <= 0) return;
 
     int show_prompt = sl->prompting && !hints_only;
-    int show_msg = !show_prompt && sl->message[0] && !hints_only;
-    int show_wait = !show_prompt && !show_msg && sl->wait[0] && !hints_only;
-    if (show_msg) ln->fill = with_attrs(sl->msg_style, TUI_ATTR_REVERSE);
-    if (show_wait) ln->fill = with_attrs(TUI_STYLE_PROGRESS, TUI_ATTR_REVERSE);
+    /* TUI-109: a message or a wait text no longer replaces the hints; they
+     * are kept for compatibility and belong in the header notice. */
 
     /* The position is laid out first for its width, added last, so that the
      * pieces stay in column order. */
@@ -152,18 +150,6 @@ static void layout(const tui_statusline *sl, int cols, int hints_only, line *ln)
             snprintf(tmp, sizeof(tmp), "%s%s", sl->prompt, sl->pbuf);
             tui_str_fit_ellipsis(tmp, avail, out, sizeof(out));
             add(ln, LEAD, out, ln->fill, 1);
-        } else if (show_msg) {
-            tui_str_fit_ellipsis(sl->message, avail, out, sizeof(out));
-            add(ln, LEAD, out, ln->fill, 0);
-        } else if (show_wait) {
-            char suffix[48] = "";
-            if (sl->wait_total > 0)
-                snprintf(suffix, sizeof(suffix), " %d/%d", sl->wait_done, sl->wait_total);
-            int sw = tui_str_width(suffix);
-            if (sw >= avail) { suffix[0] = '\0'; sw = 0; }
-            tui_str_fit_ellipsis(sl->wait, avail - sw, tmp, sizeof(tmp));
-            snprintf(out, sizeof(out), "%s%s", tmp, suffix);
-            add(ln, LEAD, out, ln->fill, 0);
         } else {
             layout_hints(sl, avail, ln);
         }

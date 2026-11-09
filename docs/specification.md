@@ -204,7 +204,7 @@ Non-goals:
   tui_term ──► tui_decoder ──► tui_event     tui_canvas ──► tui_screen ──► tui_buf ──► fd
    (fds, termios,  (bytes → keys)          (clipped rect)  (cells, diff)  (bytes)
     signals, size)
-                         widgets: tui_listview  tui_tree  tui_table  tui_statusline  tui_tabrow  tui_textview  tui_lineedit  tui_dialog
+                         widgets: tui_listview  tui_tree  tui_table  tui_header  tui_statusline  tui_tabrow  tui_textview  tui_lineedit  tui_dialog
                          helpers: tui_text (UTF-8, width, sanitise)  tui_rect (layout)
 ```
 
@@ -223,7 +223,8 @@ Non-goals:
 | `tuikit/tree.h` | the opening and closing tree over the list view | yes | |
 | `tuikit/histview.h` | the history view: recorded steps in a table, a Revert entry with a confirmation | yes | TUI-63 |
 | `tuikit/table.h` | columns, header, the selection the widget owns | yes | TUI-48 |
-| `tuikit/statusline.h` | the one bottom line: hints that fit, message, wait, position, prompt | yes | TUI-51 |
+| `tuikit/header.h` | the top bar: view, program name and a notice area (messages, standing warnings) | yes | TUI-109 |
+| `tuikit/statusline.h` | the one bottom line: hints that fit, position, prompt (message and wait deprecated: they no longer show) | yes | TUI-51, TUI-109 |
 | `tuikit/tabrow.h` | the tab row of a screen with sub-views, the active tab by attribute | yes | TUI-69 |
 | `tuikit/textview.h` | wrapped, scrollable text | yes | M4 |
 | `tuikit/lineedit.h` | single-line editor model, history | yes | M5 |
@@ -537,7 +538,8 @@ choice and is drawn as it is; only the widgets' defaults are roles.
 | `tui_table`, `tui_histview` | `text` (unstyled rows, blank, message in dim), `text`+bold (header row), `selection` (the one selection, by colour depth) |
 | `tui_dialog` message, confirm, prompt, menu, checklist, quick menu, help | `text` (fill), `frame` (the frame, and the matched words of the help), `selection` (a menu row; the buttons in focus in bold, bold reverse built-in), `accent` (a quick key), `input.focus` over `input` (the prompt's field) |
 | `tui_fieldset` | `text` (labels, candidates), `accent` (the focused label, a choice), `input` and `input.focus` (a text value), `selection` (the chosen candidate), `error` |
-| `tui_statusline` | `status` (the bar), `text` (a message, plus reverse), `progress` (the wait text), the style the program passes for a message (`error`, `ok`) |
+| `tui_header` | `header` (the bar), and for the notice the colour of the role the program passes (`ok`, `progress`) or `error` (a warning) as the background of the notice, with the role's attributes; no new role |
+| `tui_statusline` | `status` (the bar) |
 | `tui_tabrow` | `tab.active` (the active tab, plus bold and underline), `tab.inactive` (the others and the marks) |
 | `tui_actionmenu` | as the quick menu |
 
@@ -671,15 +673,38 @@ widget the program routes events to first.
     iterates the indices in the list. The widget draws a bold `*` beside
     `>` (over the row's own mark glyph) in the row's colours, selected or
     not. `tui_table_free` releases the set.
+- **`tui_header`** (TUI-109) — the header bar of
+  `policies/tui-interface-model.md` ("The header carries no statistics, the
+  bottom line carries the keys"), drawn on the first row of a canvas in the
+  `header` role.
+  - *Pieces*: the left text (the view, at most one count or filter,
+    `tui_header_set_left`), the right text (the program's name,
+    `tui_header_set_right`) and between them the notice, placed two blanks
+    after the left text. Controls become spaces.
+  - *Notice*: a plain one (`tui_header_set_notice`, with a style:
+    `TUI_STYLE_OK`, `_ERROR`, `_PROGRESS`) clears on the next key or paste
+    that reaches `tui_header_handle` (a resize does not clear it). A
+    standing warning (`tui_header_set_warning`, the `error` role, bold) stays
+    across keys until `tui_header_clear_warning` or another warning; it
+    replaces a plain notice that shows and wins over one set later (that
+    one is dropped). The notice is drawn with the role's colour as its
+    background and the role's attributes, so it reads on the bar and is
+    told apart without colour.
+  - *Clipping* (a narrow row): the left text is cut first (`…`, then
+    dropped), then the notice (`…`); the name is never cut unless it alone
+    is wider than the row.
+  - *Plain text*: `tui_header_format` lays the bar out exactly as `render`.
 - **`tui_statusline`** (TUI-51) — the one status line of
   `policies/tui-interface-model.md` ("One status line", "The hints fit",
   "Waiting is shown"), drawn on the last row of a canvas in reverse video;
   the terminal's own background is kept on every other row.
-  - *What it shows*, in this order: the prompt while one is open, the
-    message, the waiting text, the hints. A message replaces the hints
-    until the next key or paste reaches `tui_statusline_handle` (a resize
-    does not clear it); a program that must not lose the message uses a
-    modal.
+  - *What it shows* (TUI-109), in this order: the prompt while one is
+    open, the hints; the position at the right. Nothing replaces the hints:
+    `tui_statusline_set_message` and `tui_statusline_set_wait` are
+    **deprecated**, kept for compatibility during the transition (the
+    text is stored, `tui_statusline_handle` still clears a message on a
+    key) but never drawn; a program shows messages and waits in the
+    `tui_header` notice.
   - *Hints* are `(key, label, priority)` entries the program owns, shown
     in the given order, two blanks apart. What does not fit is dropped
     whole, lowest priority first (the earlier of equals is kept); the help
@@ -687,16 +712,8 @@ widget the program routes events to first.
     cut only when it alone does not fit. `tui_statusline_hint_at` gives the
     full set for the help screen, `tui_statusline_hints_fit` how many fit a
     width. Below 80 columns hints are dropped; nothing wraps or scrolls.
-  - *Message*: set with a style (`TUI_STYLE_ERROR`, `_OK`, default for
-    information), the bar takes its colour and stays reverse and bold
-    where the style has it, so it is told apart without colour. Cut with
-    `…` at a display-width boundary (a wide character whole). Controls
-    become spaces.
   - *Position* (`[3/120]`, `page 2/7`) is right-aligned and kept; the left
     side is cut to make room for it.
-  - *Wait* text in the progress style with an optional ` done/total`: the
-    text is cut, the numbers stay. It shows until cleared and is set by the
-    program's loop without a key press.
   - *Prompt*: a `tui_lineedit` on the row; Enter is `ACCEPT`, Esc and
     Ctrl-D on an empty line `CANCEL`, both return to the hints; the text
     stays readable.
