@@ -104,6 +104,7 @@ set(TUIKIT_SOURCES
     src/decoder.c
     src/dialog.c
     src/fieldset.c
+    src/header.c
     src/histview.c
     src/lineedit.c
     src/listview.c
@@ -327,6 +328,11 @@ set(TUIKIT_MAN3_ALIASES
     tui_tabrow_active:tui_tabrow_init tui_tabrow_count:tui_tabrow_init
     tui_tabrow_handle:tui_tabrow_init tui_tabrow_render:tui_tabrow_init
     tui_tabrow_format:tui_tabrow_init
+    tui_header_set_left:tui_header_init tui_header_set_right:tui_header_init
+    tui_header_set_notice:tui_header_init tui_header_set_warning:tui_header_init
+    tui_header_clear_warning:tui_header_init tui_header_notice:tui_header_init
+    tui_header_warning_active:tui_header_init tui_header_handle:tui_header_init
+    tui_header_render:tui_header_init tui_header_format:tui_header_init
     tui_textview_free:tui_textview_init tui_textview_set_text:tui_textview_init
     tui_textview_append:tui_textview_init tui_textview_wrap:tui_textview_init
     tui_textview_lines:tui_textview_init tui_textview_scroll:tui_textview_init

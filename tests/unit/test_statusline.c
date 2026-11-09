@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
 /* Created: 2026-10-14 */
-/* Unit tests of tui_statusline: hints that fit, message, wait, position, prompt, colours. */
+/* Unit tests of tui_statusline: hints that fit, position, prompt, colours; messages do not show. */
 
 /*
  * The line is rendered, fed to libptytest's emulator and compared cell by
@@ -160,16 +160,16 @@ static void test_help_hint_options(void) {
 
 /* ── Message ────────────────────────────────────────────────────────── */
 
-static void test_message_replaces_hints_and_is_cut(void) {
+static void test_message_does_not_replace_hints(void) {
     tui_statusline sl;
     tui_statusline_init(&sl);
     tui_statusline_set_hints(&sl, g_hints, NH);
     tui_statusline_set_message(&sl, "Saved 3 messages", TUI_STYLE_OK);
-    ASSERT_EQ_STR(fmt(&sl, 80), " Saved 3 messages", "the message replaces the hints");
-    ASSERT_EQ_STR(tui_statusline_message(&sl), "Saved 3 messages", "readable");
-    ASSERT_EQ_STR(fmt(&sl, 10), " Saved 3\xE2\x80\xA6", "cut with an ellipsis, a blank kept at the right edge");
+    ASSERT_EQ_STR(fmt(&sl, 80), " Enter open  / filter  d delete  q quit  r  ? help", "TUI-109: the message does not replace the hints");
+    ASSERT_EQ_STR(tui_statusline_message(&sl), "Saved 3 messages", "still readable (deprecated)");
+    ASSERT_EQ_STR(fmt(&sl, 28), " Enter open  q quit  ? help", "narrow: the hints degrade as without a message");
     tui_statusline_set_message(&sl, "\xE4\xBD\xA0\xE5\xA5\xBD\xE4\xB8\x96\xE7\x95\x8C", TUI_STYLE_ERROR);
-    ASSERT_EQ_STR(fmt(&sl, 7), " \xE4\xBD\xA0\xE5\xA5\xBD\xE2\x80\xA6", "a wide character is not cut by halves");
+    ASSERT_EQ_STR(fmt(&sl, 28), " Enter open  q quit  ? help", "an error message neither");
     tui_statusline_set_message(&sl, "a\tb\nc\x1b[31md", TUI_STYLE_ERROR);
     ASSERT_EQ_STR(tui_statusline_message(&sl), "a b c [31md", "controls become spaces");
     tui_statusline_clear_message(&sl);
@@ -232,7 +232,7 @@ static void test_position_is_always_kept(void) {
     ASSERT_EQ_STR(fmt(&sl, 30), " q quit  ? help       [3/120]",
                   "hints are dropped to make room for it");
     tui_statusline_set_message(&sl, "a long message that has to be cut short", TUI_STYLE_DEFAULT);
-    ASSERT_EQ_STR(fmt(&sl, 24), " a long messag\xE2\x80\xA6 [3/120]", "the message is cut, the position stays");
+    ASSERT_EQ_STR(fmt(&sl, 30), " q quit  ? help       [3/120]", "a message changes nothing: hints and position only");
     tui_statusline_clear_message(&sl);
     tui_statusline_set_position(&sl, "page 2/7");
     ASSERT_EQ_STR(fmt(&sl, 30), " q quit  ? help      page 2/7", "free text");
@@ -249,19 +249,13 @@ static void test_wait_text(void) {
     tui_statusline sl;
     tui_statusline_init(&sl);
     tui_statusline_set_hints(&sl, g_hints, NH);
-    tui_statusline_set_wait(&sl, "Syncing INBOX ...", 0, 0);
-    ASSERT_EQ_STR(fmt(&sl, 60), " Syncing INBOX ...", "the wait text replaces the hints");
     tui_statusline_set_wait(&sl, "Syncing INBOX ...", 12, 340);
-    ASSERT_EQ_STR(fmt(&sl, 60), " Syncing INBOX ... 12/340", "with the progress");
-    ASSERT_EQ_STR(fmt(&sl, 20), " Syncing IN\xE2\x80\xA6 12/340", "the text gives way, the numbers stay");
-    ASSERT_EQ_STR(fmt(&sl, 8), " Synci\xE2\x80\xA6", "no room for the numbers: dropped");
+    ASSERT_EQ_STR(fmt(&sl, 80), " Enter open  / filter  d delete  q quit  r  ? help", "TUI-109: the wait text does not replace the hints");
     tui_statusline_set_message(&sl, "Mail from X", TUI_STYLE_DEFAULT);
-    ASSERT_EQ_STR(fmt(&sl, 60), " Mail from X", "a message goes before the wait text");
     tui_event k = key('x');
     tui_statusline_handle(&sl, &k);
-    ASSERT_EQ_STR(fmt(&sl, 60), " Syncing INBOX ... 12/340", "a key does not end the wait");
+    ASSERT_EQ_STR(fmt(&sl, 28), " Enter open  q quit  ? help", "a key clears the message; the line is the hints");
     tui_statusline_clear_wait(&sl);
-    ASSERT_EQ_STR(fmt(&sl, 28), " Enter open  q quit  ? help", "hints again");
     tui_statusline_set_wait(&sl, "w", 0, 0);
     tui_statusline_set_wait(&sl, "", 0, 0);
     ASSERT_EQ_INT(tui_statusline_hints_fit(&sl, 80), 5, "an empty text clears it");
@@ -328,24 +322,17 @@ static void test_render_bar_and_styles(void) {
     ASSERT_EQ_INT(pty_cell_attr(f.s, 3, 1) & PTY_ATTR_REVERSE, 0, "the row above is the terminal's own");
     ASSERT_EQ_INT(pty_cell_bg(f.s, 3, 1), PTY_COLOR_DEFAULT, "default background elsewhere");
 
+    /* TUI-109: a message and a wait text leave the row as it was. */
     tui_statusline_set_message(&sl, "Could not save", TUI_STYLE_ERROR);
     fx_show(&f, &sl);
-    ASSERT_EQ_INT(strncmp(last_row(&f), " Could not save", 15), 0, "the message");
-    ASSERT_EQ_INT(pty_cell_attr(f.s, 4, 1) & PTY_ATTR_BOLD, PTY_ATTR_BOLD, "error: bold");
-    ASSERT_EQ_INT(pty_cell_attr(f.s, 4, 1) & PTY_ATTR_REVERSE, PTY_ATTR_REVERSE, "on the bar");
-    ASSERT_EQ_INT(pty_cell_fg(f.s, 4, 1), 31, "red");
-    ASSERT_EQ_INT(pty_cell_fg(f.s, 4, 30), 31, "the bar carries the colour to the edge");
-
-    tui_statusline_set_message(&sl, "Saved", TUI_STYLE_OK);
-    fx_show(&f, &sl);
-    ASSERT_EQ_INT(pty_cell_fg(f.s, 4, 1), 32, "ok: green");
+    ASSERT_EQ_STR(last_row(&f), " Enter open  / filter  ? help", "the hints, not the message");
+    ASSERT_EQ_INT(pty_cell_fg(f.s, 4, 1), pty_cell_fg(f.s, 4, 39), "no message colour on the bar");
+    ASSERT(pty_cell_fg(f.s, 4, 1) != 31, "not red");
     tui_statusline_clear_message(&sl);
-
     tui_statusline_set_wait(&sl, "Syncing ...", 1, 2);
     fx_show(&f, &sl);
-    ASSERT_EQ_INT(strncmp(last_row(&f), " Syncing ... 1/2", 16), 0, "the wait text");
-    ASSERT_EQ_INT(pty_cell_attr(f.s, 4, 1) & PTY_ATTR_ITALIC, PTY_ATTR_ITALIC, "progress: italic");
-    ASSERT_EQ_INT(pty_cell_fg(f.s, 4, 1), 33, "yellow");
+    ASSERT_EQ_STR(last_row(&f), " Enter open  / filter  ? help", "the hints, not the wait text");
+    ASSERT_EQ_INT(pty_cell_attr(f.s, 4, 1) & PTY_ATTR_ITALIC, 0, "no progress style");
     tui_statusline_clear_wait(&sl);
 
     tui_statusline_set_position(&sl, "[3/120]");
@@ -410,7 +397,7 @@ static void test_render_edge_cases(void) {
     tui_screen_render(f.scr, &f.buf);
     pty_feed(f.s, f.buf.data, f.buf.len);
     char b[64];
-    ASSERT_EQ_STR(pty_row_text(f.s, 1, b, sizeof(b)), " in a pane", "the last row of the canvas");
+    ASSERT_EQ_STR(pty_row_text(f.s, 1, b, sizeof(b)), " ? help", "the last row of the canvas");
     ASSERT_EQ_STR(pty_row_text(f.s, 2, b, sizeof(b)), "", "nothing below it");
     /* A prompt on a line so narrow that the editor has no room. */
     tui_statusline_begin_prompt(&sl, "/", "q");
@@ -435,7 +422,9 @@ static void test_format_limits(void) {
     ASSERT_EQ_INT(tui_statusline_format(&sl, 80, small, 0), -1, "zero size");
     ASSERT_EQ_INT(tui_statusline_format(NULL, 80, small, sizeof(small)), -1, "NULL line");
     /* The cut never leaves half a character. */
-    tui_statusline_set_message(&sl, "\xC3\xA9\xC3\xA9\xC3\xA9", TUI_STYLE_DEFAULT);
+    static const tui_statusline_hint wide[] = { { "\xC3\xA9\xC3\xA9", NULL, 1 } };
+    tui_statusline_set_hints(&sl, wide, 1);
+    tui_statusline_set_position(&sl, NULL);
     char t[5];
     ASSERT_EQ_INT(tui_statusline_format(&sl, 80, t, sizeof(t)), -1, "cut");
     ASSERT_EQ_STR(t, " \xC3\xA9", "whole characters only");
@@ -461,7 +450,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_hints_drop_by_priority),
     TEST_CASE(test_hints_degrade_below_80),
     TEST_CASE(test_help_hint_options),
-    TEST_CASE(test_message_replaces_hints_and_is_cut),
+    TEST_CASE(test_message_does_not_replace_hints),
     TEST_CASE(test_message_limit_is_a_character_boundary),
     TEST_CASE(test_key_clears_message),
     TEST_CASE(test_position_is_always_kept),

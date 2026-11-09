@@ -8,8 +8,8 @@
 
 /**
  * @file tuikit/statusline.h
- * @brief The status line: key hints that fit, a transient message, a
- *        waiting text, a position and a one-line prompt.
+ * @brief The status line: key hints that fit, a position and a one-line
+ *        prompt (message and waiting text: deprecated, see below).
  *
  * A pure model drawn on the last row of a canvas, in reverse video, so
  * that the terminal's own background is kept everywhere else
@@ -17,9 +17,13 @@
  * what the line shows, in this order, is
  *
  *   1. the prompt, while one is open (tui_statusline_begin_prompt());
- *   2. the message, until the next key (a message replaces the hints);
- *   3. the waiting text, until it is cleared;
- *   4. the key hints of the view.
+ *   2. the key hints of the view.
+ *
+ * Since TUI-109 nothing replaces the hints: the message and the waiting
+ * text functions are DEPRECATED, kept only for compatibility during the
+ * transition (the text is stored but never drawn); a program shows
+ * messages and waits in the notice of tui_header (tui_header_set_notice(),
+ * tui_header_set_warning()).
  *
  * The position text is right-aligned and always kept; the rest is cut
  * to make room for it.  Hints are dropped whole, lowest priority first,
@@ -104,6 +108,8 @@ TUI_API const tui_statusline_hint *tui_statusline_hint_at(const tui_statusline *
 TUI_API int tui_statusline_hints_fit(const tui_statusline *sl, int cols);
 
 /**
+ * @deprecated Use tui_header_set_notice(): the message is stored, cleared by
+ *             a key, and never drawn.
  * @brief A transient message in @p style (TUI_STYLE_ERROR, _OK, _PROGRESS,
  *        TUI_STYLE_DEFAULT for plain information), shown until the next
  *        key event reaches tui_statusline_handle() or it is cleared.
@@ -119,6 +125,7 @@ TUI_API void tui_statusline_clear_message(tui_statusline *sl);
 TUI_API const char *tui_statusline_message(const tui_statusline *sl);
 
 /**
+ * @deprecated Use tui_header_set_notice() with TUI_STYLE_PROGRESS: never drawn.
  * @brief A waiting text ("Syncing INBOX ..."), with " done/total" after
  *        it when @p total > 0, in TUI_STYLE_PROGRESS.  It shows until
  *        tui_statusline_clear_wait(); a program calls it again from its
