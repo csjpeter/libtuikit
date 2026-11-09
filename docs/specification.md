@@ -494,7 +494,7 @@ header, status, selection, cursor, accent, frame, input, input.focus,
 tab.active, tab.inactive, ok, error, hint, progress, scrollbar.track,
 scrollbar.thumb; the key in a file is
 `tui_role_name()`.  `tui_scheme_builtin()` is the built-in style of a role
-and is what `/usr/share/libtuikit/schemes/default.scheme` holds, key by key
+and is what `/usr/share/libtuikit1/schemes/default.scheme` holds, key by key
 (a unit test compares the two).  The widgets draw with the roles (TUI-65,
 below) and the palette macros of `screen.h` are run-time lookups of them.
 
@@ -510,7 +510,7 @@ Lines are at most 255 bytes, a file at most 65536 bytes.
 
 **Search.** `NAME.scheme` is looked up in `$XDG_CONFIG_HOME/tuikit/schemes/`
 (`$HOME/.config/tuikit/schemes/` when it is unset or not absolute), then in
-`/usr/share/libtuikit/schemes/`.  A name is letters, digits, `_`, `-`, `.`,
+`/usr/share/libtuikit1/schemes/`.  A name is letters, digits, `_`, `-`, `.`,
 at most 63, not starting with a dot.  `scheme = NAME` in
 `~/.config/tuikit/tuikit.conf` (the same user directory), then in
 `/etc/tuikit/tuikit.conf`, selects it; with none the built-in palette is used.

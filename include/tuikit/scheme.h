@@ -13,7 +13,7 @@
  *
  * A scheme is a file NAME.scheme of lines `key = fg bg attr,attr`.  It is
  * searched in $XDG_CONFIG_HOME/tuikit/schemes/ (default
- * ~/.config/tuikit/schemes/) and then in /usr/share/libtuikit/schemes/; the
+ * ~/.config/tuikit/schemes/) and then in /usr/share/libtuikit1/schemes/; the
  * name is set by `scheme = NAME` in ~/.config/tuikit/tuikit.conf or
  * /etc/tuikit/tuikit.conf, and without one the built-in palette is used.
  * Every problem is reported and harmless: the role keeps its built-in
