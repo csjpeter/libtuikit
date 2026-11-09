@@ -1,0 +1,90 @@
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_MENU_INIT 3 2026-11-09 "libtuikit 0.8" "libtuikit Manual"
+.SH NAME
+tui_menu_init, tui_menu_set, tui_menu_select, tui_menu_selected,
+tui_menu_count, tui_menu_handle, tui_menu_render, tui_menu_format \-
+the main menu of a program with several main views
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/menu.h>
+.PP
+.BI "void tui_menu_init(tui_menu *" m );
+.BI "int  tui_menu_set(tui_menu *" m ", const tui_menu_entry *" entries ", int " n ", int " selected );
+.BI "void tui_menu_select(tui_menu *" m ", int " i );
+.BI "int  tui_menu_selected(const tui_menu *" m );
+.BI "int  tui_menu_count(const tui_menu *" m );
+.BI "tui_menu_result tui_menu_handle(tui_menu *" m ", const tui_event *" ev );
+.BI "void tui_menu_render(const tui_menu *" m ", tui_canvas " c );
+.BI "int  tui_menu_format(const tui_menu *" m ", int " rows ", int " cols ", char *" out ", size_t " outsz );
+.fi
+.SH DESCRIPTION
+.B tui_menu
+is the main menu: one entry per main view, each with a number as hot key
+(1 to 9), a live count and a description.
+An entry is
+.IR "{ label, count, attention, description }" :
+.I count
+below 0 shows no count,
+.I attention
+above 0 adds the number of counted items needing attention.
+.PP
+.BR tui_menu_render ()
+draws on the canvas it is given (the free area between the top bars and the
+status line).
+The rows are left-aligned in a block that is centered, a little above the
+middle so that the block and the description below it look centred together;
+there is no title.
+A row reads
+.B "> 1  Label  N (M)"
+\(en the cursor row has the
+.B >
+mark and the role
+.BR selection ;
+the hot key is in the text colour;
+.B (M)
+is in the warning colour (bold orange, not yet a scheme role);
+no words are written in the row.
+The description of the entry under the cursor is wrapped to two or three
+centered lines below the block (at most 60 columns, the last line cut with an
+ellipsis).
+A resize needs nothing but the next render.
+.PP
+.BR tui_menu_set ()
+sets the entries (at most
+.B TUI_MENU_MAX
+(9); the array and its strings are not copied, so a program may change the
+counts in it and draw again) and the cursor, which is clamped; it fails with
+.B EINVAL
+for more entries, a NULL array or a NULL label.
+.BR tui_menu_select ()
+moves the cursor (clamped);
+.BR tui_menu_selected ()
+and
+.BR tui_menu_count ()
+read it back.
+.PP
+.BR tui_menu_handle ()
+moves the cursor on Up and Down (and k and j) and on Home and End, without
+wrapping, and returns
+.B TUI_MENU_MOVED
+when it moved.
+Enter returns
+.BR TUI_MENU_ACTIVATED ;
+so does a digit 1 to 9 that names an entry, after moving the cursor to it.
+Everything else is
+.BR TUI_MENU_IGNORED .
+.PP
+.BR tui_menu_format ()
+writes the layout as plain text for a canvas of
+.I rows
+by
+.I cols
+(one line per row, each ending in a newline, trailing blanks not written);
+it returns the bytes written or \-1 when
+.I outsz
+was too small.
+.SH SEE ALSO
+.BR libtuikit (7),
+.BR tui_statusline_init (3),
+.BR tui_scheme_load (3)

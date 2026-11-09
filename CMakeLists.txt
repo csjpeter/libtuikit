@@ -112,6 +112,7 @@ set(TUIKIT_SOURCES
     src/selection.c
     src/statusline.c
     src/table.c
+    src/menu.c
     src/tabrow.c
     src/tree.c
     src/term.c
@@ -327,6 +328,10 @@ set(TUIKIT_MAN3_ALIASES
     tui_tabrow_active:tui_tabrow_init tui_tabrow_count:tui_tabrow_init
     tui_tabrow_handle:tui_tabrow_init tui_tabrow_render:tui_tabrow_init
     tui_tabrow_format:tui_tabrow_init
+    tui_menu_set:tui_menu_init tui_menu_select:tui_menu_init
+    tui_menu_selected:tui_menu_init tui_menu_count:tui_menu_init
+    tui_menu_handle:tui_menu_init tui_menu_render:tui_menu_init
+    tui_menu_format:tui_menu_init
     tui_textview_free:tui_textview_init tui_textview_set_text:tui_textview_init
     tui_textview_append:tui_textview_init tui_textview_wrap:tui_textview_init
     tui_textview_lines:tui_textview_init tui_textview_scroll:tui_textview_init

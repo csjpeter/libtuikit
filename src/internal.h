@@ -58,6 +58,9 @@ int tui__colors_from_env(void);
  * and 16 colours, bold at 8. */
 tui_style tui__selection_base(int colors);
 
+/* The warning colour: bold orange (see scheme.c). */
+tui_style tui__warning_style(void);
+
 /* The style of a span: the row's under the span's own, and when
  * @p selected, the selection's @p sel background (a row's own background
  * gives way to it, a span's own does not); text that has no colour of its

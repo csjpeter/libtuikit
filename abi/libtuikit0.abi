@@ -31,6 +31,8 @@ size tui_keyhelp 288 8
 size tui_keytable 16 8
 size tui_lineedit 104 8
 size tui_listview 16 4
+size tui_menu 16 8
+size tui_menu_entry 24 8
 size tui_readline_opts 32 8
 size tui_rect 16 4
 size tui_scheme 180 4
@@ -144,6 +146,14 @@ symbol tui_listview_reveal_selected
 symbol tui_listview_select
 symbol tui_listview_set_count
 symbol tui_listview_set_viewport
+symbol tui_menu_count
+symbol tui_menu_format
+symbol tui_menu_handle
+symbol tui_menu_init
+symbol tui_menu_render
+symbol tui_menu_select
+symbol tui_menu_selected
+symbol tui_menu_set
 symbol tui_nav_key
 symbol tui_readline
 symbol tui_readline_opts_init

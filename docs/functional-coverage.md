@@ -338,6 +338,19 @@ name the ticket that closes the gap; there is none now.
 | `tui_statusline_set_position_index` | `tests/functional/cap_widgets.c` | `cap_statusline` |
 | `tui_statusline_set_wait` | `tests/functional/cap_widgets.c` | `cap_statusline` |
 
+## Main menu
+
+| Capability | Functional test | Phase |
+|---|---|---|
+| `tui_menu_count` | `tests/functional/cap_widgets.c` | `cap_menu` |
+| `tui_menu_format` | `tests/functional/cap_widgets.c` | `cap_menu` |
+| `tui_menu_handle` | `tests/functional/cap_widgets.c` | `cap_menu` |
+| `tui_menu_init` | `tests/functional/cap_widgets.c` | `cap_menu` |
+| `tui_menu_render` | `tests/functional/cap_widgets.c` | `cap_menu` |
+| `tui_menu_select` | `tests/functional/cap_widgets.c` | `cap_menu` |
+| `tui_menu_selected` | `tests/functional/cap_widgets.c` | `cap_menu` |
+| `tui_menu_set` | `tests/functional/cap_widgets.c` | `cap_menu` |
+
 ## Tab row
 
 | Capability | Functional test | Phase |

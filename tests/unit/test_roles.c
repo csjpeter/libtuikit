@@ -15,6 +15,7 @@
 #include "tuikit/dialog.h"
 #include "tuikit/fieldset.h"
 #include "tuikit/listview.h"
+#include "tuikit/menu.h"
 #include "tuikit/scheme.h"
 #include "tuikit/statusline.h"
 #include "tuikit/table.h"
@@ -45,6 +46,7 @@ int g_tests_failed = 0;
 #define C_ERR_FG    160
 #define C_HINT_FG   178
 #define C_PROG_FG   99
+#define C_WARN_FG   208
 
 #define IDX(n) PTY_COLOR_IDX(n)
 #define ANY  (-1)   /* a colour the test does not pin */
@@ -388,6 +390,30 @@ static void test_fieldset(void) {
 
 /* ── Status line ────────────────────────────────────────────────────── */
 
+static void test_menu(void) {
+    ASSERT_EQ_INT(use_scheme(g_scheme), 0, "the test scheme loads");
+    ASSERT_EQ_INT(tui__warning_style().fg, TUI_COLOR_256(C_WARN_FG), "the warning colour is orange");
+    static const tui_menu_entry e[] = {
+        { "Tickets", 12, 3, "The tickets." },
+        { "Agents",   2, 1, "The agents." },
+    };
+    tui_menu m;
+    tui_menu_init(&m);
+    tui_menu_set(&m, e, 2, 0);
+    Fx f;
+    ASSERT(fx_open(&f, 12, 40) == 0, "fixtures");
+    tui_screen_clear(f.scr, TUI_STYLE_DEFAULT);
+    tui_menu_render(&m, tui_canvas_of(f.scr));
+    fx_show(&f);
+    EXPECT_AT(&f, "Tickets", ANY, IDX(C_SEL_BG), 0);            /* the cursor row */
+    EXPECT_AT(&f, "(3)", IDX(C_WARN_FG), IDX(C_SEL_BG), PTY_ATTR_BOLD);
+    EXPECT_AT(&f, "(1)", IDX(C_WARN_FG), ANY, PTY_ATTR_BOLD);   /* the warning colour, off the cursor */
+    EXPECT_AT(&f, "Agents", IDX(C_TEXT_FG), IDX(C_TEXT_BG), 0); /* the text colour */
+    EXPECT_AT(&f, "2  ", IDX(C_TEXT_FG), IDX(C_TEXT_BG), 0);    /* the hot key: the text colour */
+    EXPECT_AT(&f, "The tickets.", IDX(C_TEXT_FG), IDX(C_TEXT_BG), 0);
+    fx_close(&f);
+}
+
 static void test_statusline(void) {
     ASSERT_EQ_INT(use_scheme(g_scheme), 0, "the test scheme loads");
     static const tui_statusline_hint hints[] = { { "Enter", "open", 1 }, { "q", "quit", 1 } };
@@ -483,6 +509,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_dialog_checklist),
     TEST_CASE(test_dialog_help),
     TEST_CASE(test_fieldset),
+    TEST_CASE(test_menu),
     TEST_CASE(test_statusline),
     TEST_CASE(test_quickmenu),
     TEST_CASE(test_selection_reduced_by_depth),

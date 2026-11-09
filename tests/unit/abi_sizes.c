@@ -41,6 +41,8 @@ int main(void) {
     SHOW(tui_scheme_report);
     SHOW(tui_statusline);
     SHOW(tui_style);
+    SHOW(tui_menu);
+    SHOW(tui_menu_entry);
     SHOW(tui_table);
     SHOW(tui_table_col);
     SHOW(tui_table_model);
