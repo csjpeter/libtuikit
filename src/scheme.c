@@ -282,7 +282,7 @@ int tui_scheme_parse(tui_scheme *sc, const char *text, const char *origin, tui_s
 typedef struct {
     const char *user_dir;   /* $XDG_CONFIG_HOME/tuikit, or NULL */
     const char *etc_dir;    /* /etc/tuikit */
-    const char *share_dir;  /* /usr/share/libtuikit/schemes */
+    const char *share_dir;  /* /usr/share/libtuikit1/schemes */
 } scheme_dirs;
 
 static int join(char *out, size_t cap, const char *a, const char *b, const char *c, const char *d) {
@@ -400,7 +400,7 @@ done:
 int tui_scheme_load(tui_scheme *sc, const char *name, tui_scheme_report *rep) {
     tui_scheme_report local;
     char user[PATH_BYTES];
-    scheme_dirs d = { NULL, "/etc/tuikit", "/usr/share/libtuikit/schemes" };
+    scheme_dirs d = { NULL, "/etc/tuikit", "/usr/share/libtuikit1/schemes" };
     const char *xdg = getenv("XDG_CONFIG_HOME");
     const char *home = getenv("HOME");
     if (!rep) rep = &local;

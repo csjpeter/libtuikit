@@ -451,8 +451,9 @@ function(tuikit_write_changelog _pkg)
   * 1.0.0: SOVERSION 1, package libtuikit1 (TUI-110).  tui_scheme grew by
     the roles scrollbar.track and scrollbar.thumb (204 bytes); every
     scrolling widget, dialog and help overlay draws a scroll bar at its
-    right edge when its content is longer than its area.  Rebuild
-    dependants against libtuikit1.
+    right edge when its content is longer than its area.  The scheme
+    directory is /usr/share/libtuikit1/schemes, so that libtuikit0 and
+    libtuikit1 install side by side.  Rebuild dependants against libtuikit1.
   * 0.14.0: the widgets draw with the roles of the active colour scheme
     (TUI-65).  The TUI_STYLE_HEADER, _SELECTION, _ACCENT, _OK, _ERROR, _HINT
     and _PROGRESS macros became run-time lookups (still values, no longer
@@ -529,7 +530,7 @@ install(FILES "${CMAKE_BINARY_DIR}/libtuikit.pc"
         COMPONENT dev)
 
 install(FILES "${CMAKE_SOURCE_DIR}/data/schemes/default.scheme"
-        DESTINATION "${CMAKE_INSTALL_DATADIR}/libtuikit/schemes"
+        DESTINATION "${CMAKE_INSTALL_DATADIR}/libtuikit${PROJECT_VERSION_MAJOR}/schemes"
         COMPONENT runtime)
 
 install(DIRECTORY "${TUIKIT_MAN_OUT}/man3" "${TUIKIT_MAN_OUT}/man7"
