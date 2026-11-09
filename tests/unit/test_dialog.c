@@ -294,7 +294,7 @@ static void test_small_terminal(void) {
     const char *const expect[] = {
         "",
         " ┌─ A rather…─┐",
-        " │ This       │",
+        " │ This      █│",
         " │   [ OK ]   │",
         " └────────────┘",
         "", NULL };
@@ -380,7 +380,7 @@ static void test_help(void) {
     tui_dialog_help(&d, "Many", many, 6);
     fx_draw(&g, &d);
     const char *const top[] = {
-        "", "    ┌─ Many ───┐", "    │ a  one   │", "    │ b  two   │", "    │ c  three │",
+        "", "    ┌─ Many ───┐", "    │ a  one  █│", "    │ b  two  ││", "    │ c  three││",
         "    └──────────┘", "", NULL };
     ASSERT_SCREEN_EQ(g.s, top);
     static const struct { const char *keys; int top; const char *what; } moves[] = {
@@ -400,7 +400,7 @@ static void test_help(void) {
     send(&d, "G");
     fx_draw(&g, &d);
     const char *const bottom[] = {
-        "", "    ┌─ Many ───┐", "    │ d  four  │", "    │ e  five  │", "    │ f        │",
+        "", "    ┌─ Many ───┐", "    │ d  four ││", "    │ e  five ││", "    │ f       █│",
         "    └──────────┘", "", NULL };
     ASSERT_SCREEN_EQ(g.s, bottom);
     ASSERT_EQ_INT(send(&d, "x"), TUI_DIALOG_OPEN, "a scrolled help: x does nothing");

@@ -61,6 +61,16 @@ the shared letters for them
 as in
 .BR tui_listview_handle (3)),
 and returns 1 for them, 0 for other events.
+.SS Scroll bar
+When the text is longer than the canvas, the last column of the canvas is a
+scroll bar: a track (U+2502, role
+.BR scrollbar.track )
+with a thumb (U+2588, role
+.BR scrollbar.thumb )
+whose size and place show the visible part.
+The text is wrapped one column narrower only while the bar is shown; when the
+text fits, or a resize makes it fit, the bar is gone and the text has the
+column back.
 .SH RETURN VALUE
 .BR tui_textview_set_text (),
 .BR tui_textview_append ()

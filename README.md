@@ -1,6 +1,6 @@
 # libtuikit
 
-**Class: Library** — ships `libtuikit0` (shared library) and `libtuikit-dev`
+**Class: Library** — ships `libtuikit1` (shared library) and `libtuikit-dev`
 (headers, static library, pkg-config and CMake files, man pages).
 See `policies/packaging-and-release-model.md` in the workspace.
 
@@ -125,7 +125,7 @@ WORKSPACE_LIBS=system ./manage.sh test    # the same tests against the package
 ./manage.sh valgrind    # all tests under Valgrind, Release build
 ./manage.sh timing KEY-N  # the measured gate line (build/timing.log), posted on the ticket
 ./manage.sh coverage    # line coverage of src/, fails below 100%
-./manage.sh package     # build/packages/: libtuikit0_*.deb, libtuikit-dev_*.deb
+./manage.sh package     # build/packages/: libtuikit1_*.deb, libtuikit-dev_*.deb
 ./manage.sh consumer    # build and run the example against the .deb content
 ./manage.sh check       # all of the above, with a summary
 ```

@@ -257,8 +257,20 @@ void tui_textview_render(tui_textview *tv, tui_canvas c, tui_style st) {
     if (tv->top > 0 && tui_textview_at_end(tv) && (rows != tv->rows || cols != tv->width))
         tv->follow = 1;
     tv->rows = rows;
-    if (cols != tv->width) tv->dirty = 1;
-    if (tui_textview_wrap(tv, cols) < 0) return;
+    /* The scroll bar takes the last column while the text is longer than
+     * the area: wrap at the full width first, and again one narrower when
+     * it does not fit (a narrower wrap is never shorter). */
+    int text_cols = cols;
+    if (cols > 1 && tv->width == cols - 1 && !tv->dirty && tv->nlines > rows) {
+        text_cols = cols - 1;           /* the narrow wrap of the last render still holds */
+    } else {
+        if (tui_textview_wrap(tv, cols) < 0) return;
+        if (tv->nlines > rows && cols > 1) {
+            text_cols = cols - 1;
+            tv->dirty = 1;
+            if (tui_textview_wrap(tv, text_cols) < 0) return;
+        }
+    }
     if (tv->follow) {                    /* the width did not change */
         tv->follow = 0;
         tv->top = max_top(tv);
@@ -266,6 +278,8 @@ void tui_textview_render(tui_textview *tv, tui_canvas c, tui_style st) {
     clamp_top(tv);
     for (int r = 0; r < rows && tv->top + r < tv->nlines; r++) {
         int line = tv->top + r;
-        draw_line(c, r, tv->text + tv->starts[line], tv->lens[line], st);
+        draw_line(tui_canvas_sub(c, tui_rect_make(0, 0, rows, text_cols)), r,
+                  tv->text + tv->starts[line], tv->lens[line], st);
     }
+    if (text_cols < cols) tui__scrollbar(c, tv->nlines, tv->top, rows);
 }

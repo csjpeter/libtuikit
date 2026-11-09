@@ -88,7 +88,7 @@ libtuikit is a C11 library for full-screen terminal programs. It exists so
 that the workspace's projects stop rewriting the same terminal code; what they
 rewrite today, and what they learned doing it, is in [survey.md](survey.md).
 
-**Class: Library** — `libtuikit0` (shared library) and `libtuikit-dev`
+**Class: Library** — `libtuikit1` (shared library) and `libtuikit-dev`
 (headers, static library, pkg-config and CMake files, man pages).
 
 **License: GPL-3.0-only** (`LICENSE`; every file's SPDX tag is
@@ -488,9 +488,10 @@ questions*.
 ### 4.5a `tui_scheme` — colour schemes (TUI-64)
 
 `tuikit/scheme.h` implements the "Colour schemes" of
-`policies/tui-interface-model.md`.  Fifteen roles (`tui_role`): text,
+`policies/tui-interface-model.md`.  Seventeen roles (`tui_role`): text,
 header, status, selection, cursor, accent, frame, input, input.focus,
-tab.active, tab.inactive, ok, error, hint, progress; the key in a file is
+tab.active, tab.inactive, ok, error, hint, progress, scrollbar.track,
+scrollbar.thumb; the key in a file is
 `tui_role_name()`.  `tui_scheme_builtin()` is the built-in style of a role
 and is what `/usr/share/libtuikit/schemes/default.scheme` holds, key by key
 (a unit test compares the two).  The widgets draw with the roles (TUI-65,
@@ -556,8 +557,24 @@ are expressions now: used as values (an argument, an assignment, a local
 initialiser) they compile unchanged; as a static initialiser they no longer
 compile and must be set at run time.  `TUI_STYLE_DEFAULT` stays a constant.
 `tui_selection_style()` is `TUI_STYLE_SELECTION`.  The number moved is the
-minor, 0.14.0 (no function or struct changed; abi/libtuikit0.abi gains
+minor, 0.14.0 (no function or struct changed; abi/libtuikit0.abi (now retired, see 1.0.0) gains
 `tui_selection_style`).
+
+**Scroll bar (TUI-110).** Every scrolling widget draws, in the last column of
+its area, a scroll bar when its content is longer than the area: a track
+(U+2502, `scrollbar.track`, default dim) and a thumb (U+2588,
+`scrollbar.thumb`, default plain) whose length is `rows * visible / total`
+(at least one row, never the whole track) and whose place is proportional to
+the top line.  `tui_textview` wraps one column narrower only while the bar
+is shown; `tui_listview` (and so `tui_tree`) and `tui_table` (and so
+`tui_histview`, beside the rows, not the header) draw their rows one column
+narrower; the dialog menus, the help overlay and a clipped dialog text draw
+it in the padding column beside the frame, so the entries keep their width.
+Two roles were added to `tui_scheme` (180 to 204 bytes), which is a
+SOVERSION change: **1.0.0, `libtuikit1`**, `abi/libtuikit1.abi`; the
+consumers rebuild against it (EMAIL-285, IM-387, INFRA-209, OIDC-156,
+PKI-136, REPO-99, SI-176).  The helper is `src/scrollbar.c`
+(`tui__scrollbar()`); tests: `tests/unit/test_scrollbar.c`.
 
 ### 4.6 `tui_canvas` — rectangles, layout, clipping (M4)
 
@@ -988,7 +1005,7 @@ Per `policies/testing-model.md`:
 
 As libptytest, per `policies/packaging-and-release-model.md`: CPack from
 `CMakeLists.txt`, version `project()` + total commit count (the tag takes no part;
-`manage.sh package` never tags or pushes; `manage.sh tag-build VERSION` tags a commit `vX.Y.Z.N` locally), `XB-Git-Commit` / `XB-Build-Date`, `libtuikit0` + `libtuikit-dev`,
+`manage.sh package` never tags or pushes; `manage.sh tag-build VERSION` tags a commit `vX.Y.Z.N` locally), `XB-Git-Commit` / `XB-Build-Date`, `libtuikit1` + `libtuikit-dev`,
 pkg-config `libtuikit`, CMake `find_package(tuikit)` → `tuikit::tuikit`,
 gzipped man pages, copyright and changelog, ldconfig trigger, lintian
 clean, `umask 022`. `./manage.sh` answers to `deps build debug test pty
@@ -1019,7 +1036,7 @@ would pass, and are left to review.) The record starts at 0.2.0: 0.1.0's
 every package built against 0.1.0 depends on `libtuikit0 (= 0.1.0)`, so
 apt never pairs it with a later library.
 
-The runtime package's `shlibs` reads `libtuikit 0 libtuikit0 (>= x.y.z)`:
+The runtime package's `shlibs` reads `libtuikit 1 libtuikit1 (>= x.y.z)`:
 within one SOVERSION the ABI only grows, so a dependant needs *at least* the
 version it was built against. CPack's default, `=`, pins every dependant to
 one version and makes apt remove them to install an upgrade (TUI-6); the

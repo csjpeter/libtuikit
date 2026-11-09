@@ -43,6 +43,7 @@ int tui__dialog_quickmenu(struct tui_dialog *d, const char *title, const char *c
 /* Milliseconds of a monotonic clock. */
 int64_t tui__now_ms(void);
 
+#include "tuikit/canvas.h"
 #include "tuikit/event.h"
 #include "tuikit/screen.h"
 
@@ -78,6 +79,17 @@ tui_style tui__input_style(tui_style st, int focused);
 /* Whether @p st is the active scheme's selection role, the default of the
  * widgets' selection styles; any other style is the program's own choice. */
 int tui__is_default_selection(tui_style st);
+
+/* The scroll bar (TUI-110): one column at the right edge of a scrolling
+ * area, a thin track with a thumb whose size and place show the visible
+ * part.  tui__scrollbar_needed(): content longer than the area.
+ * tui__scrollbar() draws it in the last column of @p c (the whole area's
+ * rows) for @p total lines of which @p visible are shown from line @p top;
+ * 1 when drawn.  The caller has already narrowed its text by one column. */
+int tui__scrollbar_needed(int total, int visible);
+void tui__scrollbar_geometry(int rows, int total, int visible, int top, int *thumb_top,
+                             int *thumb_len);
+int tui__scrollbar(tui_canvas c, int total, int top, int visible);
 
 /* The movement key an event stands for in a list or a text view: the
  * arrows, the page keys and Home/End themselves, and the workspace's

@@ -105,7 +105,8 @@ static void test_three_pane_layout(void) {
         NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
     static const PtyStyleKey legend[] = {
-        { '.', PTY_ATTR_NONE, 0, 0 }, { 'R', PTY_ATTR_REVERSE, 0, 0 }, { 0, 0, 0, 0 } };
+        { '.', PTY_ATTR_NONE, 0, 0 }, { 'R', PTY_ATTR_REVERSE, 0, 0 }, { 'T', PTY_ATTR_DIM, 0, 0 },
+        { 0, 0, 0, 0 } };
     const char *const map[] = { "..............................",
                                 "RRRRRRRRRRRRRRRRRRRRRRRRRRRRRR", NULL };
     ASSERT_REGION_STYLE(f.s, PTY_REGION(4, 0, 2, 30), map, legend);
@@ -309,11 +310,12 @@ static void test_listview_render(void) {
     ASSERT_EQ_INT(lv.rows_visible, 3, "viewport from the canvas");
     ASSERT_EQ_INT(calls, 3, "one call per visible row");
     fx_show(&f);
-    const char *const expect[] = { "", " 2 Carol", " 3 Dave", " 4 Eve", "", NULL };
+    const char *const expect[] = { "", " 2 Carol│", " 3 Dave █", " 4 Eve  │", "", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
     static const PtyStyleKey legend[] = {
-        { '.', PTY_ATTR_NONE, 0, 0 }, { 'R', PTY_ATTR_REVERSE, 0, 0 }, { 0, 0, 0, 0 } };
-    const char *const map[] = { ".RRRRRRRR.", NULL };
+        { '.', PTY_ATTR_NONE, 0, 0 }, { 'R', PTY_ATTR_REVERSE, 0, 0 }, { 'T', PTY_ATTR_DIM, 0, 0 },
+        { 0, 0, 0, 0 } };
+    const char *const map[] = { ".RRRRRRRT.", NULL };
     ASSERT_REGION_STYLE(f.s, PTY_REGION(3, 0, 1, 10), map, legend);
 
     /* Fewer items than rows: the rest is cleared. */
@@ -409,7 +411,7 @@ static void test_textview_scrolling_and_follow(void) {
     tui_textview_append(&tv, "line 20\nline 21\n", 16);
     tui_textview_render(&tv, all, TUI_STYLE_DEFAULT);
     fx_show(&f);
-    const char *const expect[] = { "line 18", "line 19", "line 20", "line 21", NULL };
+    const char *const expect[] = { "line 18  │", "line 19  │", "line 20  │", "line 21  █", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
 
     /* Scrolled up, the view stays where the user put it. */
@@ -429,7 +431,7 @@ static void test_textview_scrolling_and_follow(void) {
     tui_textview_render(&tv, smaller, TUI_STYLE_DEFAULT);
     tui_canvas_clear(tui_canvas_sub(all, tui_rect_make(2, 0, 2, 10)), TUI_STYLE_DEFAULT);
     fx_show(&f);
-    const char *const expect2[] = { "line 21", "line 22", "", "", NULL };
+    const char *const expect2[] = { "line 21  │", "line 22  █", "", "", NULL };
     ASSERT_SCREEN_EQ(f.s, expect2);
 
     ev.key = TUI_KEY_HOME;
@@ -473,7 +475,8 @@ static void test_textview_scrolling_and_follow(void) {
     tui_canvas narrow = tui_canvas_sub(all, tui_rect_make(0, 0, 2, 4));
     tui_textview_render(&tv, narrow, TUI_STYLE_DEFAULT);
     fx_show(&f);
-    const char *const expect3[] = { "line", "10", NULL };
+    /* The top line stays at the top; the bar takes the last column, so the text wraps at 3. */
+    const char *const expect3[] = { "lin█", "e  │", NULL };
     ASSERT_REGION_EQ(f.s, PTY_REGION(0, 0, 2, 4), expect3);
     fx_close(&f);
     tui_textview_free(&tv);
@@ -488,7 +491,7 @@ static void test_textview_append_to_empty_and_errors(void) {
     ASSERT(fx_open(&f, 2, 5) == 0, "fixtures");
     tui_textview_render(&tv, tui_canvas_of(f.scr), TUI_STYLE_DEFAULT);
     fx_show(&f);
-    const char *const expect[] = { "c", "d", NULL };
+    const char *const expect[] = { "c   │", "d   █", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
     ASSERT_EQ_INT(tui_textview_append(&tv, NULL, 3), -1, "NULL text");
     ASSERT_EQ_INT(tui_textview_append(&tv, "", 0), 0, "nothing");

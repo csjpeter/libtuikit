@@ -64,7 +64,7 @@ Commands:
   valgrind              Every unit suite under Valgrind on a clean Release build
   consumer              Build and run the example against the built .deb packages
   check                 Every gate, with a summary to compare against CI
-  package [deb|rpm|all] Build the packages with CPack into build/packages/ (libtuikit0,
+  package [deb|rpm|all] Build the packages with CPack into build/packages/ (libtuikit1,
                         libtuikit-dev), lintian-checked; empty on failure; never tags or pushes
   tag-build VERSION     Make the annotated tag vVERSION on HEAD, locally; pushes nothing
   timing [KEY-N]        Print the gate line from build/timing.log; with a ticket key,
@@ -567,7 +567,7 @@ do_package() {
 }
 
 # tag-build VERSION: makes the annotated tag vVERSION (VERSION is the exact
-# Debian version of the package, e.g. 0.14.0.139) on HEAD, locally.  It never
+# Debian version of the package, e.g. 1.0.0.139) on HEAD, locally.  It never
 # pushes: the agent pushes it from the host with gh-push after the package
 # build (policies/manage-sh-model.md).  package never tags.  The tag follows
 # the version and never decides it (policies/packaging-and-release-model.md).

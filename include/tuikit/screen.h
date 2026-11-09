@@ -93,6 +93,8 @@ typedef enum tui_role {
     TUI_ROLE_ERROR,
     TUI_ROLE_HINT,
     TUI_ROLE_PROGRESS,
+    TUI_ROLE_SCROLLBAR_TRACK,
+    TUI_ROLE_SCROLLBAR_THUMB,
     TUI_ROLE_COUNT
 } tui_role;
 

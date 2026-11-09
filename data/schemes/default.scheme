@@ -20,3 +20,5 @@ ok           = green - bold
 error        = red - bold
 hint         = yellow - -
 progress     = yellow - italic
+scrollbar.track = - - dim
+scrollbar.thumb = - - -

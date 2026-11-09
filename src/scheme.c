@@ -21,7 +21,8 @@
 
 static const char *const k_role_names[TUI_ROLE_COUNT] = {
     "text", "header", "status", "selection", "cursor", "accent", "frame", "input",
-    "input.focus", "tab.active", "tab.inactive", "ok", "error", "hint", "progress"
+    "input.focus", "tab.active", "tab.inactive", "ok", "error", "hint", "progress",
+    "scrollbar.track", "scrollbar.thumb"
 };
 
 const char *tui_role_name(tui_role role) {
@@ -51,7 +52,8 @@ tui_style tui_scheme_builtin(tui_role role) {
     case TUI_ROLE_ERROR:        return tui_style_make(TUI_RED, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD);
     case TUI_ROLE_HINT:         return tui_style_make(TUI_YELLOW, TUI_COLOR_DEFAULT, 0);
     case TUI_ROLE_PROGRESS:     return tui_style_make(TUI_YELLOW, TUI_COLOR_DEFAULT, TUI_ATTR_ITALIC);
-    default:                    return TUI_STYLE_DEFAULT;  /* text, input, tab.inactive */
+    case TUI_ROLE_SCROLLBAR_TRACK: return tui_style_attrs(TUI_ATTR_DIM);
+    default:                    return TUI_STYLE_DEFAULT;  /* text, input, tab.inactive, scrollbar.thumb */
     }
 }
 

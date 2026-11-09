@@ -631,8 +631,13 @@ static void draw_row(const tui_table *t, tui_canvas row, int index, int selected
     }
 }
 
-void tui_table_render_header(tui_table *t, tui_canvas c) {
-    if (!t || header_rows(t) == 0) return;
+/* Whether the scroll bar takes the last column at the last render's size. */
+static int bar_shown(const tui_table *t, int cols) {
+    return !t->message && cols > 1 && tui__scrollbar_needed(t->lv.count, t->lv.rows_visible);
+}
+
+static void render_header(tui_table *t, tui_canvas c) {
+    if (header_rows(t) == 0) return;
     int widths[64];
     int n = t->ncols < 64 ? t->ncols : 64;
     tui_table tt = *t;
@@ -675,8 +680,19 @@ void tui_table_render_header(tui_table *t, tui_canvas c) {
     }
 }
 
+void tui_table_render_header(tui_table *t, tui_canvas c) {
+    if (!t) return;
+    int cols = tui_canvas_cols(c);
+    if (bar_shown(t, cols))
+        c = tui_canvas_sub(c, tui_rect_make(0, 0, tui_canvas_rows(c), cols - 1));
+    render_header(t, c);
+}
+
 int tui_table_render_row(tui_table *t, tui_canvas c, int index) {
     if (!t || t->message) return 0;
+    int cols = tui_canvas_cols(c);
+    if (bar_shown(t, cols))
+        c = tui_canvas_sub(c, tui_rect_make(0, 0, tui_canvas_rows(c), cols - 1));
     if (index < t->lv.scroll_top || index >= t->lv.count ||
         index >= t->lv.scroll_top + t->lv.rows_visible)
         return 0;
@@ -698,12 +714,21 @@ void tui_table_render(tui_table *t, tui_canvas c, tui_style blank) {
     int hdr = header_rows(t);
     tui_listview_set_viewport(&t->lv, rows > hdr ? rows - hdr : 0);
     tui_canvas_clear(c, blank);
-    tui_table_render_header(t, c);
+    /* More rows than the window: the scroll bar takes the last column of
+     * the rows (not of the header). */
+    int cols = tui_canvas_cols(c);
+    tui_canvas body = c;
+    int bar = bar_shown(t, cols);
+    if (bar) body = tui_canvas_sub(c, tui_rect_make(0, 0, rows, cols - 1));
+    render_header(t, body);
     for (int i = 0; i < t->lv.rows_visible; i++) {
         int index = t->lv.scroll_top + i;
         if (index >= t->lv.count) break;
-        draw_row(t, row_canvas(c, hdr + i), index, index == t->lv.selected, blank);
+        draw_row(t, row_canvas(body, hdr + i), index, index == t->lv.selected, blank);
     }
+    if (bar)
+        tui__scrollbar(tui_canvas_sub(c, tui_rect_make(hdr, 0, rows - hdr, cols)), t->lv.count,
+                       t->lv.scroll_top, t->lv.rows_visible);
 }
 
 /* ── Plain text ────────────────────────────────────────────────────── */

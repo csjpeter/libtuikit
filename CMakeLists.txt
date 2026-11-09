@@ -4,7 +4,7 @@
 # The build, test, install and package definition of libtuikit.
 
 cmake_minimum_required(VERSION 3.20)
-project(libtuikit VERSION 0.14.0 LANGUAGES C)
+project(libtuikit VERSION 1.0.0 LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Version
@@ -109,6 +109,7 @@ set(TUIKIT_SOURCES
     src/lineedit.c
     src/listview.c
     src/scheme.c
+    src/scrollbar.c
     src/screen.c
     src/selection.c
     src/statusline.c
@@ -442,6 +443,11 @@ function(tuikit_write_changelog _pkg)
 "${_pkg} (${TUIKIT_VERSION}) stable; urgency=medium
 
   * Build from git commit ${TUIKIT_GIT_COMMIT}.
+  * 1.0.0: SOVERSION 1, package libtuikit1 (TUI-110).  tui_scheme grew by
+    the roles scrollbar.track and scrollbar.thumb (204 bytes); every
+    scrolling widget, dialog and help overlay draws a scroll bar at its
+    right edge when its content is longer than its area.  Rebuild
+    dependants against libtuikit1.
   * 0.14.0: the widgets draw with the roles of the active colour scheme
     (TUI-65).  The TUI_STYLE_HEADER, _SELECTION, _ACCENT, _OK, _ERROR, _HINT
     and _PROGRESS macros became run-time lookups (still values, no longer
