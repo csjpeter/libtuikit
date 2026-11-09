@@ -39,6 +39,14 @@ int tui_role_from_name(const char *name) {
 
 /* ── Built-in styles: what default.scheme holds ─────────────────────── */
 
+/* The warning colour (policies/tui-interface-model.md: bold orange, 256-colour
+ * index 208; the screen reduces it where the terminal has fewer colours).  It
+ * is not yet a role of the scheme: a role would grow tui_scheme, which the ABI
+ * of this SOVERSION forbids (abi/libtuikit0.abi), so it waits for the next one. */
+tui_style tui__warning_style(void) {
+    return tui_style_make(TUI_COLOR_256(208), TUI_COLOR_DEFAULT, TUI_ATTR_BOLD);
+}
+
 tui_style tui_scheme_builtin(tui_role role) {
     switch (role) {
     case TUI_ROLE_HEADER:       return tui_style_make(TUI_WHITE, TUI_BLUE, TUI_ATTR_BOLD);

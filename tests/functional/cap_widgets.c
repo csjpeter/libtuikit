@@ -185,6 +185,41 @@ static void cap_tabrow(void) {
     CHECK_INT(tui_tabrow_active(&tr), 2, "to that tab");
 }
 
+/* ---- main menu ------------------------------------------------------ */
+
+static void cap_menu(void) {
+    static const tui_menu_entry e[] = {
+        { "Tickets", 12, 3, "All the tickets of the project." },
+        { "Agents",   2, 0, "The agents' tmux sessions." },
+        { "Quiet",   -1, 0, NULL },
+    };
+    tui_menu m;
+    tui_menu_init(&m);
+    CHECK_INT(tui_menu_set(&m, e, 3, 0), 0, "menu set");
+    CHECK_INT(tui_menu_count(&m), 3, "menu count");
+    char out[1024];
+    CHECK(tui_menu_format(&m, 12, 60, out, sizeof out) > 0, "menu format");
+    CHECK_HAS(out, "> 1  Tickets", "the cursor row");
+    CHECK_HAS(out, "12 (3)", "the count with its attention");
+    CHECK_HAS(out, "All the tickets", "the description of the entry under the cursor");
+
+    tui_screen *scr = tui_screen_new(12, 60);
+    tui_menu_render(&m, tui_canvas_of(scr));
+    char *txt = cap_screen_text(scr, NULL);
+    CHECK_HAS(txt, "Agents", "menu render");
+    CHECK_HAS(txt, "> 1  Tickets", "and the cursor row");
+    free(txt);
+    tui_screen_free(scr);
+
+    tui_event ev = cap_ev("2");
+    CHECK_INT(tui_menu_handle(&m, &ev), TUI_MENU_ACTIVATED, "a digit activates");
+    CHECK_INT(tui_menu_selected(&m), 1, "and moves the cursor");
+    tui_menu_select(&m, 0);
+    ev = cap_ev("j");
+    CHECK_INT(tui_menu_handle(&m, &ev), TUI_MENU_MOVED, "j moves down");
+    CHECK_INT(tui_menu_selected(&m), 1, "to the next entry");
+}
+
 /* ---- header --------------------------------------------------------- */
 
 static void cap_header(void) {
@@ -604,6 +639,7 @@ int main(void) {
     cap_header();
     cap_statusline();
     cap_tabrow();
+    cap_menu();
     cap_dialog();
     cap_fieldset();
     cap_actions();
