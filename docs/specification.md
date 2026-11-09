@@ -204,7 +204,7 @@ Non-goals:
   tui_term ──► tui_decoder ──► tui_event     tui_canvas ──► tui_screen ──► tui_buf ──► fd
    (fds, termios,  (bytes → keys)          (clipped rect)  (cells, diff)  (bytes)
     signals, size)
-                         widgets: tui_listview  tui_tree  tui_table  tui_header  tui_statusline  tui_tabrow  tui_textview  tui_lineedit  tui_dialog
+                         widgets: tui_listview  tui_tree  tui_table  tui_header  tui_statusline  tui_tabrow  tui_menu  tui_textview  tui_lineedit  tui_dialog
                          helpers: tui_text (UTF-8, width, sanitise)  tui_rect (layout)
 ```
 
@@ -226,6 +226,7 @@ Non-goals:
 | `tuikit/header.h` | the top bar: view, program name and a notice area (messages, standing warnings) | yes | TUI-109 |
 | `tuikit/statusline.h` | the one bottom line: hints that fit, position, prompt (message and wait deprecated: they no longer show) | yes | TUI-51, TUI-109 |
 | `tuikit/tabrow.h` | the tab row of a screen with sub-views, the active tab by attribute | yes | TUI-69 |
+| `tuikit/menu.h` | the main menu: numbered entries, live counts, the description of the entry under the cursor | yes | TUI-108 |
 | `tuikit/textview.h` | wrapped, scrollable text | yes | M4 |
 | `tuikit/lineedit.h` | single-line editor model, history | yes | M5 |
 | `tuikit/dialog.h` | message, confirm, prompt, menu | yes | M6 |
@@ -541,6 +542,7 @@ choice and is drawn as it is; only the widgets' defaults are roles.
 | `tui_header` | `header` (the bar), and for the notice the colour of the role the program passes (`ok`, `progress`) or `error` (a warning) as the background of the notice, with the role's attributes; no new role |
 | `tui_statusline` | `status` (the bar) |
 | `tui_tabrow` | `tab.active` (the active tab, plus bold and underline), `tab.inactive` (the others and the marks) |
+| `tui_menu` | `text` (rows, description), `selection` (the cursor row), the warning colour (the `(M)` of a row; bold orange, not yet a role, see below) |
 | `tui_actionmenu` | as the quick menu |
 
 Not drawn by a widget: `cursor` (the terminal's own cursor is positioned),
@@ -736,6 +738,32 @@ widget the program routes events to first.
     the digits 1 to 9 (that tab, if it exists); the result says whether the
     program has to show another view.
   - *Plain text*: `tui_tabrow_format` lays the row out exactly as `render`.
+- **`tui_menu`** (TUI-108) — the main menu of a program with several main
+  views (`policies/tui-interface-model.md`, "Navigation"), drawn on the canvas
+  between the top bars and the status line.
+  - *Entries*: `{label, count, attention, description}`, at most 9, not copied
+    (`tui_menu_set`, cursor clamped). The hot keys are the digits 1 to 9, in
+    the text colour. `count` below 0 shows none; `attention` above 0 adds
+    `(M)` after `N`, in the the warning colour, bold orange (256-colour index 208); no words in the row.
+  - *Layout*: a row is `> 1  Label  N (M)`; the block is left-aligned inside,
+    centered, with no title; block, one blank row and three description rows
+    are centred together, so the block sits a little above the middle. The
+    cursor row has the `>` mark and the role `selection`. The description of
+    the entry under the cursor is wrapped to two or three centered lines (60
+    columns at most, the last cut with an ellipsis). A resize needs only the
+    next render; a block wider than the canvas cuts the labels.
+  - *Keys*: `tui_menu_handle` moves on Up, Down, `k`, `j`, Home and End (no
+    wrap: `MOVED`), Enter is `ACTIVATED`, a digit that names an entry moves
+    to it and is `ACTIVATED`.
+  - *Plain text*: `tui_menu_format` lays the canvas out exactly as `render`.
+  - *Warning colour*: not a scheme role yet: a role grows `tui_scheme`, which
+    the ABI of SOVERSION 0 forbids (`check-abi`), so the library keeps it
+    internally (`tui__warning_style`, bold index 208, reduced by the screen on
+    smaller terminals) until the next SOVERSION makes it the role `warning`
+    of the policy.
+  - The status line's position text is `tui_statusline_set_position` (default
+    none; `tui_statusline_set_position_index` writes `[cur/total]`), so a
+    program can show e.g. `RUN 5h 12%`.
 - **`tui_textview`** — word-wrapped, scrollable text (message history, mail
   body, issue description): set text, wrap to width on render, scroll by
   line/page, "at end" query for follow-the-tail.
