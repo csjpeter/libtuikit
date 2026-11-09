@@ -14,6 +14,7 @@
 #include "tuikit/actions.h"
 #include "tuikit/dialog.h"
 #include "tuikit/fieldset.h"
+#include "tuikit/header.h"
 #include "tuikit/listview.h"
 #include "tuikit/menu.h"
 #include "tuikit/scheme.h"
@@ -429,22 +430,47 @@ static void test_statusline(void) {
     EXPECT_NOT_ATTR(&f, "open", PTY_ATTR_REVERSE);
     EXPECT_AT(&f, "Enter", IDX(C_STAT_FG), IDX(C_STAT_BG), PTY_ATTR_BOLD);
 
+    /* TUI-109: a message does not change the bar or the hints. */
     tui_statusline_set_message(&sl, "Failed", TUI_STYLE_ERROR);
     tui_statusline_render(&sl, all);
     fx_show(&f);
-    EXPECT_AT(&f, "Failed", IDX(C_ERR_FG), ANY, PTY_ATTR_BOLD | PTY_ATTR_REVERSE);
-
-    tui_statusline_set_message(&sl, "Done", TUI_STYLE_OK);
-    tui_statusline_render(&sl, all);
-    fx_show(&f);
-    EXPECT_AT(&f, "Done", IDX(C_OK_FG), ANY, PTY_ATTR_BOLD | PTY_ATTR_REVERSE);
-
-    tui_statusline_clear_message(&sl);
-    tui_statusline_set_wait(&sl, "Working", 1, 4);
-    tui_statusline_render(&sl, all);
-    fx_show(&f);
-    EXPECT_AT(&f, "Working", IDX(C_PROG_FG), ANY, PTY_ATTR_ITALIC | PTY_ATTR_REVERSE);
+    EXPECT_AT(&f, "open", IDX(C_STAT_FG), IDX(C_STAT_BG), 0);
+    EXPECT_NOT_ATTR(&f, "open", PTY_ATTR_REVERSE);
     tui_statusline_free(&sl);
+    fx_close(&f);
+}
+
+/* ── Header (the notice in the roles ok, error, progress) ──────────── */
+
+static void test_header(void) {
+    ASSERT_EQ_INT(use_scheme(g_scheme), 0, "the test scheme loads");
+    tui_header h;
+    tui_header_init(&h);
+    tui_header_set_left(&h, "Inbox");
+    tui_header_set_right(&h, "mail");
+    Fx f;
+    ASSERT(fx_open(&f, 1, 50) == 0, "fixtures");
+    tui_canvas all = tui_canvas_of(f.scr);
+    tui_header_render(&h, all);
+    fx_show(&f);
+    EXPECT_AT(&f, "Inbox", IDX(C_HEAD_FG), IDX(C_HEAD_BG), PTY_ATTR_BOLD);   /* the bar */
+    EXPECT_AT(&f, "mail", IDX(C_HEAD_FG), IDX(C_HEAD_BG), PTY_ATTR_BOLD);
+
+    tui_header_set_notice(&h, "Done", TUI_STYLE_OK);
+    tui_header_render(&h, all);
+    fx_show(&f);
+    EXPECT_AT(&f, "Done", IDX(C_HEAD_FG), IDX(C_OK_FG), PTY_ATTR_BOLD);
+    EXPECT_AT(&f, "Inbox", IDX(C_HEAD_FG), IDX(C_HEAD_BG), PTY_ATTR_BOLD);
+
+    tui_header_set_notice(&h, "Working", TUI_STYLE_PROGRESS);
+    tui_header_render(&h, all);
+    fx_show(&f);
+    EXPECT_AT(&f, "Working", IDX(C_HEAD_FG), IDX(C_PROG_FG), PTY_ATTR_ITALIC);
+
+    tui_header_set_warning(&h, "Failed");
+    tui_header_render(&h, all);
+    fx_show(&f);
+    EXPECT_AT(&f, "Failed", IDX(C_HEAD_FG), IDX(C_ERR_FG), PTY_ATTR_BOLD);
     fx_close(&f);
 }
 
@@ -511,6 +537,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_fieldset),
     TEST_CASE(test_menu),
     TEST_CASE(test_statusline),
+    TEST_CASE(test_header),
     TEST_CASE(test_quickmenu),
     TEST_CASE(test_selection_reduced_by_depth),
     TEST_CASE(test_no_scheme_is_the_old_look),

@@ -11,7 +11,7 @@ tui_statusline_clear_wait, tui_statusline_set_position,
 tui_statusline_set_position_index, tui_statusline_begin_prompt,
 tui_statusline_prompt_active, tui_statusline_prompt_text,
 tui_statusline_handle, tui_statusline_render, tui_statusline_format \-
-the status line: key hints that fit, a message, a wait text, a position, a prompt
+the status line: key hints that fit, a position, a prompt
 .SH SYNOPSIS
 .nf
 .B #include <tuikit/statusline.h>
@@ -43,8 +43,7 @@ is the one bottom line of a program: a pure model drawn on the last row of a
 canvas in reverse video, so that the terminal's own background is kept
 elsewhere.
 It is one line, never wrapped.
-What it shows, in this order: the prompt while one is open, the message, the
-waiting text, the key hints.
+What it shows, in this order: the prompt while one is open, the key hints.
 The position text is right-aligned and always kept; the rest is cut to make
 room for it.
 .PP
@@ -81,29 +80,21 @@ how many of them are shown on a line of
 columns.
 .PP
 .BR tui_statusline_set_message ()
-sets a transient message in
-.I style
-.RB ( TUI_STYLE_ERROR ", " TUI_STYLE_OK ", " TUI_STYLE_DEFAULT
-for information).
-The whole bar takes the style's colours, with reverse video added.
-It replaces the hints until a key or a paste reaches
-.BR tui_statusline_handle (),
-or
-.BR tui_statusline_clear_message ()
-is called.
-A long message is cut with an ellipsis at a display-width boundary, a wide
-character whole; controls become spaces.
-.PP
+and
 .BR tui_statusline_set_wait ()
-sets a waiting text such as "Syncing INBOX ..." in
-.BR TUI_STYLE_PROGRESS ,
-with " done/total" after it when
-.I total
-is above zero.
-It shows until
-.BR tui_statusline_clear_wait ()
-and may be set again from a loop that has no key press.
-A message goes before it.
+are
+.B deprecated
+(TUI-109).
+They are kept for compatibility during a transition: the text is stored (a
+message is cleared by a key or by
+.BR tui_statusline_clear_message (),
+a wait text by
+.BR tui_statusline_clear_wait ())
+but it is never drawn, and nothing replaces the hints.
+A program shows messages, progress and warnings in the notice of the header,
+.BR tui_header_set_notice (3)
+and
+.BR tui_header_set_warning (3).
 .PP
 .BR tui_statusline_set_position ()
 sets the right-aligned segment;

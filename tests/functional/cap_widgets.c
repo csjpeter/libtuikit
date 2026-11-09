@@ -220,6 +220,43 @@ static void cap_menu(void) {
     CHECK_INT(tui_menu_selected(&m), 1, "to the next entry");
 }
 
+/* ---- header --------------------------------------------------------- */
+
+static void cap_header(void) {
+    tui_header h;
+    tui_header_init(&h);
+    tui_header_set_left(&h, "Inbox (42)");
+    tui_header_set_right(&h, "email-tui");
+    char out[256];
+    CHECK(tui_header_format(&h, 60, out, sizeof out) > 0, "header format");
+    CHECK_HAS(out, "Inbox (42)", "the view");
+    CHECK_HAS(out, "email-tui", "the program name");
+
+    tui_header_set_notice(&h, "Saved", TUI_STYLE_OK);
+    CHECK_STR(tui_header_notice(&h), "Saved", "notice");
+    tui_header_format(&h, 60, out, sizeof out);
+    CHECK_HAS(out, "Inbox (42)  Saved", "the notice follows the view");
+    tui_event ev = cap_ev("x");
+    CHECK_INT(tui_header_handle(&h, &ev), TUI_HEADER_CHANGED, "a key clears a plain notice");
+    CHECK_STR(tui_header_notice(&h), "", "notice gone");
+
+    tui_header_set_warning(&h, "Sync failed");
+    CHECK_INT(tui_header_warning_active(&h), 1, "warning");
+    CHECK_INT(tui_header_handle(&h, &ev), TUI_HEADER_IGNORED, "a key leaves a warning");
+    tui_header_set_notice(&h, "Saved", TUI_STYLE_OK);
+    CHECK_STR(tui_header_notice(&h), "Sync failed", "the warning wins");
+    tui_screen *scr = tui_screen_new(3, 60);
+    tui_header_render(&h, tui_canvas_of(scr));
+    char *txt = cap_screen_text(scr, NULL);
+    CHECK_HAS(txt, "Sync failed", "header render");
+    free(txt);
+    tui_screen_free(scr);
+    tui_header_clear_warning(&h);
+    CHECK_INT(tui_header_warning_active(&h), 0, "warning cleared");
+    tui_header_format(&h, 60, out, sizeof out);
+    CHECK(strstr(out, "Sync failed") == NULL, "and gone from the bar");
+}
+
 /* ---- statusline ----------------------------------------------------- */
 
 static void cap_statusline(void) {
@@ -244,7 +281,8 @@ static void cap_statusline(void) {
     tui_statusline_set_message(&sl, "Saved", TUI_STYLE_OK);
     CHECK_STR(tui_statusline_message(&sl), "Saved", "message");
     tui_statusline_format(&sl, 80, out, sizeof out);
-    CHECK_HAS(out, "Saved", "message in the line");
+    CHECK(strstr(out, "Saved") == NULL, "the message is not on the line (it goes to the header notice)");
+    CHECK_HAS(out, "Enter open", "the hints stay");
     tui_event ev = cap_ev("x");
     CHECK_INT(tui_statusline_handle(&sl, &ev), TUI_STATUSLINE_CHANGED, "a key clears the message");
     CHECK_STR(tui_statusline_message(&sl), "", "message gone");
@@ -254,10 +292,9 @@ static void cap_statusline(void) {
 
     tui_statusline_set_wait(&sl, "Syncing", 2, 7);
     tui_statusline_format(&sl, 80, out, sizeof out);
-    CHECK_HAS(out, "Syncing 2/7", "wait with progress");
+    CHECK(strstr(out, "Syncing") == NULL, "the wait text is not on the line either");
+    CHECK_HAS(out, "Enter open", "the hints stay");
     tui_statusline_clear_wait(&sl);
-    tui_statusline_format(&sl, 80, out, sizeof out);
-    CHECK(strstr(out, "Syncing") == NULL, "wait cleared");
 
     tui_statusline_set_position(&sl, "page 2/7");
     tui_statusline_format(&sl, 80, out, sizeof out);
@@ -599,6 +636,7 @@ static void cap_actions(void) {
 
 int main(void) {
     cap_table();
+    cap_header();
     cap_statusline();
     cap_tabrow();
     cap_menu();

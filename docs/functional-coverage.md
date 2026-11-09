@@ -313,6 +313,22 @@ name the ticket that closes the gap; there is none now.
 | `tui_table_toggle_mark` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_widths` | `tests/functional/cap_widgets.c` | `cap_table` |
 
+## Header
+
+| Capability | Functional test | Phase |
+|---|---|---|
+| `tui_header_clear_warning` | `tests/functional/cap_widgets.c` | `cap_header` |
+| `tui_header_format` | `tests/functional/cap_widgets.c` | `cap_header` |
+| `tui_header_handle` | `tests/functional/cap_widgets.c` | `cap_header` |
+| `tui_header_init` | `tests/functional/cap_widgets.c` | `cap_header` |
+| `tui_header_notice` | `tests/functional/cap_widgets.c` | `cap_header` |
+| `tui_header_render` | `tests/functional/cap_widgets.c` | `cap_header` |
+| `tui_header_set_left` | `tests/functional/cap_widgets.c` | `cap_header` |
+| `tui_header_set_notice` | `tests/functional/cap_widgets.c` | `cap_header` |
+| `tui_header_set_right` | `tests/functional/cap_widgets.c` | `cap_header` |
+| `tui_header_set_warning` | `tests/functional/cap_widgets.c` | `cap_header` |
+| `tui_header_warning_active` | `tests/functional/cap_widgets.c` | `cap_header` |
+
 ## Status line
 
 | Capability | Functional test | Phase |

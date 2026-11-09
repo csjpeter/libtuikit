@@ -104,6 +104,7 @@ set(TUIKIT_SOURCES
     src/decoder.c
     src/dialog.c
     src/fieldset.c
+    src/header.c
     src/histview.c
     src/lineedit.c
     src/listview.c
@@ -332,6 +333,11 @@ set(TUIKIT_MAN3_ALIASES
     tui_menu_selected:tui_menu_init tui_menu_count:tui_menu_init
     tui_menu_handle:tui_menu_init tui_menu_render:tui_menu_init
     tui_menu_format:tui_menu_init
+    tui_header_set_left:tui_header_init tui_header_set_right:tui_header_init
+    tui_header_set_notice:tui_header_init tui_header_set_warning:tui_header_init
+    tui_header_clear_warning:tui_header_init tui_header_notice:tui_header_init
+    tui_header_warning_active:tui_header_init tui_header_handle:tui_header_init
+    tui_header_render:tui_header_init tui_header_format:tui_header_init
     tui_textview_free:tui_textview_init tui_textview_set_text:tui_textview_init
     tui_textview_append:tui_textview_init tui_textview_wrap:tui_textview_init
     tui_textview_lines:tui_textview_init tui_textview_scroll:tui_textview_init

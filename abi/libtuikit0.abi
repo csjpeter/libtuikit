@@ -23,6 +23,7 @@ size tui_dialog 280 8
 size tui_event 56 8
 size tui_field 152 8
 size tui_fieldset 632 8
+size tui_header 668 4
 size tui_history 16 8
 size tui_histview 1336 8
 size tui_histview_row 80 8
@@ -101,6 +102,17 @@ symbol tui_fieldset_init
 symbol tui_fieldset_render
 symbol tui_fieldset_set_error
 symbol tui_fieldset_update_completion
+symbol tui_header_clear_warning
+symbol tui_header_format
+symbol tui_header_handle
+symbol tui_header_init
+symbol tui_header_notice
+symbol tui_header_render
+symbol tui_header_set_left
+symbol tui_header_set_notice
+symbol tui_header_set_right
+symbol tui_header_set_warning
+symbol tui_header_warning_active
 symbol tui_history_add
 symbol tui_history_count
 symbol tui_history_free
