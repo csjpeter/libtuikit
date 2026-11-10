@@ -19,6 +19,7 @@ BUILD_DIR="$SCRIPT_DIR/build"
 PKG_DIR="$BUILD_DIR/packages"
 BUILD_DIR_DEBUG="$BUILD_DIR/_debug"
 BUILD_DIR_TEST="$BUILD_DIR/_test"
+BUILD_DIR_QA1="$BUILD_DIR/_qa1"
 BUILD_DIR_VALGRIND="$BUILD_DIR/_valgrind"
 BUILD_DIR_CONSUMER="$BUILD_DIR/_consumer"
 
@@ -31,6 +32,16 @@ COVERAGE_UNIT_THRESHOLD=80
 COVERAGE_EXTERNAL_THRESHOLD=80
 
 JOBS="$(nproc)"
+
+# QA 1 (check) skips the suites when every path changed against the mainline
+# matches one of these shell patterns (policies/testing-model.md, "QA levels").
+# The list is this one variable; any other path, a test file included, runs
+# all of QA 1.
+NON_CODE_PATHS="*.md docs/* man/* LICENSE* COPYING* .gitignore"
+# Of the non-code paths, these still make check build and lint the packages.
+PACKAGED_NON_CODE_PATHS="man/*"
+# The mainline the diff is taken against (the first ref that exists).
+MAINLINE_REFS="${MAINLINE_REFS:-origin/main main}"
 
 # How libptytest, the test instrument, is found (policies/dependencies-model.md):
 #   bundled  the submodule deps/libptytest, pinned to a release tag, built
@@ -63,7 +74,11 @@ Commands:
                         in build/coverage/unit and build/coverage/external
   valgrind              Every unit suite under Valgrind on a clean Release build
   consumer              Build and run the example against the built .deb packages
-  check                 Every gate, with a summary to compare against CI
+  check                 QA 1: unit, pty, functional, package, lintian, consumer (no valgrind,
+                        sanitizer or coverage); skips the suites when only non-code paths
+                        changed against the mainline
+  check-deep            QA 2: sanitizer-build tests (unit, pty, functional), valgrind and
+                        coverage, one after the other; results in build/result/
   package [deb|rpm|all] Build the packages with CPack into build/packages/ (libtuikit1,
                         libtuikit-dev), lintian-checked; empty on failure; never tags or pushes
   tag-build VERSION     Make the annotated tag vVERSION on HEAD, locally; pushes nothing
@@ -73,7 +88,8 @@ Commands:
   help                  This message
 
 test, pty, functional, valgrind and coverage write build/result/<verb>.result
-(policies/manage-sh-model.md); an unknown command exits 2.
+(policies/manage-sh-model.md); an unknown command exits 2.  check is QA 1 and
+check-deep is QA 2 (policies/testing-model.md, "QA levels").
 
 libptytest, the test instrument, comes as the submodule deps/libptytest
 (WORKSPACE_LIBS=bundled, the default; deps and the test builds initialise it
@@ -204,7 +220,7 @@ build_debug_into() {
     local dir="$1" bin_root="${2:-$1/tests}"
     ensure_libs &&
     cmake -S "$SCRIPT_DIR" -B "$dir" -DCMAKE_BUILD_TYPE=Debug \
-          -DENABLE_COVERAGE=OFF -DTUIKIT_ENABLE_ASAN=ON \
+          -DENABLE_COVERAGE=OFF "-DTUIKIT_ENABLE_ASAN=${SANITIZE:-ON}" \
           -DTUIKIT_BUILD_TESTS=ON -DTUIKIT_TEST_WRAPPER= \
           "-DWORKSPACE_LIBS=$(libs_mode)" \
           "-DTUIKIT_TEST_BIN_ROOT=$bin_root" &&
@@ -357,28 +373,30 @@ run_suites() {
 
 # run_label <verb> <label> [ctest args...]
 run_label() {
-    local verb="$1" label="$2" rc=0
+    local verb="$1" label="$2" rc=0 tree="$BUILD_DIR_TEST" san=ON
     shift 2
+    # QA 1 (check) runs the same suites on a build without sanitizers.
+    if [ -n "${QA1_PLAIN:-}" ]; then tree="$BUILD_DIR_QA1"; san=OFF; fi
     res_begin "$verb"
     # The test tree builds the tests where the integrator runs them from:
     # build/tests/<category>/bin/<name>.
-    if ! build_debug_into "$BUILD_DIR_TEST" "$BUILD_DIR/tests"; then
+    if ! SANITIZE="$san" build_debug_into "$tree" "$BUILD_DIR/tests"; then
         res_end 1
         return 1
     fi
     # Evidence of an earlier run would be taken for this run's.
-    if [ -d "$SCRIPT_DIR/build/_test/evidence" ]; then
-        ( cd "$SCRIPT_DIR/build/_test" && rm -rf evidence )
+    if [ -d "$tree/evidence" ]; then
+        ( cd "$tree" && rm -rf evidence )
     fi
     # halt_on_error: a sanitiser finding fails the suite instead of being
     # printed and forgotten.  A failed screen assertion leaves its evidence
     # (report, screen, screen with colours) under the build tree.
-    PTYTEST_EVIDENCE_DIR="$BUILD_DIR_TEST/evidence" \
+    PTYTEST_EVIDENCE_DIR="$tree/evidence" \
     ASAN_OPTIONS="halt_on_error=1:detect_leaks=1" \
     UBSAN_OPTIONS="halt_on_error=1:print_stacktrace=1" \
-        run_suites "" "$BUILD_DIR_TEST" "^${label}\$" "$@" || rc=1
-    if [ -d "$BUILD_DIR_TEST/evidence" ]; then
-        echo "Evidence of failed assertions: $BUILD_DIR_TEST/evidence"
+        run_suites "" "$tree" "^${label}\$" "$@" || rc=1
+    if [ -d "$tree/evidence" ]; then
+        echo "Evidence of failed assertions: $tree/evidence"
     fi
     res_end "$rc"
     return "$rc"
@@ -724,14 +742,61 @@ run_consumer() {
 # check -- every gate, each with its log, and a summary.
 # ---------------------------------------------------------------------------
 
-run_check() {
-    mkdir -p "$BUILD_DIR"
-    local logdir="$BUILD_DIR/_logs"
-    mkdir -p "$logdir"
+# changed_paths: the paths changed against the mainline (committed, staged,
+# unstaged and untracked), one per line.  Fails when no mainline ref exists.
+changed_paths() {
+    local ref base=""
+    for ref in $MAINLINE_REFS; do
+        if git -C "$SCRIPT_DIR" rev-parse --verify -q "$ref^{commit}" > /dev/null; then
+            base="$(git -C "$SCRIPT_DIR" merge-base HEAD "$ref")" || return 1
+            break
+        fi
+    done
+    [ -n "$base" ] || return 1
+    git -C "$SCRIPT_DIR" diff --name-only "$base" || return 1
+    git -C "$SCRIPT_DIR" ls-files --others --exclude-standard || return 1
+}
 
-    local gates="unit pty functional valgrind coverage package lintian consumer"
+# path_matches <path> <patterns>: the path matches one shell pattern.
+path_matches() {
+    local p="$1" pat
+    for pat in $2; do
+        # shellcheck disable=SC2254
+        case "$p" in $pat) return 0 ;; esac
+    done
+    return 1
+}
+
+# qa1_gates: sets QA1_GATES, the gates this change needs.  Every changed path
+# non-code: no suites.  Anything else, or no way to tell: all of QA 1.
+qa1_gates() {
+    local paths p code=0 packaged=0
+    QA1_GATES="unit pty functional package lintian consumer"
+    paths="$(changed_paths)" || {
+        echo "check: no mainline to diff against ($MAINLINE_REFS); running all of QA 1" >&2
+        return 0
+    }
+    [ -n "$paths" ] || return 0
+    while IFS= read -r p; do
+        if ! path_matches "$p" "$NON_CODE_PATHS"; then code=1; break; fi
+        if path_matches "$p" "$PACKAGED_NON_CODE_PATHS"; then packaged=1; fi
+    done <<< "$paths"
+    [ "$code" -eq 0 ] || return 0
+    echo "no code changed: suites skipped: unit pty functional consumer"
+    QA1_GATES=""
+    if [ "$packaged" -eq 1 ]; then
+        QA1_GATES="package lintian"
+        echo "packaged files changed: package checks run: $QA1_GATES"
+    fi
+}
+
+# run_gates <names>: each gate with its log, and a summary.  Sets
+# GATES_FAILED to the number of gates that failed.
+run_gates() {
+    local logdir="$BUILD_DIR/_logs" gates="$1" g rc rf
     local -A result
-    local g rc failed=0
+    mkdir -p "$logdir"
+    GATES_FAILED=0
     for g in $gates; do
         printf '%-10s ' "$g"
         rc=0
@@ -752,22 +817,46 @@ run_check() {
             result[$g]="FAIL (exit $rc, see $logdir/$g.log)"
             echo "FAIL -- last lines of $logdir/$g.log:"
             tail -n 25 "$logdir/$g.log" | sed 's/^/    /'
-            failed=$((failed + 1))
+            GATES_FAILED=$((GATES_FAILED + 1))
         fi
     done
 
     echo
     echo "=== summary ==="
     for g in $gates; do printf '%-10s %s\n' "$g" "${result[$g]}"; done
-    local rf
     for rf in "$RES_DIR"/*.result; do
         [ -f "$rf" ] || continue
         printf '%-12s %s assertions, %s failed\n' "$(sed -n 's/^verb: //p' "$rf")" \
                "$(sed -n 's/^assertions: //p' "$rf")" "$(sed -n 's/^failed: //p' "$rf")"
     done
-    grep -h '^Line coverage' "$logdir/coverage.log" || echo "  (no coverage figure found in the log)"
-    if [ "$failed" -ne 0 ]; then
-        echo "$failed gate(s) failed."
+}
+
+# check is QA 1: unit, pty, functional and the package checks, the suites on
+# a build without sanitizers; never valgrind, sanitizers or coverage.
+run_check() {
+    mkdir -p "$BUILD_DIR"
+    qa1_gates
+    if [ -n "$QA1_GATES" ]; then
+        # A plain shell variable, not a prefix assignment: that would be
+        # exported into the suites, and manage.sh runs itself in them.
+        QA1_PLAIN=1
+        run_gates "$QA1_GATES"
+        QA1_PLAIN=""
+        if [ "$GATES_FAILED" -ne 0 ]; then
+            echo "$GATES_FAILED gate(s) failed."
+            return 1
+        fi
+    fi
+    echo "All gates passed."
+}
+
+# check-deep is QA 2: the sanitizer build's suites, valgrind and coverage.
+run_check_deep() {
+    mkdir -p "$BUILD_DIR"
+    run_gates "unit pty functional valgrind coverage"
+    grep -h '^Line coverage' "$BUILD_DIR/_logs/coverage.log" || echo "  (no coverage figure found in the log)"
+    if [ "$GATES_FAILED" -ne 0 ]; then
+        echo "$GATES_FAILED gate(s) failed."
         return 1
     fi
     echo "All gates passed."
@@ -906,6 +995,7 @@ case "$cmd" in
     valgrind)  timed valgrind; run_valgrind ;;
     consumer)  timed consumer; run_consumer ;;
     check)     timed check; run_check ;;
+    check-deep) timed check-deep; run_check_deep ;;
     package)   timed package; do_package "${1:-deb}" ;;
     tag-build) do_tag_build "$@" ;;
     timing)    do_timing "$@" ;;

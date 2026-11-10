@@ -210,7 +210,7 @@ Non-goals:
 
 | Header | Module | Pure? | Milestone |
 |---|---|---|---|
-| `tuikit/term.h` | full-screen session: mode, size, resize, signals, waiting | no All milestones below are done; `./manage.sh check` passes every gate.
+| `tuikit/term.h` | full-screen session: mode, size, resize, signals, waiting | no All milestones below are done; `./manage.sh check` (QA 1: unit, pty, functional and the package checks; a diff of non-code paths only skips the suites) and `./manage.sh check-deep` (QA 2: sanitizer-build tests, valgrind, coverage) pass.
 
 | **M1** |
 | `tuikit/tty.h` | fd-level helpers in email-cli's style: size, raw mode, key, password | no | **M1** (keys: M2) |
