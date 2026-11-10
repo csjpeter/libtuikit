@@ -15,6 +15,7 @@
 #define DESC_MAX  512
 #define DESC_LINES 3
 #define DESC_WIDTH 60      /* widest description line */
+#define MENU_GAP_ROWS 3    /* blank rows between the last entry and the description */
 #define GAP        2       /* blanks between the columns */
 #define PREFIX     5       /* "> 1  " */
 
@@ -130,7 +131,13 @@ static void layout(const tui_menu *m, int rows, int cols, layout_t *ln) {
     int blockw = PREFIX + lw + (cw > 0 ? GAP + cw : 0);
 
     /* The block and its description together are centred. */
-    int total = m->n + 1 + DESC_LINES;
+    /* The block is sized for the longest description (DESC_LINES), so the entries keep
+     * their rows whatever the cursor is on; on a short canvas the gap shrinks to what
+     * fits, never below one row, and the rows that do not fit are the description's. */
+    int gap = rows - m->n - DESC_LINES;
+    if (gap > MENU_GAP_ROWS) gap = MENU_GAP_ROWS;
+    if (gap < 1) gap = 1;
+    int total = m->n + gap + DESC_LINES;
     int top = (rows - total) / 2;
     if (top < 0) top = 0;
     int left = (cols - blockw) / 2;
@@ -170,7 +177,7 @@ static void layout(const tui_menu *m, int rows, int cols, layout_t *ln) {
             int nl = wrap(clean_d, dw, lines);
             for (int i = 0; i < nl; i++) {
                 int w = tui_str_width(lines[i]);
-                add(ln, top + m->n + 1 + i, (cols - w) / 2, lines[i], text);
+                add(ln, top + m->n + gap + i, (cols - w) / 2, lines[i], text);
             }
         }
     }

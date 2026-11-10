@@ -48,6 +48,11 @@ no words are written in the row.
 The description of the entry under the cursor is wrapped to two or three
 centered lines below the block (at most 60 columns, the last line cut with an
 ellipsis).
+At least three blank rows separate the last entry from the description.
+The block is sized for the longest description (three lines), so the entries
+keep their rows for every cursor position.
+On a short canvas the gap shrinks to what fits, never below one row, and a
+description that does not fit is cut before any entry.
 A resize needs nothing but the next render.
 .PP
 .BR tui_menu_set ()
