@@ -79,6 +79,23 @@ if [ "$(echo $names | tr ' ' '\n' | LC_ALL=C sort | tr '\n' ' ')" = "libtuikit-d
 else
     fail "packages: '$names'"
 fi
+# TUI-112: libtuikit-dev must depend on exactly the runtime package built in
+# the same run (same name, same version), so no suite can lack it.
+rt_deb="$(find "$FIX/src/build/packages" -name 'libtuikit1_*.deb' | head -n 1)"
+dev_deb="$(find "$FIX/src/build/packages" -name 'libtuikit-dev_*.deb' | head -n 1)"
+if [ -n "$rt_deb" ] && [ -n "$dev_deb" ]; then
+    want="libtuikit1 (= $(dpkg-deb -f "$rt_deb" Version))"
+    if dpkg-deb -f "$dev_deb" Depends | tr ',' '\n' | sed 's/^ *//' | grep -qxF "$want"; then
+        pass "libtuikit-dev depends on '$want', built in the same run"
+    else
+        fail "libtuikit-dev Depends '$(dpkg-deb -f "$dev_deb" Depends)' lacks '$want'"
+    fi
+    if [ "$(dpkg-deb -f "$dev_deb" Version)" = "$(dpkg-deb -f "$rt_deb" Version)" ]; then
+        pass "both packages carry one version"
+    else fail "runtime and dev versions differ"; fi
+else
+    fail "runtime or dev package missing for the dependency check"
+fi
 ndates="$(printf '%s\n' "$dates" | sed '/^$/d' | sort -u | wc -l)"
 if [ "$ndates" -eq 1 ]; then pass "one build date: one run"
 else fail "$ndates build dates: '$dates'"; fi
