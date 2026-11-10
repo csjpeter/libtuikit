@@ -21,7 +21,8 @@ read, never changed; a fault found in them is reported to the human.
 ./manage.sh test       # unit tests (ASAN + UBSan) — run most often
 ./manage.sh pty        # PTY tests (ASAN + UBSan)
 ./manage.sh functional # manage.sh itself on a copy of the tree (packaging), with mocks
-./manage.sh check      # every gate: unit, pty, functional, valgrind, coverage, package, lintian, consumer
+./manage.sh check      # QA 1: unit, pty, functional, package, lintian, consumer (no valgrind/sanitizer/coverage; docs-only diff skips the suites)
+./manage.sh check-deep # QA 2: sanitizer-build tests, valgrind, coverage; results in build/result/
 build/tests/unit/bin/test-decoder <substring>   # one test
 ```
 

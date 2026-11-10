@@ -127,7 +127,8 @@ WORKSPACE_LIBS=system ./manage.sh test    # the same tests against the package
 ./manage.sh coverage    # line coverage of src/, fails below 100%
 ./manage.sh package     # build/packages/: libtuikit1_*.deb, libtuikit-dev_*.deb
 ./manage.sh consumer    # build and run the example against the .deb content
-./manage.sh check       # all of the above, with a summary
+./manage.sh check       # QA 1: unit, pty, functional, package checks, with a summary
+./manage.sh check-deep  # QA 2: sanitizer tests, valgrind and coverage
 ```
 
 One test: `build/tests/unit/bin/test-decoder test_paste` (substring filter, `-l`
