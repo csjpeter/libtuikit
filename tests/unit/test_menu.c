@@ -84,18 +84,18 @@ static void test_layout_exact(void) {
     ASSERT_EQ_STR(fmt(&m, 12, 40), "", "an empty menu draws nothing");
     ASSERT_EQ_INT(tui_menu_set(&m, E2, 2, 0), 0, "set");
     ASSERT_EQ_STR(fmt(&m, 12, 40),
-        "\n\n\n"
+        "\n\n"
         "          > 1  Tickets  12 (3)\n"
         "            2  Agents    2 (1)\n"
-        "\n"
+        "\n\n\n"
         "              The tickets.\n",
         "block and description centred together; no title, no words in the row");
     tui_menu_select(&m, 1);
     ASSERT_EQ_STR(fmt(&m, 12, 40),
-        "\n\n\n"
+        "\n\n"
         "            1  Tickets  12 (3)\n"
         "          > 2  Agents    2 (1)\n"
-        "\n"
+        "\n\n\n"
         "       The agents' tmux sessions.\n",
         "the mark and the description follow the cursor");
     ASSERT_EQ_STR(fmt(&m, 12, 40) + 0, fmt(&m, 12, 40), "stable");
@@ -123,9 +123,67 @@ static void test_recentres_on_resize(void) {
     }
     int rows_before = 0;
     for (const char *p = wide; p < l; p++) rows_before += *p == '\n';
-    ASSERT_EQ_INT(rows_before, 7, "top is (20 - 6) / 2");
+    ASSERT_EQ_INT(rows_before, 6, "top is (20 - 8) / 2");
     ASSERT_EQ_STR(fmt(&m, 2, 20), "> 1  Tickets  12 (3)\n  2  Agents    2 (1)\n",
                   "a canvas too short: what render would clip is not written");
+}
+
+/* The row of the first line of @p text in the formatted menu, -1 if absent. */
+static int row_of(const char *t, const char *text) {
+    const char *p = strstr(t, text);
+    if (!p) return -1;
+    int r = 0;
+    for (const char *q = t; q < p; q++) r += *q == '\n';
+    return r;
+}
+
+static const tui_menu_entry E4[] = {
+    { "One",   1, 0, "Short." },
+    { "Two",   2, 0, "A longer text that needs the second line because it is wider than sixty columns." },
+    { "Three", 3, 0, "One two three four five six seven eight nine ten eleven twelve thirteen "
+                     "fourteen fifteen sixteen seventeen eighteen nineteen twenty twenty-one "
+                     "twenty-two twenty-three twenty-four twenty-five" },
+    { "Four",  4, 0, NULL },
+};
+
+/* TUI-115: the entries keep their rows for every cursor position and description length. */
+static void test_entries_fixed(void) {
+    tui_menu m;
+    tui_menu_init(&m);
+    tui_menu_set(&m, E4, 4, 0);
+    int base[4];
+    const char *names[4] = { "1  One", "2  Two", "3  Three", "4  Four" };
+    for (int i = 0; i < 4; i++) base[i] = row_of(fmt(&m, 20, 80), names[i]);
+    for (int cur = 0; cur < 4; cur++) {
+        tui_menu_select(&m, cur);
+        const char *t = fmt(&m, 20, 80);
+        for (int i = 0; i < 4; i++)
+            ASSERT_EQ_INT(row_of(t, names[i]), base[i], "an entry keeps its row");
+    }
+    ASSERT_EQ_INT(base[0], 5, "first entry: (20 - (4 + 3 + 3)) / 2");
+}
+
+/* TUI-115: at least three blank rows between the last entry and the description. */
+static void test_gap(void) {
+    tui_menu m;
+    tui_menu_init(&m);
+    tui_menu_set(&m, E4, 4, 0);
+    int last = row_of(fmt(&m, 24, 80), "4  Four");
+    int desc = row_of(fmt(&m, 24, 80), "Short.");
+    ASSERT_EQ_INT(desc - last - 1, 3, "three blank rows");
+    /* a short canvas: 4 entries + 3 description rows + a gap of what is left, at least one */
+    for (int rows = 9; rows >= 7; rows--) {
+        last = row_of(fmt(&m, rows, 80), "4  Four");
+        desc = row_of(fmt(&m, rows, 80), "Short.");
+        int want = rows - 4 - 3 < 3 ? rows - 4 - 3 : 3;
+        if (want < 1) want = 1;
+        ASSERT(last >= 0 && desc >= 0, "entries and description both kept");
+        ASSERT_EQ_INT(desc - last - 1, want, "the gap shrinks to what fits");
+    }
+    /* no room even for the gap: the entries stay, the description is cut first */
+    const char *t = fmt(&m, 5, 80);
+    ASSERT(row_of(t, "4  Four") >= 0, "all entries kept");
+    ASSERT(strstr(t, "Short.") == NULL, "the description is what is cut");
 }
 
 static void test_counts(void) {
@@ -319,34 +377,34 @@ static void test_render_screen(void) {
     tui_menu_set(&m, E2, 2, 0);
     fx_show(&f, &m);
     char row[128];
-    ASSERT_EQ_STR(pty_row_text(f.s, 3, row, sizeof row), "          > 1  Tickets  12 (3)", "cursor row");
-    ASSERT_EQ_STR(pty_row_text(f.s, 4, row, sizeof row), "            2  Agents    2 (1)", "second row");
-    ASSERT_EQ_STR(pty_row_text(f.s, 6, row, sizeof row), "              The tickets.", "description");
+    ASSERT_EQ_STR(pty_row_text(f.s, 2, row, sizeof row), "          > 1  Tickets  12 (3)", "cursor row");
+    ASSERT_EQ_STR(pty_row_text(f.s, 3, row, sizeof row), "            2  Agents    2 (1)", "second row");
+    ASSERT_EQ_STR(pty_row_text(f.s, 7, row, sizeof row), "              The tickets.", "description");
     ASSERT_EQ_STR(pty_row_text(f.s, 0, row, sizeof row), "", "no title");
     /* the cursor row is the selection (a filled bar from col 10, 20 wide) */
     for (int c = 10; c < 30; c++)
-        ASSERT_EQ_INT(sig(f.s, 3, c), sig(f.s, 3, 12), "the cursor row is one bar");
-    ASSERT(sig(f.s, 3, 12) != sig(f.s, 4, 12), "and the next row is not in it");
-    ASSERT(sig(f.s, 3, 9) != sig(f.s, 3, 12), "the bar starts at the block");
-    ASSERT(sig(f.s, 3, 30) != sig(f.s, 3, 12), "and ends with it");
+        ASSERT_EQ_INT(sig(f.s, 2, c), sig(f.s, 2, 12), "the cursor row is one bar");
+    ASSERT(sig(f.s, 2, 12) != sig(f.s, 3, 12), "and the next row is not in it");
+    ASSERT(sig(f.s, 2, 9) != sig(f.s, 2, 12), "the bar starts at the block");
+    ASSERT(sig(f.s, 2, 30) != sig(f.s, 2, 12), "and ends with it");
     /* (3): the warning colour, bold; (1) too; N and the label are not */
-    int warn_fg = pty_cell_fg(f.s, 3, 27);
-    ASSERT_EQ_INT(pty_cell_attr(f.s, 3, 27) & PTY_ATTR_BOLD, PTY_ATTR_BOLD, "(3) is bold");
-    ASSERT_EQ_INT(pty_cell_fg(f.s, 4, 27), warn_fg, "(1) has the same colour");
-    ASSERT(warn_fg != pty_cell_fg(f.s, 3, 24), "N is not in the warning colour");
-    ASSERT(warn_fg != pty_cell_fg(f.s, 4, 15), "nor is a label");
-    ASSERT(warn_fg != pty_cell_fg(f.s, 4, 12), "nor the hot key");
-    ASSERT_EQ_INT(pty_cell_fg(f.s, 4, 12), pty_cell_fg(f.s, 4, 15), "the hot key is in the text colour");
-    ASSERT_EQ_INT(pty_cell_attr(f.s, 4, 12) & PTY_ATTR_BOLD, 0, "not bold");
-    ASSERT_EQ_STR(pty_cell_text(f.s, 3, 10), ">", "the mark");
+    int warn_fg = pty_cell_fg(f.s, 2, 27);
+    ASSERT_EQ_INT(pty_cell_attr(f.s, 2, 27) & PTY_ATTR_BOLD, PTY_ATTR_BOLD, "(3) is bold");
+    ASSERT_EQ_INT(pty_cell_fg(f.s, 3, 27), warn_fg, "(1) has the same colour");
+    ASSERT(warn_fg != pty_cell_fg(f.s, 2, 24), "N is not in the warning colour");
+    ASSERT(warn_fg != pty_cell_fg(f.s, 3, 15), "nor is a label");
+    ASSERT(warn_fg != pty_cell_fg(f.s, 3, 12), "nor the hot key");
+    ASSERT_EQ_INT(pty_cell_fg(f.s, 3, 12), pty_cell_fg(f.s, 3, 15), "the hot key is in the text colour");
+    ASSERT_EQ_INT(pty_cell_attr(f.s, 3, 12) & PTY_ATTR_BOLD, 0, "not bold");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 2, 10), ">", "the mark");
 
     /* the cursor and the description move together */
     tui_menu_select(&m, 1);
     fx_show(&f, &m);
-    ASSERT_EQ_STR(pty_cell_text(f.s, 4, 10), ">", "the mark moved");
-    ASSERT_EQ_STR(pty_cell_text(f.s, 3, 10), " ", "off the old row");
-    ASSERT(sig(f.s, 4, 12) != sig(f.s, 3, 12), "and so did the bar");
-    ASSERT_EQ_STR(pty_row_text(f.s, 6, row, sizeof row), "       The agents' tmux sessions.", "description");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 3, 10), ">", "the mark moved");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 2, 10), " ", "off the old row");
+    ASSERT(sig(f.s, 3, 12) != sig(f.s, 2, 12), "and so did the bar");
+    ASSERT_EQ_STR(pty_row_text(f.s, 7, row, sizeof row), "       The agents' tmux sessions.", "description");
     fx_close(&f);
 }
 
@@ -402,6 +460,8 @@ static const TestCase tests[] = {
     TEST_CASE(test_recentres_on_resize),
     TEST_CASE(test_counts),
     TEST_CASE(test_description_wraps),
+    TEST_CASE(test_entries_fixed),
+    TEST_CASE(test_gap),
     TEST_CASE(test_narrow_cuts_labels),
     TEST_CASE(test_set_and_clamp),
     TEST_CASE(test_long_texts_are_cut_at_a_character),

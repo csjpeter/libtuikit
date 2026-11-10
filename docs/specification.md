@@ -763,8 +763,11 @@ widget the program routes events to first.
     the text colour. `count` below 0 shows none; `attention` above 0 adds
     `(M)` after `N`, in the the warning colour, bold orange (256-colour index 208); no words in the row.
   - *Layout*: a row is `> 1  Label  N (M)`; the block is left-aligned inside,
-    centered, with no title; block, one blank row and three description rows
-    are centred together, so the block sits a little above the middle. The
+    centered, with no title; block, a gap of `MENU_GAP_ROWS` (3) blank rows and three description rows
+    are centred together, so the block sits a little above the middle and the
+    entries keep their rows whatever the cursor is on (TUI-115). On a short
+    canvas the gap shrinks to what fits, never below one row; the description
+    is cut before the entries. The
     cursor row has the `>` mark and the role `selection`. The description of
     the entry under the cursor is wrapped to two or three centered lines (60
     columns at most, the last cut with an ellipsis). A resize needs only the
