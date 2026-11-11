@@ -7,7 +7,7 @@
  * PTY suite of the keyboard policy of policies/tui-interface-model.md,
  * "Actions that change state: the action menu", through a real terminal and
  * a program (tests/pty/keys_fixture.c) whose every key is one tui_keyentry
- * table: ':' opens the menu that lists the actions with their direct keys; a
+ * table: '-' opens the menu that lists the actions with their direct keys; a
  * serious action asks a confirmation that names the row, No the default, and
  * Enter on it does nothing; the help is made from the table and matches what
  * the keys do; the keys of the reserved harmless set change nothing; q goes
@@ -108,12 +108,12 @@ static const char *const g_menu[] = {
     "  └────────────────────────────────────────────┘",
     NULL };
 
-/* ':' lists every state-changing action of the view, the direct key beside it. */
+/* '-' lists every state-changing action of the view, the direct key beside it. */
 static void test_menu_lists_actions_and_cancels(void) {
     PtySession *s = start();
     ASSERT(s != NULL, "start");
     WAIT_LIST(s);
-    pty_send_str(s, ":");
+    pty_send_str(s, "-");
     ASSERT_WAIT_SCREEN(s, g_menu, 3000);
     const char *const row4[] = { "A.MBMBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB.A", NULL };
     ASSERT_REGION_STYLE(s, PTY_REGION(7, 2, 1, 46), row4, g_legend);
@@ -123,7 +123,7 @@ static void test_menu_lists_actions_and_cancels(void) {
     pty_send_key(s, PTY_KEY_ESC);
     WAIT_LIST(s);
     /* Keys the menu does not know change nothing. */
-    pty_send_str(s, ":");
+    pty_send_str(s, "-");
     ASSERT_WAIT_SCREEN(s, g_menu, 3000);
     pty_send_str(s, "xZ");
     ASSERT_WAIT_SCREEN(s, g_menu, 3000);
@@ -137,12 +137,12 @@ static void test_menu_runs_a_routine_action(void) {
     PtySession *s = start();
     ASSERT(s != NULL, "start");
     WAIT_LIST(s);
-    pty_send_str(s, ":\r");
+    pty_send_str(s, "-\r");
     WAIT_DONE(s, "done: Star Alpha");
     ASSERT_WAIT_GONE(s, "Actions", 3000);
-    pty_send_str(s, "j:j\r");                               /* Junk on Bravo */
+    pty_send_str(s, "j-j\r");                               /* Junk on Bravo */
     WAIT_DONE(s, "done: Junk Bravo");
-    pty_send_str(s, ":jjjj\r");                             /* Rotate secret: rare, menu only */
+    pty_send_str(s, "-jjjj\r");                             /* Rotate secret: rare, menu only */
     WAIT_DONE(s, "done: Rotate secret Bravo");
     pty_close(s);
 }
@@ -168,7 +168,7 @@ static void test_menu_serious_action_confirms(void) {
     PtySession *s = start();
     ASSERT(s != NULL, "start");
     WAIT_LIST(s);
-    pty_send_str(s, ":jj\r");                               /* Delete */
+    pty_send_str(s, "-jj\r");                               /* Delete */
     ASSERT_WAIT_SCREEN(s, g_confirm, 3000);
     ASSERT(pty_screen_contains(s, "Delete Alpha? It cannot be undone."), "the target is named");
     ASSERT(pty_screen_contains(s, "[ Yes ]  [ No ]"), "Yes and No");
@@ -190,18 +190,18 @@ static void test_menu_serious_action_confirms(void) {
     ASSERT_WAIT_GONE(s, "Delete Alpha?", 3000);
     NOT_DONE(s);
     /* Esc and ctrl-z-free refusals: Esc, n. */
-    pty_send_str(s, ":jj\r");
+    pty_send_str(s, "-jj\r");
     pty_wait_for(s, "Delete Alpha?", 3000);
     pty_send_key(s, PTY_KEY_ESC);
     ASSERT_WAIT_GONE(s, "Delete Alpha?", 3000);
     NOT_DONE(s);
-    pty_send_str(s, ":jj\r");
+    pty_send_str(s, "-jj\r");
     pty_wait_for(s, "Delete Alpha?", 3000);
     pty_send_str(s, "n");
     ASSERT_WAIT_GONE(s, "Delete Alpha?", 3000);
     NOT_DONE(s);
     /* Moving to Yes and Enter performs. */
-    pty_send_str(s, ":jj\r");
+    pty_send_str(s, "-jj\r");
     pty_wait_for(s, "Delete Alpha?", 3000);
     pty_send_str(s, "\t\r");
     WAIT_DONE(s, "done: Delete Alpha");
@@ -213,12 +213,12 @@ static void test_menu_only_serious_action(void) {
     PtySession *s = start();
     ASSERT(s != NULL, "start");
     WAIT_LIST(s);
-    pty_send_str(s, "j:jjj\r");                             /* Restart service on Bravo */
+    pty_send_str(s, "j-jjj\r");                             /* Restart service on Bravo */
     pty_wait_for(s, "Restart the service of Bravo?", 3000);
     pty_send_str(s, "\r");
     ASSERT_WAIT_GONE(s, "Restart the service", 3000);
     NOT_DONE(s);
-    pty_send_str(s, ":jjj\r");
+    pty_send_str(s, "-jjj\r");
     pty_wait_for(s, "Restart the service of Bravo?", 3000);
     pty_send_str(s, "y");
     WAIT_DONE(s, "done: Restart service Bravo");
@@ -289,7 +289,7 @@ static void test_way_out(void) {
     pty_close(s);
 
     /* ctrl-c from the detail view, the menu, the confirmation and the help. */
-    static const char *const where[] = { "\r", ":", ":jj\r", "?" };
+    static const char *const where[] = { "\r", "-", "-jj\r", "?" };
     for (int i = 0; i < 4; i++) {
         s = start();
         ASSERT(s != NULL, "start");
@@ -303,7 +303,7 @@ static void test_way_out(void) {
     s = start();
     ASSERT(s != NULL, "start");
     WAIT_LIST(s);
-    pty_send_str(s, ":");
+    pty_send_str(s, "-");
     pty_wait_for(s, "Actions", 3000);
     pty_send_key(s, PTY_KEY_ESC);
     WAIT_LIST(s);
@@ -324,11 +324,40 @@ static void test_other_view_other_actions(void) {
     NOT_DONE(s);
     pty_send_str(s, "+");
     WAIT_DONE(s, "done: Mark read Alpha");
-    pty_send_str(s, ":");
+    pty_send_str(s, "-");
     pty_wait_for(s, "Actions", 3000);
     ASSERT(pty_screen_contains(s, "+  Mark read"), "this view's action, its key beside it");
     ASSERT(pty_screen_contains(s, "Rotate secret"), "a menu-only action");
     ASSERT(!pty_screen_contains(s, "Junk"), "not the list's");
+    /* The dialog is the list of the context-dependent hotkeys (TUI-116): the
+     * row with a direct key shows it, the row without one shows a blank. */
+    int with = -1, without = -1;
+    char rw[256];
+    for (int r = 0; r < ROWS; r++) {
+        pty_row_text(s, r, rw, sizeof rw);
+        if (strstr(rw, "+  Mark read") && with < 0) with = r;
+        if (strstr(rw, "Rotate secret") && without < 0) without = r;
+    }
+    ASSERT(with >= 0 && without >= 0, "both rows are there");
+    pty_row_text(s, with, rw, sizeof rw);
+    ASSERT(strstr(rw, "m  +  Mark read") != NULL, "a quick key, then the direct key");
+    pty_row_text(s, without, rw, sizeof rw);
+    ASSERT(strstr(rw, "Rotate secret") != NULL && strstr(rw, " +  ") == NULL &&
+           strstr(rw, " -  ") == NULL, "no direct key: blank in its column");
+    pty_close(s);
+}
+
+/* ':' is the command line's key: the action menu does not open on it, and the
+ * program, having no command line, leaves it unbound. */
+static void test_colon_is_not_the_menu(void) {
+    PtySession *s = start();
+    ASSERT(s != NULL, "start");
+    WAIT_LIST(s);
+    pty_send_str(s, ":");
+    NOT_DONE(s);
+    pty_send_str(s, "?");
+    pty_wait_for(s, "List shortcuts", 3000);
+    ASSERT(!pty_screen_contains(s, "Actions: keys"), "the menu was not open under the help");
     pty_close(s);
 }
 
@@ -341,11 +370,11 @@ static void test_help_matches_the_keys(void) {
     pty_send_str(s, "?");
     pty_wait_for(s, "List shortcuts", 3000);
     static const char *const rows[][2] = {
-        { "?", "Help" }, { ":", "Action menu" }, { "Esc, q, Backspace", "Back" },
+        { "?", "Help" }, { "-", "Action menu" }, { "Esc, q, Backspace", "Back" },
         { "Esc", "Quit on the top level" }, { "ctrl-c", "Quit" }, { "j", "Down" },
         { "k", "Up" }, { "Enter", "Open" }, { "r", "Reload" }, { "*", "Star - toggle the star" },
         { "!", "Junk" }, { "d", "Delete" },
-        { ":", "Restart service" }, { ":", "Rotate secret" } };
+        { "-", "Restart service" }, { "-", "Rotate secret" } };
     for (size_t i = 0; i < sizeof rows / sizeof rows[0]; i++) {
         char row[256];
         int found = 0;
@@ -358,7 +387,7 @@ static void test_help_matches_the_keys(void) {
         ASSERT(found, rows[i][1]);
     }
     ASSERT(!pty_screen_contains(s, "Mark read"), "not another view's key");
-    ASSERT(pty_screen_contains(s, "Restart service"), "a menu-only action is listed, with ':'");
+    ASSERT(pty_screen_contains(s, "Restart service"), "a menu-only action is listed, with '-'");
     /* Keys in bold, names plain. */
     char d[160];
     int kr = -1;
@@ -403,7 +432,7 @@ static void test_help_matches_the_keys(void) {
     pty_wait_for(s, "Delete Alpha?", 3000);
     pty_send_key(s, PTY_KEY_ESC);
     ASSERT_WAIT_GONE(s, "Delete Alpha?", 3000);
-    pty_send_str(s, ":");
+    pty_send_str(s, "-");
     pty_wait_for(s, "Actions", 3000);
     pty_send_key(s, PTY_KEY_ESC);
     ASSERT_WAIT_GONE(s, "Actions", 3000);
@@ -425,7 +454,7 @@ static void test_help_describes_the_view(void) {
         pty_row_text(s, r, row, sizeof row);
         if (strstr(row, "List shortcuts")) title = r;
         if (strstr(row, "Three demo rows; the cursor")) d1 = r;
-        if (strstr(row, "Enter opens it, : lists")) d2 = r;
+        if (strstr(row, "Enter opens it, - lists")) d2 = r;
         if (strstr(row, " Help") && first < 0) first = r;
     }
     ASSERT(title >= 0 && d1 == title + 1, "the description is right under the title");
@@ -516,7 +545,7 @@ static void test_help_search(void) {
     ASSERT_WAIT_GONE(s, "List shortcuts", 3000);
     WAIT_LIST(s);
 
-    /* A menu-only action is found with ':' in its key column; Esc in the line clears. */
+    /* A menu-only action is found with '-' in its key column; Esc in the line clears. */
     pty_send_str(s, "?");
     pty_wait_for(s, "List shortcuts", 3000);
     pty_send_str(s, "/restart");
@@ -525,7 +554,7 @@ static void test_help_search(void) {
     r = row_of(s, "Restart service");
     ASSERT(r >= 0, "the menu-only action is found");
     pty_row_text(s, r, row, sizeof row);
-    ASSERT(strstr(row, " : ") != NULL, "with ':' as its key");
+    ASSERT(strstr(row, " - ") != NULL, "with '-' as its key");
     pty_send_key(s, PTY_KEY_ESC);
     pty_wait_for(s, "Junk", 3000);
     ASSERT(pty_screen_contains(s, "List shortcuts"), "Esc in the line only clears it");
@@ -553,6 +582,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_reserved_keys_change_nothing),
     TEST_CASE(test_way_out),
     TEST_CASE(test_other_view_other_actions),
+    TEST_CASE(test_colon_is_not_the_menu),
     TEST_CASE(test_help_matches_the_keys),
 };
 

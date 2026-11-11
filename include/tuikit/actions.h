@@ -15,7 +15,7 @@
  * tui_keyentry; tui_keytable_init() refuses a table that breaks the policy
  * (the program cannot start with it), the key handler asks the table what an
  * event means (tui_keytable_find()), the help overlay is made from the same
- * table (tui_keyhelp_open()), and ':' opens the action menu of the view
+ * table (tui_keyhelp_open()), and '-' opens the action menu of the view
  * (tui_actionmenu_open()), which asks the confirmation of a serious action
  * with the target named and No as the default answer.  See
  * tui_keytable_init(3).
@@ -50,7 +50,7 @@ enum {
     TUI_KC_FIRST  = 'g',   TUI_KC_LAST = 'G',
     TUI_KC_BACK   = 'q',                   /**< goes back; never quits */
     TUI_KC_HELP   = '?',
-    TUI_KC_MENU   = ':',                   /**< opens the action menu */
+    TUI_KC_MENU   = '-',                   /**< opens the action menu (':' is the command line, tui_cmdline) */
     TUI_KC_RELOAD = 'r',
     TUI_KC_SEARCH = '/',
     TUI_KC_CLEAR  = 'c',
@@ -70,8 +70,7 @@ enum {
     /* The registry of the keys that may change state. */
     TUI_KC_STAR   = '*',                   /**< toggle the star or flag */
     TUI_KC_JUNK   = '!',                   /**< toggle junk */
-    TUI_KC_READ   = '+',                   /**< mark read */
-    TUI_KC_UNREAD = '-',                   /**< mark unread */
+    TUI_KC_READ   = '+',                   /**< toggle read / unread, one key */
     TUI_KC_DELETE_D = 'd',                 /**< delete or withdraw */
     TUI_KC_DELETE = TUI_KEY_DELETE,        /**< delete or withdraw */
     TUI_KC_NEW    = 'n',
@@ -83,7 +82,8 @@ enum {
 /** @brief The registry's verbs: what a direct key of a state change means. */
 typedef enum tui_verb {
     TUI_VERB_NONE = 0,   /**< no registry entry: the action is menu-only */
-    TUI_VERB_STAR, TUI_VERB_JUNK, TUI_VERB_READ, TUI_VERB_UNREAD,
+    TUI_VERB_STAR, TUI_VERB_JUNK, TUI_VERB_READ,
+    TUI_VERB_UNREAD,     /**< unused since 1.1.0: read / unread is one toggle (TUI_VERB_READ); kept so the values do not move */
     TUI_VERB_DELETE, TUI_VERB_NEW, TUI_VERB_EDIT, TUI_VERB_MOVE,
     TUI_VERB_MESSAGE
 } tui_verb;
@@ -198,7 +198,7 @@ typedef struct tui_actionmenu {
 } tui_actionmenu;
 
 /**
- * @brief Opens the ':' menu of @p view: every state-changing action that
+ * @brief Opens the '-' menu of @p view: every state-changing action that
  *        applies there, each with its quick key at the left (assigned by the
  *        library, see tui_keytable_assign_quick()) and its direct key beside it.  @p target
  *        (copied; may be NULL) names what the action will act on and is put
@@ -268,7 +268,7 @@ typedef struct tui_keyhelp {
  * @brief The help of @p view: the view's description (if the table has one)
  *        under @p title, then a row for every entry there, in table order,
  *        the key and the action's name (and its description).  An entry with
- *        no direct key is listed too, with ':' as its key.  '/' searches the
+ *        no direct key is listed too, with '-' as its key.  '/' searches the
  *        entries (tui_dialog_help(3)).  The same table drives
  *        tui_keytable_find().
  */

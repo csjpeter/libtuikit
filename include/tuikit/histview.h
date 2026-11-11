@@ -16,7 +16,7 @@
  * column: "reverts N" for a step that reverts another, "not revertable" for
  * one that cannot be; a step that is both shows "not revertable"), scrolls
  * them with the common list keys and goes back with Esc, q and Backspace.
- * ':' opens the action menu with "Revert" (its quick key comes from the
+ * '-' opens the action menu with "Revert" (its quick key comes from the
  * library's verb table); Enter on a step opens the same confirmation, which
  * names the step, the thing and what it will become, with No as the default
  * answer.  A step marked not revertable shows a notice and opens no dialog.

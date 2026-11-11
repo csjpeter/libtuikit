@@ -196,6 +196,16 @@ name the ticket that closes the gap; there is none now.
 
 | Capability | Functional test | Phase |
 |---|---|---|
+| `tui_cmdline_count` | `tests/functional/cap_edit.c` | `cap_cmdline` |
+| `tui_cmdline_free` | `tests/functional/cap_edit.c` | `cap_cmdline` |
+| `tui_cmdline_handle` | `tests/functional/cap_edit.c` | `cap_cmdline` |
+| `tui_cmdline_help` | `tests/functional/cap_edit.c` | `cap_cmdline` |
+| `tui_cmdline_init` | `tests/functional/cap_edit.c` | `cap_cmdline` |
+| `tui_cmdline_is_open` | `tests/functional/cap_edit.c` | `cap_cmdline` |
+| `tui_cmdline_message` | `tests/functional/cap_edit.c` | `cap_cmdline` |
+| `tui_cmdline_name` | `tests/functional/cap_edit.c` | `cap_cmdline` |
+| `tui_cmdline_register` | `tests/functional/cap_edit.c` | `cap_cmdline` |
+| `tui_cmdline_render` | `tests/functional/cap_edit.c` | `cap_cmdline` |
 | `tui_textedit_cursor` | `tests/functional/cap_edit.c` | `cap_textedit` |
 | `tui_textedit_handle` | `tests/functional/cap_edit.c` | `cap_textedit` |
 | `tui_textedit_init` | `tests/functional/cap_edit.c` | `cap_textedit` |

@@ -7,7 +7,7 @@
  * A demo of the keyboard policy (policies/tui-interface-model.md): three
  * rows, a detail view opened with Enter, and nothing bound but through one
  * tui_keyentry table.  The key handler reads the table (tui_keytable_find()),
- * the help overlay is made from it (tui_keyhelp_open()), ':' opens the action
+ * the help overlay is made from it (tui_keyhelp_open()), '-' opens the action
  * menu, and a serious action asks a confirmation that names the row.
  * Row 1 shows what was done last: "done: <action> <row>".
  */
@@ -22,7 +22,7 @@ enum { A_HELP = 1, A_MENU, A_BACK, A_QUIT, A_UP, A_DOWN, A_OPEN, A_RELOAD, A_STA
 
 static const tui_keyentry g_keys[] = {
     { "list",   TUI_KC_NONE,   TUI_VERB_NONE, NULL,
-      "Three demo rows; the cursor is on one.\nEnter opens it, : lists its actions.",
+      "Three demo rows; the cursor is on one.\nEnter opens it, - lists its actions.",
       TUI_ACT_HARMLESS, 0, NULL, 0 },
     { NULL,     TUI_KC_HELP,   TUI_VERB_NONE, "Help", NULL, TUI_ACT_HARMLESS, 0, NULL, A_HELP },
     { NULL,     TUI_KC_MENU,   TUI_VERB_NONE, "Action menu", NULL, TUI_ACT_HARMLESS, 0, NULL, A_MENU },

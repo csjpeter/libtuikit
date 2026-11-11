@@ -262,7 +262,7 @@ static void cap_histview(void) {
     free(txt);
     ev = cap_ev("k");
     tui_histview_handle(&h, &ev);
-    ev = cap_ev(":");
+    ev = cap_ev("-");
     tui_histview_handle(&h, &ev);
     ev = cap_ev("\r");
     tui_histview_handle(&h, &ev);
@@ -333,6 +333,50 @@ static void cap_listview(void) {
     tui_screen_free(s);
 }
 
+static int cl_run(void *user, const char *args, char *msg, size_t size) {
+    int *calls = user;
+    (*calls)++;
+    snprintf(msg, size, "done %s", args);
+    return 0;
+}
+
+static void cap_cmdline(void) {
+    tui_cmdline cl;
+    int calls = 0;
+    tui_cmdline_init(&cl);
+    tui_event ev = cap_ev(":");
+    CHECK_INT(tui_cmdline_handle(&cl, &ev), TUI_CMDLINE_IGNORED, ": is unbound with no command");
+    CHECK_INT(tui_cmdline_register(&cl, "reload", "fetch again", cl_run, &calls), 0, "register");
+    CHECK_INT(tui_cmdline_count(&cl), 1, "one command");
+    CHECK_STR(tui_cmdline_name(&cl, 0), "reload", "its name");
+    CHECK_STR(tui_cmdline_help(&cl, 0), "fetch again", "its help");
+    CHECK_INT(tui_cmdline_handle(&cl, &ev), TUI_CMDLINE_EDITING, ": opens the line");
+    CHECK_INT(tui_cmdline_is_open(&cl), 1, "open");
+    CAP_TYPE(tui_cmdline_handle, &cl, "rel\t all");
+    tui_screen *s = tui_screen_new(3, 30);
+    tui_cmdline_render(&cl, tui_canvas_of(s));
+    char *txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, ":reload", "the line drawn with its prompt");
+    free(txt);
+    ev = cap_ev("\r");
+    CHECK_INT(tui_cmdline_handle(&cl, &ev), TUI_CMDLINE_RAN, "Enter runs");
+    CHECK_INT(calls, 1, "the handler ran");
+    int ok = 0;
+    CHECK_STR(tui_cmdline_message(&cl, &ok), "done all", "its message");
+    CHECK_INT(ok, 1, "ok");
+    tui_screen_clear(s, TUI_STYLE_DEFAULT);
+    tui_cmdline_render(&cl, tui_canvas_of(s));
+    txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "done all", "the message drawn");
+    free(txt);
+    ev = cap_ev(":");
+    tui_cmdline_handle(&cl, &ev);
+    ev = cap_ev("\x1b");
+    CHECK_INT(tui_cmdline_handle(&cl, &ev), TUI_CMDLINE_CANCELLED, "Esc cancels");
+    tui_screen_free(s);
+    tui_cmdline_free(&cl);
+}
+
 int main(void) {
     cap_history();
     cap_lineedit();
@@ -341,5 +385,6 @@ int main(void) {
     cap_listview();
     cap_tree();
     cap_histview();
+    cap_cmdline();
     return cap_finish("cap-edit");
 }

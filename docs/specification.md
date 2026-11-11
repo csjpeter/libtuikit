@@ -628,7 +628,7 @@ widget the program routes events to first.
   `tui_tree_set_rows` keeps open state and selection by identity;
   `tui_tree_show_matches(match)` opens the ancestors of the matches and
   `tui_tree_show_matches(NULL)` restores the earlier open set. Open all and
-  close all are functions for the program's `:` menu. Each point has a unit
+  close all are functions for the program's `-` menu. Each point has a unit
   test (`tests/unit/test_tree.c`) and the demo has a pty test
   (`tests/pty/test_tree.c`).
 - **`tui_histview`** (TUI-63) — the history view of `policies/undo-model.md`,
@@ -638,7 +638,7 @@ widget the program routes events to first.
   the server's words. Columns: time, who, operation, [object in the recent
   changes mode], thing, old value, new value and a note ("reverts N", "not
   revertable"; the second wins when both apply). Keys: the list keys, Esc/q/
-  Backspace back, `?` help from the widget's own key table, `:` the action
+  Backspace back, `?` help from the widget's own key table, `-` the action
   menu with "Revert" (quick key from the verb table), Enter the same
   confirmation, which names the step, the thing and what it becomes, No the
   default. A not-revertable step shows a notice and opens no dialog; a
@@ -864,13 +864,13 @@ the parts so that a program cannot invent a binding.
 - **Key codes.** `tui_keycode` is one number per key: a character is its code
   point, a special key its `tui_key`, Ctrl+letter `TUI_KC_CTRL | letter`.
   Named constants `TUI_KC_*` exist for the common table (`TUI_KC_BACK` q,
-  `TUI_KC_HELP` ?, `TUI_KC_MENU` :, `TUI_KC_RELOAD` r, `TUI_KC_QUIT` ctrl-c...)
-  and for the registry (`TUI_KC_STAR` `*`, `TUI_KC_JUNK` `!`, `TUI_KC_READ` `+`,
-  `TUI_KC_UNREAD` `-`, `TUI_KC_DELETE_D` `d`, `TUI_KC_DELETE` Delete, and
+  `TUI_KC_HELP` ?, `TUI_KC_MENU` -, `TUI_KC_RELOAD` r, `TUI_KC_QUIT` ctrl-c...)
+  and for the registry (`TUI_KC_STAR` `*`, `TUI_KC_JUNK` `!`, `TUI_KC_READ` `+` (read and unread are one toggle; `-` is the action menu, TUI-116),
+  `TUI_KC_DELETE_D` `d`, `TUI_KC_DELETE` Delete, and
   n e t m for new, edit, move, message), so a program names a key and never
   writes a character. `tui_registry_verb()` maps a key to its verb;
   `tui_key_reserved()` is the reserved harmless set `r s f p o c a u i l h x /`
-  with `j k q g G U ? :` (`n` is in the policy's reserved list and also the
+  with `j k q g G U ? - :` (`n` is in the policy's reserved list and also the
   registry's *new*: the registry's table wins, as it lists `n` explicitly).
 - **One table.** A program lists everything its keys do as an array of
   `tui_keyentry` (view, key, verb, action name, description, class,
@@ -878,9 +878,19 @@ the parts so that a program cannot invent a binding.
   `tui_keytable_find(table, view, event)`; the help overlay is
   `tui_keyhelp_open()` over the same array (a row of key and action name for
   every entry of that view, in table order; an entry with no direct key, the
-  menu-only class, is listed with `:` in the key column); the `:` menu
+  menu-only class, is listed with `-` in the key column); the `-` menu
   is `tui_actionmenu_open()` over it. The help therefore cannot list a key the
   handler does not have, nor the handler have a key the help omits.
+- **The command line (TUI-116).** `:` is reserved for `tui_cmdline`
+  (`tuikit/cmdline.h`), the vim-like line at the bottom of the screen: a
+  program registers commands (name, help text, handler) and gives it the
+  events; `:` opens it only when a command is registered, otherwise `:` is
+  unbound. Esc (or Backspace on an empty line) cancels, Enter runs the
+  command (an unknown name is an error message), Up and Down browse the lines
+  run before, Tab completes the command name to the common prefix of the
+  commands that match (a lone match gets a blank, several are listed above
+  the line), and the handler's message stays on the line, in the ok or error
+  role, until the line is opened again. The editing is `tui_lineedit`.
 - **Search in the help (TUI-59).** `/` in a help dialog opens a one-line
   search (a `tui_lineedit` over a buffer the dialog allocates on first use,
   kept in the otherwise unused `checked` array, so no public struct changes).

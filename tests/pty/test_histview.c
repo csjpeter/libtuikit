@@ -153,12 +153,12 @@ static void test_revert_answered_yes(void) {
     pty_close(s);
 }
 
-/* The ':' menu has Revert; choosing it asks the same question. */
+/* The '-' menu has Revert; choosing it asks the same question. */
 static void test_menu_revert(void) {
     PtySession *s = start("object");
     ASSERT(s != NULL, "start");
     FULL(s, STATUS(0, 0, 0), 0);
-    pty_send_str(s, "jj:");
+    pty_send_str(s, "jj-");
     ASSERT_WAIT_FOR(s, "Actions", 3000);
     ASSERT_WAIT_FOR(s, "Revert", 1000);
     pty_send_key(s, PTY_KEY_ENTER);
@@ -186,7 +186,7 @@ static void test_refusal_line(void) {
     pty_close(s);
 }
 
-/* A step marked not revertable shows a notice and opens no dialog, by Enter or by ':'. */
+/* A step marked not revertable shows a notice and opens no dialog, by Enter or by '-'. */
 static void test_not_revertable(void) {
     PtySession *s = start("object");
     ASSERT(s != NULL, "start");
@@ -196,7 +196,7 @@ static void test_not_revertable(void) {
     ASSERT_WAIT_FOR(s, "step 2 is not revertable", 2000);
     ASSERT_EQ_INT(pty_screen_contains(s, "Revert step"), 0, "no dialog");
     pty_send_str(s, "kj");                                  /* a key clears the notice */
-    pty_send_str(s, ":");
+    pty_send_str(s, "-");
     ASSERT_WAIT_FOR(s, "step 2 is not revertable", 2000);
     ASSERT_WAIT_GONE(s, "Actions", 1000);
     ASSERT_WAIT_GONE(s, "Revert step", 1000);
@@ -241,7 +241,7 @@ static void test_empty_state(void) {
     const char *const hint[] = { "YYYYYYYYYYYYYYYYYYY", NULL };
     ASSERT_REGION_STYLE(s, PTY_REGION(3, 0, 1, 19), hint, g_legend);
     pty_send_key(s, PTY_KEY_ENTER);
-    pty_send_str(s, ":");
+    pty_send_str(s, "-");
     SCREEN(s, " History", STATUS(0, 0, 0), "", "no recorded changes");
     pty_close(s);
 }

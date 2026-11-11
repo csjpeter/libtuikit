@@ -10,7 +10,7 @@
  * count; Right/l open (on an open row: first child), Left/h close (on a
  * closed row or a leaf: the parent); Enter does not toggle; j/k move over
  * visible rows; a reload keeps what is open; open all and close all come
- * from the ':' menu.  Text, position and style are compared cell by cell.
+ * from the '-' menu.  Text, position and style are compared cell by cell.
  */
 
 #include "test_helpers.h"
@@ -130,7 +130,7 @@ static void test_reload_keeps_state(void) {
     pty_close(s);
 }
 
-/* Open all and close all are entries of the ':' menu; no letter is taken. */
+/* Open all and close all are entries of the '-' menu; no letter is taken. */
 static void test_menu_open_all_close_all(void) {
     PtySession *s = start();
     ASSERT(s != NULL, "start");
@@ -138,10 +138,10 @@ static void test_menu_open_all_close_all(void) {
     pty_send_str(s, "O");
     pty_send_str(s, "C");
     SCREEN(s, " Tree", "done: nothing", "", "+ Alpha (2)", "+ Bravo (1)", "  Charlie");
-    pty_send_str(s, ":\r");
+    pty_send_str(s, "-\r");
     SCREEN(s, " Tree", "done: Open all", "", "- Alpha", "-   Alpha1", "      Alpha1a",
            "    Alpha2", "- Bravo", "    Bravo1", "  Charlie");
-    pty_send_str(s, "G:j\r");
+    pty_send_str(s, "G-j\r");
     SCREEN(s, " Tree", "done: Close all", "", "+ Alpha (2)", "+ Bravo (1)", "  Charlie");
     pty_close(s);
 }

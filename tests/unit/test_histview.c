@@ -212,6 +212,8 @@ static void test_menu_path(void) {
     stub st = { 0, 0, 0, NULL };
     setup(&h, TUI_HISTVIEW_OBJECT, &st);
     CH(&h, ':');
+    ASSERT_EQ_INT(tui_histview_modal(&h), 0, ": is the command line, it opens no menu");
+    CH(&h, '-');
     ASSERT_EQ_INT(tui_histview_modal(&h), 1, "menu open");
     ASSERT(on_screen(&h, 24, 80, "Revert"), "the Revert entry");
     /* The first entry is the harmless one; the arrows reach Revert. */
@@ -220,7 +222,7 @@ static void test_menu_path(void) {
     ASSERT_EQ_INT(tui_histview_modal(&h), 1, "confirming");
     ASSERT_EQ_INT(CH(&h, 'y'), TUI_HISTVIEW_REVERTED, "reverted from the menu");
     ASSERT_EQ_INT(st.calls, 1, "asked once");
-    CH(&h, ':');
+    CH(&h, '-');
     KEY(&h, TUI_KEY_ESC);
     ASSERT_EQ_INT(tui_histview_modal(&h), 0, "Esc closes the menu");
     tui_histview_free(&h);
@@ -235,7 +237,7 @@ static void test_not_revertable_and_missing(void) {
     KEY(&h, TUI_KEY_ENTER);
     ASSERT_EQ_INT(tui_histview_modal(&h), 0, "no dialog");
     ASSERT_EQ_STR(tui_histview_notice(&h), "step 2 is not revertable", "notice");
-    CH(&h, ':');
+    CH(&h, '-');
     ASSERT_EQ_INT(tui_histview_modal(&h), 0, "no menu either");
     ASSERT_EQ_INT(st.calls, 0, "nothing asked");
     tui_histview_free(&h);
@@ -321,7 +323,7 @@ static void test_menu_free_while_open(void) {
     tui_histview h;
     stub st = { 0, 0, 0, NULL };
     setup(&h, TUI_HISTVIEW_OBJECT, &st);
-    CH(&h, ':');
+    CH(&h, '-');
     tui_histview_free(&h);
 }
 

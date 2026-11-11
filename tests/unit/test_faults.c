@@ -659,7 +659,29 @@ static void test_table_marks_failures(void) {
     tui_table_free(&t);
 }
 
+static int fault_cmd(void *u, const char *a, char *m, size_t n) {
+    (void)u; (void)a; (void)m; (void)n;
+    return 0;
+}
+
+/* tui_cmdline_register(): no memory for the name, none for the table; nothing is half-registered. */
+static void test_cmdline_register_failures(void) {
+    tui_cmdline cl;
+    tui_cmdline_init(&cl);
+    fault_arm(F_MALLOC, 0, 1, ENOMEM);
+    ASSERT_EQ_INT(tui_cmdline_register(&cl, "a", "h", fault_cmd, NULL), -1, "cmdline: the name");
+    ASSERT_EQ_INT(errno, ENOMEM, "cmdline: ENOMEM");
+    fault_reset();
+    fault_arm(F_REALLOC, 0, 1, ENOMEM);
+    ASSERT_EQ_INT(tui_cmdline_register(&cl, "a", "h", fault_cmd, NULL), -1, "cmdline: the table");
+    fault_reset();
+    ASSERT_EQ_INT(tui_cmdline_count(&cl), 0, "cmdline: nothing registered");
+    ASSERT_EQ_INT(tui_cmdline_register(&cl, "a", "h", fault_cmd, NULL), 0, "cmdline: then it works");
+    tui_cmdline_free(&cl);
+}
+
 static const TestCase tests[] = {
+    TEST_CASE(test_cmdline_register_failures),
     TEST_CASE(test_buf_failures),
     TEST_CASE(test_screen_failures),
     TEST_CASE(test_textview_failures),

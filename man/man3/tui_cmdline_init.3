@@ -1,0 +1,88 @@
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_CMDLINE_INIT 3 2026-11-11 "libtuikit 1.1" "libtuikit Manual"
+.SH NAME
+tui_cmdline_init, tui_cmdline_free, tui_cmdline_register, tui_cmdline_count,
+tui_cmdline_name, tui_cmdline_help, tui_cmdline_handle, tui_cmdline_is_open,
+tui_cmdline_message, tui_cmdline_render \- the command line opened by ':'
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/cmdline.h>
+.PP
+.BI "typedef int (*tui_cmdline_fn)(void *" user ", const char *" args ,
+.BI "                             char *" msg ", size_t " size );
+.PP
+.BI "void tui_cmdline_init(tui_cmdline *" cl );
+.BI "void tui_cmdline_free(tui_cmdline *" cl );
+.BI "int  tui_cmdline_register(tui_cmdline *" cl ", const char *" name ,
+.BI "                         const char *" help ", tui_cmdline_fn " fn ", void *" user );
+.BI "int  tui_cmdline_count(const tui_cmdline *" cl );
+.BI "const char *tui_cmdline_name(const tui_cmdline *" cl ", int " i );
+.BI "const char *tui_cmdline_help(const tui_cmdline *" cl ", int " i );
+.BI "tui_cmdline_result tui_cmdline_handle(tui_cmdline *" cl ", const tui_event *" ev );
+.BI "int  tui_cmdline_is_open(const tui_cmdline *" cl );
+.BI "const char *tui_cmdline_message(const tui_cmdline *" cl ", int *" ok );
+.BI "void tui_cmdline_render(tui_cmdline *" cl ", tui_canvas " c );
+.fi
+.SH DESCRIPTION
+The vim-like command line of policies/tui-interface-model.md: one input line at
+the bottom of the screen, opened by
+.BR : .
+(The action menu is on
+.BR \- ;
+see
+.BR tui_keytable_init (3).)
+.PP
+A program registers its commands with
+.BR tui_cmdline_register ():
+a name (one word), a help text and a handler.
+Registering a name again replaces it.
+The handler gets the text after the name in
+.I args
+and writes the message to show into
+.IR msg ;
+it returns 0 for success (the message is drawn in the ok role) or non-zero
+(the error role).
+With no command registered
+.B :
+is unbound:
+.BR tui_cmdline_handle ()
+returns
+.BR TUI_CMDLINE_IGNORED .
+.PP
+.BR tui_cmdline_handle ()
+gives every event to the line.
+While it is closed only a plain
+.B :
+does anything: it opens the line and returns
+.BR TUI_CMDLINE_EDITING .
+While it is open it takes every event (the program must not use one):
+Esc, Ctrl-C, Ctrl-D and Backspace on an empty line cancel
+.RB ( TUI_CMDLINE_CANCELLED );
+Enter runs the command
+.RB ( TUI_CMDLINE_RAN ;
+an unknown name leaves the message
+"unknown command: NAME" as an error);
+Up and Down browse the lines run before; the other keys edit as in
+.BR tui_lineedit_init (3).
+Tab completes the command name (the first word) to the longest prefix the
+matching commands share; a lone match gets a blank after it, several are
+listed on the row above the line.
+.PP
+.BR tui_cmdline_render ()
+draws the last row of
+.IR c :
+":" and the text with the terminal cursor while the line is open, else the
+message of the last command until the line is opened again.
+.BR tui_cmdline_message ()
+returns it ("" when there is none) and in
+.I ok
+whether it succeeded.
+.SH RETURN VALUE
+.BR tui_cmdline_register ()
+returns 0, or \-1 with errno EINVAL (no name, a name with a blank, no handler)
+or ENOMEM.
+.SH SEE ALSO
+.BR tui_lineedit_init (3),
+.BR tui_keytable_init (3),
+.BR libtuikit (7)

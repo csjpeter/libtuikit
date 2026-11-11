@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 /* Copyright (c) 2026 Peter Csaszar (Császár Péter) */
 /* Created: 2026-10-20 */
-/* A program for the PTY suite: a tree closed on opening, with markers, counts and the ':' menu. */
+/* A program for the PTY suite: a tree closed on opening, with markers, counts and the '-' menu. */
 
 /*
  * A demo of the tree of policies/tui-interface-model.md: six rows, all
  * branches closed on opening, the marker in the first two cells, the child
  * count on a closed row, the keys of tui_tree_handle().  Enter is the
- * program's own ("done: open <id>"), 'r' reloads, ':' opens a menu with
+ * program's own ("done: open <id>"), 'r' reloads, '-' opens a menu with
  * "Open all" and "Close all".  Row 1 shows what was done last.
  */
 

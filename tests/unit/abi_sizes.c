@@ -23,6 +23,7 @@ int main(void) {
     SHOW(tui_actionmenu);
     SHOW(tui_buf);
     SHOW(tui_canvas);
+    SHOW(tui_cmdline);
     SHOW(tui_completion);
     SHOW(tui_decoder);
     SHOW(tui_dialog);

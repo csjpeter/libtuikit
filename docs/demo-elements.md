@@ -76,7 +76,7 @@ every key of which is one `tui_keyentry` table. Checked by
 | Element | States | Checked | Test |
 |---|---|---|---|
 | Header, status line, rows | at rest | text, style (bold white on blue, bold green, selection) | `test_list_at_rest` |
-| Action menu (`:`) | open, cancelled by Esc, unknown keys, in the detail view | text, style (accent frame, dark blue selection, bold `>`) | `test_menu_lists_actions_and_cancels`, `test_other_view_other_actions` |
+| Action menu (`-`) | open, cancelled by Esc, unknown keys, in the detail view | text, style (accent frame, dark blue selection, bold `>`) | `test_menu_lists_actions_and_cancels`, `test_other_view_other_actions` |
 | A routine action | from the menu, by its direct key | status line | `test_menu_runs_a_routine_action`, `test_direct_keys` |
 | Confirmation of a serious action | from the menu, by `d`, menu-only; Enter on No, Esc, n, y, Tab then Enter | text (target named), style (No focused), status line | `test_menu_serious_action_confirms`, `test_menu_only_serious_action`, `test_direct_keys` |
 | Reserved harmless keys, unbound keys | s f p o c a u i l h x / g G U Z R D E X e | nothing changes | `test_reserved_keys_change_nothing` |

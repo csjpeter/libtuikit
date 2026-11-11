@@ -4,7 +4,7 @@
 # The build, test, install and package definition of libtuikit.
 
 cmake_minimum_required(VERSION 3.20)
-project(libtuikit VERSION 1.0.0 LANGUAGES C)
+project(libtuikit VERSION 1.1.0 LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Version
@@ -105,6 +105,7 @@ set(TUIKIT_SOURCES
     src/dialog.c
     src/fieldset.c
     src/header.c
+    src/cmdline.c
     src/histview.c
     src/lineedit.c
     src/listview.c
@@ -372,7 +373,12 @@ set(TUIKIT_MAN3_ALIASES
     tui_textedit_set_text:tui_textedit_init tui_textedit_insert:tui_textedit_init
     tui_textedit_handle:tui_textedit_init tui_textedit_lines:tui_textedit_init
     tui_textedit_cursor:tui_textedit_init tui_textedit_render:tui_textedit_init
-    tui_textedit_summary:tui_textedit_init)
+    tui_textedit_summary:tui_textedit_init
+    tui_cmdline_free:tui_cmdline_init tui_cmdline_register:tui_cmdline_init
+    tui_cmdline_count:tui_cmdline_init tui_cmdline_help:tui_cmdline_init
+    tui_cmdline_name:tui_cmdline_init tui_cmdline_handle:tui_cmdline_init
+    tui_cmdline_is_open:tui_cmdline_init tui_cmdline_message:tui_cmdline_init
+    tui_cmdline_render:tui_cmdline_init)
 set(TUIKIT_MAN3_ALIASES ${TUIKIT_MAN3_ALIASES} CACHE INTERNAL "")
 
 set(TUIKIT_MAN_OUT "${CMAKE_BINARY_DIR}/man")
@@ -448,6 +454,13 @@ function(tuikit_write_changelog _pkg)
 "${_pkg} (${TUIKIT_VERSION}) stable; urgency=medium
 
   * Build from git commit ${TUIKIT_GIT_COMMIT}.
+  * 1.1.0: the action menu opens on '-' and ':' is left unbound (TUI-116):
+    TUI_KC_MENU is '-', TUI_KC_UNREAD is gone ('+' toggles read and unread;
+    TUI_VERB_UNREAD stays in the enum, unused, so the values do not move),
+    the key help shows '-' for the menu-only actions.  New: tui_cmdline, the
+    vim-like command line opened by ':' (tui_cmdline_init(), _register(),
+    _handle(), _render(), ...).  Programs rebuild with TUI_KC_MENU and
+    drop TUI_KC_UNREAD.
   * 1.0.0: SOVERSION 1, package libtuikit1 (TUI-110).  tui_scheme grew by
     the roles scrollbar.track and scrollbar.thumb (204 bytes); every
     scrolling widget, dialog and help overlay draws a scroll bar at its
