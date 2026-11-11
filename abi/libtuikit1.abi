@@ -30,6 +30,8 @@ size tui_keyhelp 288 8
 size tui_keytable 16 8
 size tui_lineedit 104 8
 size tui_listview 16 4
+size tui_mdline 24 8
+size tui_mdview 80 8
 size tui_menu 16 8
 size tui_menu_entry 24 8
 size tui_readline_opts 32 8
@@ -166,6 +168,20 @@ symbol tui_listview_reveal_selected
 symbol tui_listview_select
 symbol tui_listview_set_count
 symbol tui_listview_set_viewport
+symbol tui_md_render
+symbol tui_md_render_marked
+symbol tui_md_strip_marks
+symbol tui_mdview_free
+symbol tui_mdview_handle
+symbol tui_mdview_init
+symbol tui_mdview_lines
+symbol tui_mdview_render
+symbol tui_mdview_scroll
+symbol tui_mdview_scroll_end
+symbol tui_mdview_scroll_to
+symbol tui_mdview_set_plain
+symbol tui_mdview_set_text
+symbol tui_mdview_top
 symbol tui_menu_count
 symbol tui_menu_format
 symbol tui_menu_handle

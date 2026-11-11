@@ -37,6 +37,8 @@ int main(void) {
     SHOW(tui_keytable);
     SHOW(tui_lineedit);
     SHOW(tui_listview);
+    SHOW(tui_mdline);
+    SHOW(tui_mdview);
     SHOW(tui_readline_opts);
     SHOW(tui_rect);
     SHOW(tui_scheme);
