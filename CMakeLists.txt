@@ -65,7 +65,7 @@ endif()
 include(GNUInstallDirs)
 
 set(TUIKIT_WARNINGS -Wall -Wextra -Wshadow -Wstrict-prototypes -Wformat=2
-                    -Wconversion -Wno-sign-conversion)
+                    -Wconversion -Wno-sign-conversion -Werror)
 
 # Hardening for what is shipped; lintian checks for it.
 set(TUIKIT_HARDENING

@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 3.20)
 project(tuikit_consumer LANGUAGES C)
 set(CMAKE_C_STANDARD 11)
 
-find_package(tuikit 0.1 REQUIRED)
+find_package(tuikit 1.0 REQUIRED)
 find_package(ptytest 0.1 REQUIRED)
 
 add_executable(tuikit-demo ../tuikit_demo.c)
