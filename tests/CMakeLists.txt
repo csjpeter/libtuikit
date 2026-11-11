@@ -136,6 +136,7 @@ project_test(unit test-menu    SOURCES unit/test_menu.c)
 project_test(unit test-tabrow    SOURCES unit/test_tabrow.c)
 project_test(unit test-header    SOURCES unit/test_header.c)
 project_test(unit test-lineedit  SOURCES unit/test_lineedit.c)
+project_test(unit test-cmdline   SOURCES unit/test_cmdline.c)
 project_test(unit test-dialog    SOURCES unit/test_dialog.c)
 project_test(unit test-actions   SOURCES unit/test_actions.c)
 project_test(unit test-textedit  SOURCES unit/test_textedit.c)
@@ -183,7 +184,7 @@ add_dependencies(test-keys keys-fixture)
 # The quick keys of the action menu (TUI-62).
 target_compile_definitions(test-quick PRIVATE QUICK_FIXTURE="$<TARGET_FILE:quick-fixture>")
 add_dependencies(test-quick quick-fixture)
-# The tree: closed on opening, markers, keys, the open state, the ':' menu entries.
+# The tree: closed on opening, markers, keys, the open state, the '-' menu entries.
 target_compile_definitions(test-tree-pty PRIVATE TREE_FIXTURE="$<TARGET_FILE:tree-fixture>")
 add_dependencies(test-tree-pty tree-fixture)
 # The history view: rows, markers, Revert asked and answered, the refusal line, states.

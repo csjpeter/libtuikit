@@ -6,7 +6,7 @@
 /*
  * policies/tui-interface-model.md, "Every action in the menu has a quick
  * key", through a real terminal and a stub program
- * (tests/pty/quick_fixture.c) whose ':' menu has ten entries: the library's
+ * (tests/pty/quick_fixture.c) whose '-' menu has ten entries: the library's
  * letters are in a column of their own in the accent colour, a quick key
  * runs its entry, a serious entry opens its confirmation instead of
  * performing, '?' lists the keys; at 80x24 and at 40 columns, where a long
@@ -73,7 +73,7 @@ static const char *const g_menu80[] = {
 static void test_ten_entries_at_80_columns(void) {
     PtySession *s = start(80);
     ASSERT(s != NULL, "start");
-    pty_send_str(s, ":");
+    pty_send_str(s, "-");
     ASSERT_WAIT_SCREEN(s, g_menu80, 3000);
     for (int i = 0; i < 10; i++) {
         char want[2] = { g_letters[i], '\0' }, w[64];
@@ -96,27 +96,27 @@ static void test_ten_entries_at_80_columns(void) {
 static void test_quick_key_runs_and_confirms(void) {
     PtySession *s = start(80);
     ASSERT(s != NULL, "start");
-    pty_send_str(s, ":l");
+    pty_send_str(s, "-l");
     WAIT_DONE(s, "done: Label");
     ASSERT_WAIT_GONE(s, "Actions", 3000);
-    pty_send_str(s, ":m");
+    pty_send_str(s, "-m");
     WAIT_DONE(s, "done: Move");
     /* The serious entry: the confirmation opens, nothing is done yet. */
-    pty_send_str(s, ":d");
+    pty_send_str(s, "-d");
     ASSERT_WAIT_FOR(s, "Delete Alpha? It cannot be undone.", 3000);
     ASSERT(pty_screen_contains(s, "[ Yes ]  [ No ]"), "Yes and No");
     ASSERT(pty_screen_contains(s, "done: Move"), "nothing was performed");
     pty_send_str(s, "\r");                                  /* Enter on the default No */
     ASSERT_WAIT_GONE(s, "Delete Alpha?", 3000);
     ASSERT(pty_screen_contains(s, "done: Move"), "still nothing performed");
-    pty_send_str(s, ":t");                                  /* the other serious one */
+    pty_send_str(s, "-t");                                  /* the other serious one */
     ASSERT_WAIT_FOR(s, "Restart Alpha?", 3000);
     pty_send_str(s, "y");
     WAIT_DONE(s, "done: Restart the whole service and its workers");
     /* A letter the menu does not have, and the list keys, still work. */
-    pty_send_str(s, ":xjj\r");                              /* x is no quick key; j j Enter: Rename */
+    pty_send_str(s, "-xjj\r");                              /* x is no quick key; j j Enter: Rename */
     WAIT_DONE(s, "done: Rename");
-    pty_send_str(s, ":\x1b");
+    pty_send_str(s, "-\x1b");
     ASSERT_WAIT_GONE(s, "Actions", 3000);
     pty_send_str(s, "\x1b");
     pty_close(s);
@@ -126,7 +126,7 @@ static void test_quick_key_runs_and_confirms(void) {
 static void test_menu_help(void) {
     PtySession *s = start(80);
     ASSERT(s != NULL, "start");
-    pty_send_str(s, ":?");
+    pty_send_str(s, "-?");
     ASSERT_WAIT_FOR(s, "run the entry (a serious one asks first)", 3000);
     ASSERT(pty_screen_contains(s, "letter"), "the letter row");
     pty_send_str(s, "q");
@@ -140,7 +140,7 @@ static void test_menu_help(void) {
 static void test_narrow_width(void) {
     PtySession *s = start(40);
     ASSERT(s != NULL, "start");
-    pty_send_str(s, ":");
+    pty_send_str(s, "-");
     ASSERT_WAIT_FOR(s, "Actions", 3000);
     ASSERT(pty_screen_contains(s, "…"), "the long entry ends with an ellipsis");
     ASSERT(!pty_screen_contains(s, "workers"), "and is cut");

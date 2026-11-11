@@ -19,7 +19,7 @@
  * child); Left and 'h' close it (on a closed row or a leaf: move to the
  * parent); Enter is not the widget's.  'j', 'k' and the paging keys move over
  * the visible rows only.  Open all and close all are calls the program puts
- * into its ':' menu.  See tui_tree_init(3).
+ * into its '-' menu.  See tui_tree_init(3).
  */
 
 #include "tuikit/api.h"

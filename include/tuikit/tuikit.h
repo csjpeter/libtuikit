@@ -15,6 +15,7 @@
 #include "tuikit/api.h"
 #include "tuikit/buf.h"
 #include "tuikit/canvas.h"
+#include "tuikit/cmdline.h"
 #include "tuikit/dialog.h"
 #include "tuikit/event.h"
 #include "tuikit/fieldset.h"

@@ -19,7 +19,6 @@ tui_verb tui_registry_verb(tui_keycode key) {
     case TUI_KC_STAR:     return TUI_VERB_STAR;
     case TUI_KC_JUNK:     return TUI_VERB_JUNK;
     case TUI_KC_READ:     return TUI_VERB_READ;
-    case TUI_KC_UNREAD:   return TUI_VERB_UNREAD;
     case TUI_KC_DELETE_D:
     case TUI_KC_DELETE:   return TUI_VERB_DELETE;
     case TUI_KC_NEW:      return TUI_VERB_NEW;
@@ -31,7 +30,7 @@ tui_verb tui_registry_verb(tui_keycode key) {
 }
 
 int tui_key_reserved(tui_keycode key) {
-    return key > 0 && key < 128 && strchr("rsfpocauilhx/jkqgGU?:", (int)key) != NULL;
+    return key > 0 && key < 128 && strchr("rsfpocauilhx/jkqgGU?-:", (int)key) != NULL;
 }
 
 tui_keycode tui_keycode_of(const tui_event *ev) {
@@ -544,9 +543,9 @@ int tui_keyhelp_open(tui_keyhelp *h, const tui_keytable *t, const char *view, co
         const tui_keyentry *e = &t->entries[i];
         if (!e->action || !applies(e, view)) continue;
         pairs[2 * k] = text;
-        /* A menu-only action has no key: ':' (the menu) stands in its column. */
+        /* A menu-only action has no key: '-' (the menu) stands in its column. */
         text += (e->key == TUI_KC_BACK ? snprintf(text, 32, "%s", HELP_BACK_KEYS)
-                 : e->key == TUI_KC_NONE ? snprintf(text, 32, ":")
+                 : e->key == TUI_KC_NONE ? snprintf(text, 32, "-")
                                          : tui_keycode_name(e->key, text, 32)) + 1;
         pairs[2 * k + 1] = text;
         text += sprintf(text, "%s", e->action);

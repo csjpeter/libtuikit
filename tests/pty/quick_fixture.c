@@ -4,8 +4,8 @@
 /* A program for the PTY suite: an action menu of ten entries whose quick keys the library assigns. */
 
 /*
- * The stub of TUI-62: nothing but the ':' action menu of ten entries (two of
- * them serious).  Row 0 shows what was done last, "done: <action>".  ':'
+ * The stub of TUI-62: nothing but the '-' action menu of ten entries (two of
+ * them serious).  Row 0 shows what was done last, "done: <action>".  '-'
  * opens the menu, a quick key or Enter runs an entry, Esc outside the menu
  * quits.
  */

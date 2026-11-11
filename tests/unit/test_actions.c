@@ -114,7 +114,9 @@ static void test_registry_and_reserved(void) {
     ASSERT_EQ_INT(tui_registry_verb('*'), TUI_VERB_STAR, "star");
     ASSERT_EQ_INT(tui_registry_verb('!'), TUI_VERB_JUNK, "junk");
     ASSERT_EQ_INT(tui_registry_verb('+'), TUI_VERB_READ, "read");
-    ASSERT_EQ_INT(tui_registry_verb('-'), TUI_VERB_UNREAD, "unread");
+    ASSERT_EQ_INT(tui_registry_verb('-'), TUI_VERB_NONE, "- is the action menu, not an unread verb");
+    ASSERT_EQ_INT(tui_registry_verb(':'), TUI_VERB_NONE, ": is the command line, not a verb");
+    ASSERT_EQ_INT(TUI_KC_MENU, '-', "the menu key");
     ASSERT_EQ_INT(tui_registry_verb('d'), TUI_VERB_DELETE, "d");
     ASSERT_EQ_INT(tui_registry_verb(TUI_KEY_DELETE), TUI_VERB_DELETE, "Delete");
     ASSERT_EQ_INT(tui_registry_verb('n'), TUI_VERB_NEW, "new");
@@ -124,7 +126,7 @@ static void test_registry_and_reserved(void) {
     ASSERT_EQ_INT(tui_registry_verb('r'), TUI_VERB_NONE, "r is not in the registry");
     ASSERT_EQ_INT(tui_registry_verb('x'), TUI_VERB_NONE, "x is not in the registry");
 
-    const char *reserved = "rsfpocauilhx/jkqgGU?:";
+    const char *reserved = "rsfpocauilhx/jkqgGU?-:";
     for (const char *p = reserved; *p; p++) {
         ASSERT_EQ_INT(tui_key_reserved((unsigned char)*p), 1, "reserved");
         ASSERT_EQ_INT(tui_registry_verb((unsigned char)*p), TUI_VERB_NONE, "reserved is not state-changing");
@@ -171,14 +173,13 @@ static void test_table_accepts_the_policy(void) {
         E("l", TUI_KC_STAR, TUI_VERB_STAR, "Star", NULL, TUI_ACT_ROUTINE, 0, NULL, 1),
         E("l", TUI_KC_JUNK, TUI_VERB_JUNK, "Junk", NULL, TUI_ACT_ROUTINE, 0, NULL, 2),
         E("l", TUI_KC_READ, TUI_VERB_READ, "Read", NULL, TUI_ACT_ROUTINE, 0, NULL, 3),
-        E("l", TUI_KC_UNREAD, TUI_VERB_UNREAD, "Unread", NULL, TUI_ACT_ROUTINE, 0, NULL, 4),
         E("l", TUI_KC_DELETE, TUI_VERB_DELETE, "Delete", NULL, TUI_ACT_SERIOUS, 1, "Delete %s?", 5),
         E("l", TUI_KC_NEW, TUI_VERB_NEW, "New", NULL, TUI_ACT_ROUTINE, 0, NULL, 6),
         E("l", TUI_KC_EDIT, TUI_VERB_EDIT, "Edit", NULL, TUI_ACT_ROUTINE, 0, NULL, 7),
         E("l", TUI_KC_MOVE, TUI_VERB_MOVE, "Move", NULL, TUI_ACT_ROUTINE, 0, NULL, 8),
         E("l", TUI_KC_MESSAGE, TUI_VERB_MESSAGE, "Message", NULL, TUI_ACT_ROUTINE, 0, NULL, 9),
     };
-    ASSERT_EQ_INT(tui_keytable_init(&t, reg, 9, why, sizeof why), 0, "the registry keys");
+    ASSERT_EQ_INT(tui_keytable_init(&t, reg, 8, why, sizeof why), 0, "the registry keys");
     /* The same key in two different views is not a clash. */
     static const tui_keyentry two[] = {
         E("a", TUI_KC_STAR, TUI_VERB_STAR, "Star", NULL, TUI_ACT_ROUTINE, 0, NULL, 1),
@@ -533,10 +534,10 @@ static void test_help_matches_the_handler(void) {
             ASSERT(row < h.dialog.nitems, "a row for the entry");
             char name[32];
             tui_keycode_name(e->key, name, sizeof name);
-            ASSERT_EQ_STR(h.dialog.items[2 * row], e->key == TUI_KC_NONE ? ":" : name, "the key shown");
+            ASSERT_EQ_STR(h.dialog.items[2 * row], e->key == TUI_KC_NONE ? "-" : name, "the key shown");
             ASSERT(strstr(h.dialog.items[2 * row + 1], e->action) == h.dialog.items[2 * row + 1],
                    "the action named");
-            if (e->key == TUI_KC_NONE) {   /* menu-only: ':' stands for it */
+            if (e->key == TUI_KC_NONE) {   /* menu-only: '-' stands for it */
                 row++;
                 continue;
             }
@@ -582,8 +583,8 @@ static void test_help_picture(void) {
         "    ┌─ List shortcuts ──────────────────────┐",
         "    │ *  Star                               │",
         "    │ d  Delete                             │",
-        "    │ :  Restart service - starts a process │",
-        "    │ :  Rotate secret                      │",
+        "    │ -  Restart service - starts a process │",
+        "    │ -  Rotate secret                      │",
         "    │ r  Reload                             │",
         "    │ ?  Help                               │",
         "    └───────────────────────────────────────┘",
@@ -855,10 +856,10 @@ static void test_help_search_by_key_and_menu_key(void) {
     ASSERT(fx_open(&f, 14, 60) == 0, "fixtures");
     char scr[4096];
     help_draw(&f, &h, scr, sizeof scr);
-    help_send(&h, "/:");
+    help_send(&h, "/-");
     help_draw(&f, &h, scr, sizeof scr);
-    ASSERT(strstr(scr, ":  Restart service") && strstr(scr, ":  Rotate secret"), "':' finds the menu-only actions");
-    ASSERT(strstr(scr, "Star") == NULL && strstr(scr, "Reload") == NULL, "and only them");
+    ASSERT(strstr(scr, "-  Restart service") && strstr(scr, "-  Rotate secret"), "'-' finds the menu-only actions");
+    ASSERT(strstr(scr, "Delete") == NULL, "and not an entry with a key and no description");
     help_send(&h, "\x15" "?");   /* ctrl-u clears the line, then a key name */
     help_draw(&f, &h, scr, sizeof scr);
     ASSERT(strstr(scr, "?  Help") && strstr(scr, "Star") == NULL, "by the key");
