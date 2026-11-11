@@ -119,6 +119,80 @@ static void test_textview_failures(void) {
     tui_textview_free(&tv);
 }
 
+/* ── tui_mdview and the Markdown renderer ───────────────────────────── */
+
+static const char *MD_FAULT_DOC =
+    "Summary words here.\n\n## Head\n\ntext **bold** and `code`\nmore\n\n"
+    "- item one\n- item two\n\n> quote\n\n| a | b |\n|---|---|\n| c | d |\n\n```\ncode\n```\n";
+
+/* Fails the n-th allocation, for every n there is: no call may crash, and a
+ * failure is -1 with ENOMEM; past the last allocation the call succeeds. */
+static void test_mdview_failures(void) {
+    fault_reset();
+    tui_mdview mv;
+    tui_mdview_init(&mv);
+    tui_mdview_set_text(&mv, "old");
+    fault_arm(F_MALLOC, 0, 1, ENOMEM);
+    ASSERT_EQ_INT(tui_mdview_set_text(&mv, "new"), -1, "set_text: allocation failure");
+    fault_reset();
+    ASSERT_EQ_STR(mv.src, "old", "the old text stays");
+
+    int failed = 0, passed = 0;
+    for (int skip = 0; skip < 80; skip++) {
+        tui_buf b;
+        tui_buf_init(&b);
+        fault_arm(F_REALLOC, skip, 1, ENOMEM);
+        errno = 0;
+        int rc = tui_md_render(MD_FAULT_DOC, 40, 1, &b);
+        fault_reset();
+        if (rc == -1) {
+            failed++;
+            ASSERT_EQ_INT(errno, ENOMEM, "render: ENOMEM");
+        } else {
+            passed++;
+        }
+        tui_buf_free(&b);
+
+        tui_buf_init(&b);
+        fault_arm(F_MALLOC, skip, 1, ENOMEM);
+        rc = tui_md_render_marked(MD_FAULT_DOC, 40, &b);
+        fault_reset();
+        ASSERT(rc == 0 || rc == -1, "render_marked: 0 or -1");
+        tui_buf_free(&b);
+    }
+    ASSERT(failed >= 3, "several allocations were failed");
+    ASSERT(passed > 0, "and the later ones succeeded");
+
+    tui_buf m, o;
+    tui_buf_init(&m);
+    tui_md_render_marked(MD_FAULT_DOC, 40, &m);
+    for (int skip = 0; skip < 6; skip++) {
+        tui_buf_init(&o);
+        fault_arm(F_REALLOC, skip, 1, ENOMEM);
+        int rc = tui_md_strip_marks(m.data, &o);
+        fault_reset();
+        ASSERT(rc == 0 || rc == -1, "strip_marks: 0 or -1");
+        tui_buf_free(&o);
+    }
+    tui_buf_free(&m);
+
+    tui_screen *scr = tui_screen_new(5, 40);
+    int drew = 0;
+    for (int skip = 0; skip < 80; skip++) {
+        tui_mdview_set_text(&mv, MD_FAULT_DOC);
+        fault_arm(F_REALLOC, skip, 1, ENOMEM);
+        tui_mdview_render(&mv, tui_canvas_of(scr), TUI_STYLE_DEFAULT);   /* draws what it can, survives */
+        fault_reset();
+        if (tui_mdview_lines(&mv) > 0) drew++;
+    }
+    ASSERT(drew > 0, "later allocations succeeded");
+    tui_mdview_set_text(&mv, MD_FAULT_DOC);
+    tui_mdview_render(&mv, tui_canvas_of(scr), TUI_STYLE_DEFAULT);
+    ASSERT(tui_mdview_lines(&mv) > 5, "works again");
+    tui_screen_free(scr);
+    tui_mdview_free(&mv);
+}
+
 static void test_dialog_and_decoder_failures(void) {
     fault_reset();          /* a failed assertion elsewhere left nothing armed */
     tui_dialog d;
@@ -685,6 +759,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_buf_failures),
     TEST_CASE(test_screen_failures),
     TEST_CASE(test_textview_failures),
+    TEST_CASE(test_mdview_failures),
     TEST_CASE(test_table_marks_failures),
     TEST_CASE(test_dialog_and_decoder_failures),
     TEST_CASE(test_lineedit_failures),

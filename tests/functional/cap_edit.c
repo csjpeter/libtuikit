@@ -340,6 +340,55 @@ static int cl_run(void *user, const char *args, char *msg, size_t size) {
     return 0;
 }
 
+static void cap_mdview(void) {
+    const char *md = "Summary of the text.\n\n## Heading\n\nsome **bold** words\nsoft wrapped.\n\n- item\n";
+    tui_buf out, marked, stripped;
+    tui_buf_init(&out);
+    tui_buf_init(&marked);
+    tui_buf_init(&stripped);
+    CHECK_INT(tui_md_render(md, 40, 0, &out), 0, "tui_md_render, plain");
+    CHECK_STR(out.data, "Summary of the text.\n\nHeading\n-------\n\nsome bold words soft wrapped.\n\n \xE2\x80\xA2 item",
+              "plain text: heading ruled, paragraph reflowed, bullet");
+    tui_buf_reset(&out);
+    CHECK_INT(tui_md_render(md, 40, 1, &out), 0, "tui_md_render, ansi");
+    CHECK_HAS(out.data, "\x1b[1mbold\x1b[0m", "bold carries SGR");
+    CHECK_INT(tui_md_render_marked(md, 40, &marked), 0, "tui_md_render_marked");
+    CHECK_INT(marked.data[0], TUI_MD_SUM, "the summary is marked");
+    CHECK_INT(tui_md_strip_marks(marked.data, &stripped), 0, "tui_md_strip_marks");
+    tui_buf_reset(&out);
+    tui_md_render(md, 40, 0, &out);
+    CHECK_STR(stripped.data, out.data, "stripped marked text is the plain text");
+    tui_buf_free(&out);
+    tui_buf_free(&marked);
+    tui_buf_free(&stripped);
+
+    tui_mdview mv;
+    tui_mdview_init(&mv);
+    CHECK_INT(tui_mdview_set_text(&mv, md), 0, "set_text");
+    tui_screen *s = tui_screen_new(3, 30);
+    tui_mdview_render(&mv, tui_canvas_of(s), TUI_STYLE_DEFAULT);
+    char *t = cap_screen_text(s, NULL);
+    CHECK_HAS(t, "Summary of the text.", "the summary is drawn");
+    free(t);
+    CHECK_INT(tui_mdview_lines(&mv), 8, "lines at the render width");
+    CHECK_INT(tui_mdview_top(&mv), 0, "at the top");
+    tui_mdview_scroll(&mv, 2);
+    CHECK_INT(tui_mdview_top(&mv), 2, "scroll");
+    tui_mdview_scroll_to(&mv, 1);
+    CHECK_INT(tui_mdview_top(&mv), 1, "scroll_to");
+    tui_mdview_scroll_end(&mv);
+    CHECK_INT(tui_mdview_top(&mv), 5, "scroll_end");
+    tui_event ev = cap_ev("\x1b[H");
+    CHECK_INT(tui_mdview_handle(&mv, &ev), 1, "Home is used");
+    CHECK_INT(tui_mdview_top(&mv), 0, "Home goes to the top");
+    ev = cap_ev("q");
+    CHECK_INT(tui_mdview_handle(&mv, &ev), 0, "q is the program's");
+    tui_mdview_set_plain(&mv, 1);
+    tui_mdview_render(&mv, tui_canvas_of(s), TUI_STYLE_DEFAULT);
+    tui_mdview_free(&mv);
+    tui_screen_free(s);
+}
+
 static void cap_cmdline(void) {
     tui_cmdline cl;
     int calls = 0;
@@ -386,5 +435,6 @@ int main(void) {
     cap_tree();
     cap_histview();
     cap_cmdline();
+    cap_mdview();
     return cap_finish("cap-edit");
 }

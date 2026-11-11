@@ -4,7 +4,7 @@
 # The build, test, install and package definition of libtuikit.
 
 cmake_minimum_required(VERSION 3.20)
-project(libtuikit VERSION 1.1.0 LANGUAGES C)
+project(libtuikit VERSION 1.2.0 LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Version
@@ -115,6 +115,7 @@ set(TUIKIT_SOURCES
     src/selection.c
     src/statusline.c
     src/table.c
+    src/mdview.c
     src/menu.c
     src/tabrow.c
     src/tree.c
@@ -378,7 +379,14 @@ set(TUIKIT_MAN3_ALIASES
     tui_cmdline_count:tui_cmdline_init tui_cmdline_help:tui_cmdline_init
     tui_cmdline_name:tui_cmdline_init tui_cmdline_handle:tui_cmdline_init
     tui_cmdline_is_open:tui_cmdline_init tui_cmdline_message:tui_cmdline_init
-    tui_cmdline_render:tui_cmdline_init)
+    tui_cmdline_render:tui_cmdline_init
+    tui_md_render_marked:tui_mdview_init tui_md_strip_marks:tui_mdview_init
+    tui_md_render:tui_mdview_init tui_mdview_free:tui_mdview_init
+    tui_mdview_set_text:tui_mdview_init tui_mdview_set_plain:tui_mdview_init
+    tui_mdview_lines:tui_mdview_init tui_mdview_top:tui_mdview_init
+    tui_mdview_scroll:tui_mdview_init tui_mdview_scroll_to:tui_mdview_init
+    tui_mdview_scroll_end:tui_mdview_init tui_mdview_handle:tui_mdview_init
+    tui_mdview_render:tui_mdview_init)
 set(TUIKIT_MAN3_ALIASES ${TUIKIT_MAN3_ALIASES} CACHE INTERNAL "")
 
 set(TUIKIT_MAN_OUT "${CMAKE_BINARY_DIR}/man")
@@ -454,6 +462,10 @@ function(tuikit_write_changelog _pkg)
 "${_pkg} (${TUIKIT_VERSION}) stable; urgency=medium
 
   * Build from git commit ${TUIKIT_GIT_COMMIT}.
+  * 1.2.0: new: tui_mdview, the Markdown text view (TUI-117): headings, bold,
+    italic, code, lists, quotes, tables and links, paragraphs reflowed to the
+    width, scrolling, a plain fallback; tui_md_render(), tui_md_render_marked()
+    and tui_md_strip_marks() give the same rendering as text.
   * 1.1.0: the action menu opens on '-' and ':' is left unbound (TUI-116):
     TUI_KC_MENU is '-', TUI_KC_UNREAD is gone ('+' toggles read and unread;
     TUI_VERB_UNREAD stays in the enum, unused, so the values do not move),

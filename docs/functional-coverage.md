@@ -192,6 +192,25 @@ name the ticket that closes the gap; there is none now.
 | `tui_readline` | `tests/functional/cap_terminal.c` | `cap_readline` |
 | `tui_readline_opts_init` | `tests/functional/cap_terminal.c` | `cap_readline` |
 
+## Markdown view
+
+| Capability | Functional test | Phase |
+|---|---|---|
+| `tui_md_render` | `tests/functional/cap_edit.c` | `cap_mdview` |
+| `tui_md_render_marked` | `tests/functional/cap_edit.c` | `cap_mdview` |
+| `tui_md_strip_marks` | `tests/functional/cap_edit.c` | `cap_mdview` |
+| `tui_mdview_free` | `tests/functional/cap_edit.c` | `cap_mdview` |
+| `tui_mdview_handle` | `tests/functional/cap_edit.c` | `cap_mdview` |
+| `tui_mdview_init` | `tests/functional/cap_edit.c` | `cap_mdview` |
+| `tui_mdview_lines` | `tests/functional/cap_edit.c` | `cap_mdview` |
+| `tui_mdview_render` | `tests/functional/cap_edit.c` | `cap_mdview` |
+| `tui_mdview_scroll` | `tests/functional/cap_edit.c` | `cap_mdview` |
+| `tui_mdview_scroll_end` | `tests/functional/cap_edit.c` | `cap_mdview` |
+| `tui_mdview_scroll_to` | `tests/functional/cap_edit.c` | `cap_mdview` |
+| `tui_mdview_set_plain` | `tests/functional/cap_edit.c` | `cap_mdview` |
+| `tui_mdview_set_text` | `tests/functional/cap_edit.c` | `cap_mdview` |
+| `tui_mdview_top` | `tests/functional/cap_edit.c` | `cap_mdview` |
+
 ## Multi-line editor
 
 | Capability | Functional test | Phase |

@@ -228,6 +228,7 @@ Non-goals:
 | `tuikit/tabrow.h` | the tab row of a screen with sub-views, the active tab by attribute | yes | TUI-69 |
 | `tuikit/menu.h` | the main menu: numbered entries, live counts, the description of the entry under the cursor | yes | TUI-108 |
 | `tuikit/textview.h` | wrapped, scrollable text | yes | M4 |
+| `tuikit/mdview.h` | Markdown view: headings, lists, tables, code, reflow, scrolling, plain fallback; the renderer as text | yes | TUI-117 |
 | `tuikit/lineedit.h` | single-line editor model, history | yes | M5 |
 | `tuikit/dialog.h` | message, confirm, prompt, menu | yes | M6 |
 
@@ -891,6 +892,37 @@ the parts so that a program cannot invent a binding.
   commands that match (a lone match gets a blank, several are listed above
   the line), and the handler's message stays on the line, in the ok or error
   role, until the line is opened again. The editing is `tui_lineedit`.
+- **The Markdown view (TUI-117).** `tui_mdview` (`tuikit/mdview.h`) shows
+  Markdown readably; the renderer of issue-manager (IM-390,
+  `core/markdown.c`) moved into the library, so that a program does not
+  carry one and ticket text looks the same in every TUI
+  (`policies/tui-interface-model.md`). Feature set: headings (the first two
+  underlined with `=` / `-`), bold, italic (an underscore inside a word is
+  none), code spans and fenced blocks (``` and ~~~, an unclosed fence runs to
+  the end, a long line is split), bullet and numbered lists with nesting by
+  indent, block quotes, tables (the widest column is shortened with an
+  ellipsis to fit, a span cut inside is closed), links as `text (url)`,
+  backslash escapes. **Reflow:** the lines of one paragraph are joined by a
+  space and wrapped again to the real width; a line break counts only after
+  an empty line, in a list item (each item is one line; an *indented* line
+  after it continues the item), in a code block, and after an empty quote
+  line (consecutive quote lines are one paragraph). Widths are display
+  widths (a wide character is two columns); a word wider than a line is split
+  at the column; the public text functions wrap at 20 columns at the least,
+  the view at 4. Control characters in the source (a tab too) are shown as
+  spaces, so no source byte can pose as a marker. The first paragraph is the
+  summary: bold, set apart by a blank line. **Styles** travel as zero-width
+  marker bytes (`TUI_MD_*`, spans closed at the end of each line and opened
+  again by the reader); the view draws them as attributes on the background of
+  the style it is given (heading: the accent role in bold, code: the hint
+  role's colour, bold, italic), `tui_mdview_set_plain()` is the plain
+  fallback (no colour, no attribute). `tui_md_render()` gives the same text
+  as plain text or SGR for a program that prints. Keys: the scroll keys of
+  `tui_textview` (arrows, `j`/`k`, page keys, `g`/`G`, Home/End); `Esc`,
+  `q` and Backspace (back) and F8 (freeze) belong to the program, as for the
+  other views. The scroll bar of TUI-110 is drawn while the text is longer
+  than the area. Not supported (drawn as text): images, HTML, footnotes,
+  reference-style links, setext headings, task lists.
 - **Search in the help (TUI-59).** `/` in a help dialog opens a one-line
   search (a `tui_lineedit` over a buffer the dialog allocates on first use,
   kept in the otherwise unused `checked` array, so no public struct changes).

@@ -23,6 +23,7 @@
 #include "tuikit/histview.h"
 #include "tuikit/lineedit.h"
 #include "tuikit/listview.h"
+#include "tuikit/mdview.h"
 #include "tuikit/menu.h"
 #include "tuikit/tree.h"
 #include "tuikit/scheme.h"
