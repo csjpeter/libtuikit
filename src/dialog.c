@@ -547,13 +547,13 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
         if (d->list.scroll_top > max_top) d->list.scroll_top = max_top > 0 ? max_top : 0;
         /* More entries than rows: the scroll bar in the padding column
          * beside the frame; the entries keep their width. */
-        int tw = inner_w;
+        int row_w = inner_w;
         tui__scrollbar(tui_canvas_sub(wide, tui_rect_make(text_rows, 0, lrows, inner_w + 1)), shown,
                        d->list.scroll_top, lrows);
         for (int r = 0; r < lrows && d->list.scroll_top + r < shown; r++) {
             int i = help_nth(d, d->list.scroll_top + r);
-            tui_canvas row = tui_canvas_sub(cc, tui_rect_make(text_rows + r, 0, 1, tw));
-            tui_canvas what = tui_canvas_sub(row, tui_rect_make(0, key_w + 2, 1, tw - key_w - 2));
+            tui_canvas row = tui_canvas_sub(cc, tui_rect_make(text_rows + r, 0, 1, row_w));
+            tui_canvas what = tui_canvas_sub(row, tui_rect_make(0, key_w + 2, 1, row_w - key_w - 2));
             tui_canvas_put(row, 0, 0, help_str(d, 2 * i), key_st);
             tui_canvas_put_aligned(what, 0, help_str(d, 2 * i + 1), TUI_ALIGN_LEFT, d->fill);
             if (sline) {
