@@ -56,10 +56,11 @@ M="$FIX/tree/manage.sh"
 echo "--- no log: not measured"
 rc=0
 out="$("$M" timing 2>&1)" || rc=$?
-[ "$out" = "Gate: not measured" ] && pass "prints 'Gate: not measured'" || fail "printed '$out'"
+[ "$out" = "Gate 1 (tree): not measured" ] && pass "prints 'Gate 1 (tree): not measured' (no key: no key part)" || fail "printed '$out'"
 [ "$rc" -ne 0 ] && pass "exits non-zero" || fail "exited 0"
 rc=0
-"$M" timing TUI-1 > /dev/null 2>&1 || rc=$?
+out="$("$M" timing TUI-1 2>&1)" || rc=$?
+[ "$out" = "Gate 1 (tree, TUI-1): not measured" ] && pass "not measured line names the key" || fail "printed '$out'"
 if [ "$rc" -ne 0 ] && [ ! -e "$FIX/issue-cli.args" ]; then pass "nothing is posted"
 else fail "a comment was posted without a measurement"; fi
 
@@ -101,7 +102,10 @@ cat > "$LOG" <<'LOG'
 2026-10-11T10:08:00Z test 7s ok
 LOG
 out="$("$M" timing)"
-[ "$out" = "Gate: 110s (check 90s, package 20s)" ] && pass "latest ok run of each part; install left out" \
+[ "$out" = "Gate 1 (tree): 110s (check 90s, package 20s)" ] && pass "latest ok run of each part; install left out; gate and project named, no key part" \
+    || fail "printed '$out'"
+out="$("$M" timing TUI-9)"
+[ "$out" = "Gate 1 (tree, TUI-9): 110s (check 90s, package 20s)" ] && pass "with a key: gate, project and key named" \
     || fail "printed '$out'"
 
 echo "--- with a key the line is posted"
@@ -109,7 +113,7 @@ echo "--- with a key the line is posted"
 if [ "$(cat "$FIX/issue-cli.args")" = "issue
 comment
 TUI-7
-Gate: 110s (check 90s, package 20s)" ]; then pass "issue-cli issue comment TUI-7 <line>"
+Gate 1 (tree, TUI-7): 110s (check 90s, package 20s)" ]; then pass "issue-cli issue comment TUI-7 <line>"
 else fail "issue-cli got: $(cat "$FIX/issue-cli.args")"; fi
 
 echo "--- the same record is not posted twice"
@@ -129,7 +133,7 @@ cat > "$LOG" <<'LOG'
 2026-10-11T11:06:00Z package 20s ok abc1234
 LOG
 "$M" timing TUI-7 > /dev/null
-if [ -e "$FIX/issue-cli.args" ] && [ "$(sed -n 4p "$FIX/issue-cli.args")" = "Gate: 110s (check 90s, package 20s)" ]
+if [ -e "$FIX/issue-cli.args" ] && [ "$(sed -n 4p "$FIX/issue-cli.args")" = "Gate 1 (tree, TUI-7): 110s (check 90s, package 20s)" ]
 then pass "same numbers, newer record: posted"; else fail "newer record not posted"; fi
 rm -f "$FIX/issue-cli.args"
 "$M" timing TUI-7 > /dev/null

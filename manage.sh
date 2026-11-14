@@ -82,8 +82,9 @@ Commands:
   package [deb|rpm|all] Build the packages with CPack into build/packages/ (libtuikit1,
                         libtuikit-dev), lintian-checked; empty on failure; never tags or pushes
   tag-build VERSION     Make the annotated tag vVERSION on HEAD, locally; pushes nothing
-  timing [KEY-N]        Print the gate line from build/timing.log; with a ticket key,
-                        comment it on that ticket (issue-cli)
+  timing [KEY-N]        Print the gate line "Gate 1 (PROJECT, KEY-N): <total>s (...)" from
+                        build/timing.log; with a ticket key, comment that line on the
+                        ticket (issue-cli); with no key the ", KEY-N" part is left out
   clean                 Remove build/
   help                  This message
 
@@ -904,11 +905,15 @@ timed() {
 
 # timing_line: the gate line from the latest successful run of each verb of
 # the gate (check, package, install); a part that did not run through this
-# script is left out.  Prints "Gate: not measured" and fails without any.
+# script is left out.  The line names the gate and the project, and the ticket
+# when a key is given: "Gate 1 (PROJECT, KEY-N): ...".  Prints
+# "Gate 1 (PROJECT, KEY-N): not measured" and fails without any measurement.
 timing_line() {
-    local line=""
+    local key="${1:-}" line="" who
+    who="$(basename "$SCRIPT_DIR")"
+    [ -z "$key" ] || who="$who, $key"
     if [ -s "$TIMING_LOG" ]; then
-        line="$(awk '
+        line="$(awk -v who="$who" '
             $4 == "ok" { v = $2; s = $3; sub("s$", "", s); last[v] = s }
             END {
                 n = split("check package install", order, " ")
@@ -920,11 +925,11 @@ timing_line() {
                         parts = parts (parts == "" ? "" : ", ") v " " last[v] "s"
                     }
                 }
-                if (found) printf "Gate: %ds (%s)\n", total, parts
+                if (found) printf "Gate 1 (%s): %ds (%s)\n", who, total, parts
             }' "$TIMING_LOG")"
     fi
     if [ -z "$line" ]; then
-        echo "Gate: not measured"
+        echo "Gate 1 ($who): not measured"
         return 1
     fi
     echo "$line"
@@ -947,7 +952,7 @@ timing_used() {
 
 do_timing() {
     local key="${1:-}" line rc=0 record previous=""
-    line="$(timing_line)" || rc=$?
+    line="$(timing_line "$key")" || rc=$?
     echo "$line"
     [ "$rc" -eq 0 ] || return "$rc"
     if [ -n "$key" ]; then
