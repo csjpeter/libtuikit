@@ -123,7 +123,7 @@ WORKSPACE_LIBS=system ./manage.sh test    # the same tests against the package
 ./manage.sh test        # unit tests, ASAN + UBSan
 ./manage.sh pty         # PTY tests, ASAN + UBSan
 ./manage.sh valgrind    # all tests under Valgrind, Release build
-./manage.sh timing KEY-N  # the measured gate line (build/timing.log), posted on the ticket
+./manage.sh timing KEY-N  # the gate line "Gate 1 (PROJECT, KEY-N): ..." (build/timing.log), posted on the ticket
 ./manage.sh coverage    # line coverage of src/, fails below 100%
 ./manage.sh package     # build/packages/: libtuikit1_*.deb, libtuikit-dev_*.deb
 ./manage.sh consumer    # build and run the example against the .deb content
