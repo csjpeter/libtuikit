@@ -455,6 +455,7 @@ name the ticket that closes the gap; there is none now.
 | `tui_dialog_message` | `tests/functional/cap_widgets.c` | `cap_dialog` |
 | `tui_dialog_prompt` | `tests/functional/cap_widgets.c` | `cap_dialog` |
 | `tui_dialog_render` | `tests/functional/cap_widgets.c` | `cap_dialog` |
+| `tui_dialog_text` | `tests/functional/cap_widgets.c` | `cap_dialog` |
 
 ## Fields and forms
 

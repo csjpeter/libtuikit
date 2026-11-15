@@ -284,6 +284,59 @@ static void test_checklist(void) {
 }
 
 /* Long text in a small terminal: wrapped, clipped, never outside. */
+/* TUI-127: a scrollable text with a scroll bar, closed by Esc, q, Backspace or Enter. */
+static void test_text(void) {
+    tui_dialog d;
+    ASSERT_EQ_INT(tui_dialog_text(&d, "Text", "a\nb\nc\nd\ne\nf"), 0, "create");
+    ASSERT_EQ_INT(d.kind, TUI_DIALOG_TEXT, "its kind");
+    Fx f;
+    ASSERT(fx_open(&f, 7, 20) == 0, "fixtures");
+    fx_draw(&f, &d);
+    const char *const top[] = {
+        "", "    ┌─ Text ───┐", "    │ a        █│", "    │ b        ││", "    │ c        ││",
+        "    └──────────┘", "", NULL };
+    ASSERT_SCREEN_EQ(f.s, top);
+    ASSERT_EQ_INT(send(&d, "j"), TUI_DIALOG_OPEN, "j scrolls");
+    ASSERT_EQ_INT(send(&d, "x"), TUI_DIALOG_OPEN, "x does nothing");
+    ASSERT_EQ_INT(send(&d, "\x1b[6~"), TUI_DIALOG_OPEN, "PgDn");
+    ASSERT_EQ_INT(send(&d, "k"), TUI_DIALOG_OPEN, "k scrolls up");
+    ASSERT_EQ_INT(send(&d, "G"), TUI_DIALOG_OPEN, "G: the end");
+    fx_draw(&f, &d);
+    const char *const bottom[] = {
+        "", "    ┌─ Text ───┐", "    │ d        ││", "    │ e        ││", "    │ f        █│",
+        "    └──────────┘", "", NULL };
+    ASSERT_SCREEN_EQ(f.s, bottom);
+    const char *const map[] = { "AAAAAAAAAAAA", NULL };
+    ASSERT_REGION_STYLE(f.s, PTY_REGION(1, 4, 1, 12), map, legend);
+    ASSERT_EQ_INT(send(&d, "\x1b[H"), TUI_DIALOG_OPEN, "Home");
+    ASSERT_EQ_INT(send(&d, "\x1b[F"), TUI_DIALOG_OPEN, "End");
+    ASSERT_EQ_INT(send(&d, "g"), TUI_DIALOG_OPEN, "g: the top");
+    fx_draw(&f, &d);
+    ASSERT_SCREEN_EQ(f.s, top);
+    tui_dialog_free(&d);
+
+    static const char *const closers[] = { "\x1b", "q", "\x7f", "\r", "\x03" };
+    static const char *const what[] = { "Esc", "q", "Backspace", "Enter", "Ctrl-C" };
+    for (int i = 0; i < 5; i++) {
+        tui_dialog_text(&d, "Text", "a\nb\nc\nd\ne\nf");
+        fx_draw(&f, &d);
+        ASSERT_EQ_INT(send(&d, closers[i]), TUI_DIALOG_OK, what[i]);
+        ASSERT_EQ_INT(send(&d, "j"), TUI_DIALOG_OK, "closed stays closed");
+        tui_dialog_free(&d);
+    }
+
+    /* Short text: no scroll bar. */
+    tui_dialog_text(&d, "Text", "a\nb");
+    fx_draw(&f, &d);
+    const char *const shortt[] = {
+        "", "    ┌─ Text ───┐", "    │ a         │", "    │ b         │",
+        "    └──────────┘", "", "", NULL };
+    ASSERT_SCREEN_EQ(f.s, shortt);
+    ASSERT_EQ_INT(send(&d, "j"), TUI_DIALOG_OPEN, "j on short text");
+    tui_dialog_free(&d);
+    fx_close(&f);
+}
+
 static void test_small_terminal(void) {
     tui_dialog d;
     tui_dialog_message(&d, "A rather long title", "This message is far longer than the "
@@ -500,6 +553,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_menu),
     TEST_CASE(test_checklist),
     TEST_CASE(test_help),
+    TEST_CASE(test_text),
     TEST_CASE(test_small_terminal),
 };
 

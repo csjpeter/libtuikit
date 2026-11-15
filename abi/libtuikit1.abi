@@ -106,6 +106,7 @@ symbol tui_dialog_menu
 symbol tui_dialog_message
 symbol tui_dialog_prompt
 symbol tui_dialog_render
+symbol tui_dialog_text
 symbol tui_event_name
 symbol tui_field_choice
 symbol tui_field_text
