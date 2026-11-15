@@ -293,7 +293,7 @@ static void test_text(void) {
     ASSERT(fx_open(&f, 7, 20) == 0, "fixtures");
     fx_draw(&f, &d);
     const char *const top[] = {
-        "", "    ┌─ Text ───┐", "    │ a        █│", "    │ b        ││", "    │ c        ││",
+        "", "    ┌─ Text ───┐", "    │ a       █│", "    │ b       ││", "    │ c       ││",
         "    └──────────┘", "", NULL };
     ASSERT_SCREEN_EQ(f.s, top);
     ASSERT_EQ_INT(send(&d, "j"), TUI_DIALOG_OPEN, "j scrolls");
@@ -303,7 +303,7 @@ static void test_text(void) {
     ASSERT_EQ_INT(send(&d, "G"), TUI_DIALOG_OPEN, "G: the end");
     fx_draw(&f, &d);
     const char *const bottom[] = {
-        "", "    ┌─ Text ───┐", "    │ d        ││", "    │ e        ││", "    │ f        █│",
+        "", "    ┌─ Text ───┐", "    │ d       ││", "    │ e       ││", "    │ f       █│",
         "    └──────────┘", "", NULL };
     ASSERT_SCREEN_EQ(f.s, bottom);
     const char *const map[] = { "AAAAAAAAAAAA", NULL };
@@ -329,7 +329,7 @@ static void test_text(void) {
     tui_dialog_text(&d, "Text", "a\nb");
     fx_draw(&f, &d);
     const char *const shortt[] = {
-        "", "    ┌─ Text ───┐", "    │ a         │", "    │ b         │",
+        "", "    ┌─ Text ───┐", "    │ a        │", "    │ b        │",
         "    └──────────┘", "", "", NULL };
     ASSERT_SCREEN_EQ(f.s, shortt);
     ASSERT_EQ_INT(send(&d, "j"), TUI_DIALOG_OPEN, "j on short text");
