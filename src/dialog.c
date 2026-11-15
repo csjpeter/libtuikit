@@ -337,7 +337,7 @@ tui_dialog_state tui_dialog_handle(tui_dialog *d, const tui_event *ev) {
         if (d->list.rows_visible <= 0) return d->state;   /* not drawn yet */
         int max_top = help_shown(d) - d->list.rows_visible;
         if (max_top < 0) max_top = 0;
-        int page = d->list.rows_visible > 1 ? d->list.rows_visible - 1 : 1;
+        int page = tui__page(d->list.rows_visible);
         int top = d->list.scroll_top;
         switch (tui__nav_key(ev)) {
         case TUI_KEY_UP:   top--; break;

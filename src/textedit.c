@@ -10,6 +10,7 @@
  */
 
 #include "tuikit/textedit.h"
+#include "internal.h"
 #include "tuikit/buf.h"
 #include "tuikit/text.h"
 
@@ -351,7 +352,7 @@ int tui_textedit_handle(tui_textedit *te, const tui_event *ev) {
     }
     if (ev->type != TUI_EV_KEY) return 0;
     const unsigned C = TUI_MOD_CTRL;
-    int page = te->rows > 0 ? te->rows : 1;
+    int page = tui__page(te->rows);
 
     if (ev->key == TUI_KEY_CHAR) {
         if (ev->mods == C) {

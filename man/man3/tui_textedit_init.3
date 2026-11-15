@@ -82,7 +82,8 @@ Backspace, Delete	a character **
 Ctrl-K	rest of the line **
 .TE
 .PP
-* keeping the column aimed for; a page is the height last drawn.
+* keeping the column aimed for; a page is the height last drawn less two rows, at least one,
+so that two rows overlap.
 ** a newline counts as a character: deleting it joins two lines, and
 Ctrl-K at the end of a line removes the newline.
 .SS Drawing

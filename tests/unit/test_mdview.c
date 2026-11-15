@@ -385,7 +385,7 @@ static void test_view_scroll_and_keys(void) {
     tui_mdview_render(&mv, all, TUI_STYLE_DEFAULT);
     ev = key("\x1b[6~");
     ASSERT_EQ_INT(tui_mdview_handle(&mv, &ev), 1, "PgDn");
-    ASSERT_EQ_INT(tui_mdview_top(&mv), 3, "a page is the rows less one");
+    ASSERT_EQ_INT(tui_mdview_top(&mv), 2, "a page is the rows less two");
     ev = key("\x1b[5~");
     tui_mdview_handle(&mv, &ev);
     ASSERT_EQ_INT(tui_mdview_top(&mv), 0, "PgUp");

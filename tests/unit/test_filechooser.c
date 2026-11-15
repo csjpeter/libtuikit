@@ -704,7 +704,14 @@ static void test_many_entries(void) {
     ASSERT(has(row(&f, 4), "150 entries"), "count");
     send(&fc, "\x1b[6~");
     fx_draw(&f, &fc);
-    ASSERT(marked_row(&f, 24) > 5, "PgDn moves the selection a page down");
+    int sel = marked_row(&f, 24);
+    ASSERT(sel > 5, "PgDn moves the selection a page down");
+    send(&fc, "\x1b[6~");
+    fx_draw(&f, &fc);
+    ASSERT(marked_row(&f, 24) >= 5, "the marked row stays on the screen");
+    send(&fc, "\x1b[5~");
+    fx_draw(&f, &fc);
+    ASSERT(marked_row(&f, 24) >= 5, "PgUp keeps it on the screen as well");
     send(&fc, "\x1b[F");
     fx_draw(&f, &fc);
     ASSERT_SCREEN_CONTAINS(f.s, "f149");

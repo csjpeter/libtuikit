@@ -202,12 +202,14 @@ static void test_listview_navigation(void) {
     ASSERT(tui_listview_is_visible(&lv, 2) && tui_listview_is_visible(&lv, 5), "2..5 visible");
     ASSERT(!tui_listview_is_visible(&lv, 6) && !tui_listview_is_visible(&lv, 1), "6 and 1 not");
     tui_listview_page_down(&lv);
-    ASSERT_EQ_INT(lv.selected, 9, "PgDn");
+    ASSERT_EQ_INT(lv.selected, 7, "PgDn: rows - 2, two lines overlap");
+    tui_listview_page_down(&lv);
+    ASSERT_EQ_INT(lv.selected, 9, "PgDn to the end");
     tui_listview_page_down(&lv);
     ASSERT_EQ_INT(lv.selected, 9, "PgDn at the end");
     ASSERT_EQ_INT(lv.scroll_top, 6, "last item at the bottom");
     tui_listview_page_up(&lv);
-    ASSERT_EQ_INT(lv.selected, 5, "PgUp");
+    ASSERT_EQ_INT(lv.selected, 7, "PgUp: the same step back");
     tui_listview_home(&lv);
     ASSERT_EQ_INT(lv.selected, 0, "Home");
     ASSERT_EQ_INT(lv.scroll_top, 0, "Home scrolls to top");
@@ -243,7 +245,7 @@ static void test_listview_keys(void) {
     ev.type = TUI_EV_KEY;
     static const tui_key keys[] = { TUI_KEY_DOWN, TUI_KEY_PGDN, TUI_KEY_UP, TUI_KEY_END,
                                     TUI_KEY_PGUP, TUI_KEY_HOME };
-    static const int expect[] = { 1, 4, 3, 9, 6, 0 };
+    static const int expect[] = { 1, 2, 1, 9, 8, 0 };
     for (int i = 0; i < 6; i++) {
         ev.key = keys[i];
         ASSERT_EQ_INT(tui_listview_handle(&lv, &ev), 1, "navigation key handled");
@@ -254,7 +256,7 @@ static void test_listview_keys(void) {
     static const struct { uint32_t cp; unsigned mods; int sel; const char *what; } letters[] = {
         { 'j', 0, 1, "j: down" },          { 'k', 0, 0, "k: up" },
         { 'k', 0, 0, "k at the top: no wrap" },
-        { 'f', TUI_MOD_CTRL, 3, "ctrl-f: a page down" },
+        { 'f', TUI_MOD_CTRL, 1, "ctrl-f: a page down (at least one)" },
         { 'b', TUI_MOD_CTRL, 0, "ctrl-b: a page up" },
         { 'G', 0, 9, "G: the last row" }, { 'j', 0, 9, "j at the end: no wrap" },
         { 'g', 0, 0, "g: the first row" },
@@ -398,7 +400,7 @@ static void test_textview_scrolling_and_follow(void) {
     ev.type = TUI_EV_KEY;
     ev.key = TUI_KEY_PGDN;
     ASSERT_EQ_INT(tui_textview_handle(&tv, &ev), 1, "PgDn handled");
-    ASSERT_EQ_INT(tui_textview_top(&tv), 3, "a page keeps one line of context");
+    ASSERT_EQ_INT(tui_textview_top(&tv), 2, "a page keeps two lines of context");
     ev.key = TUI_KEY_END;
     tui_textview_handle(&tv, &ev);
     ASSERT_EQ_INT(tui_textview_top(&tv), 16, "End: last line at the bottom");
@@ -452,7 +454,7 @@ static void test_textview_scrolling_and_follow(void) {
     tui_textview_render(&tv, all, TUI_STYLE_DEFAULT);
     static const struct { uint32_t cp; unsigned mods; int top; const char *what; } letters[] = {
         { 'j', 0, 1, "j: a line down" },  { 'k', 0, 0, "k: a line up" },
-        { 'f', TUI_MOD_CTRL, 3, "ctrl-f: a page, one line of context" },
+        { 'f', TUI_MOD_CTRL, 2, "ctrl-f: a page, two lines of context" },
         { 'b', TUI_MOD_CTRL, 0, "ctrl-b: a page up" },
         { 'G', 0, 19, "G: the end" },     { 'g', 0, 0, "g: the top" },
     };

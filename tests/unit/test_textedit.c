@@ -239,7 +239,7 @@ static void test_render_and_scroll(void) {
 
     /* PgUp moves by that height. */
     send(&te, "\x1b[5~");
-    ASSERT_CURSOR_AT(&te, 3, 6, "PgUp: three lines up");
+    ASSERT_CURSOR_AT(&te, 5, 6, "PgUp: one line up (3 rows: rows - 2, at least 1)");
     send(&te, "\x1b[6~\x1b[6~");
     ASSERT_CURSOR_AT(&te, 6, 6, "PgDn: clamped at the last line");
 
@@ -263,6 +263,28 @@ static void test_render_and_scroll(void) {
     tui_textedit_render(NULL, tui_canvas_of(f.scr), TUI_STYLE_DEFAULT);
     tui_textedit_cursor(NULL, &r, NULL);
     ASSERT_EQ_INT(r, 0, "cursor of NULL");
+    fx_close(&f);
+}
+
+static void test_page_overlap(void) {
+    char src[512] = "", buf[512];
+    for (int i = 0; i < 30; i++) {
+        char l[16];
+        snprintf(l, sizeof l, "l%d\n", i);
+        strcat(src, l);
+    }
+    tui_textedit te;
+    tui_textedit_init(&te, buf, sizeof(buf), src);
+    Fx f;
+    ASSERT(fx_open(&f, 12, 14) == 0, "fixtures");
+    tui_rect area = tui_rect_make(1, 1, 10, 12);
+    fx_draw(&f, &te, area);
+    ASSERT_EQ_INT(te.rows, 10, "the height drawn");
+    send(&te, "\x1b[1;5H");
+    send(&te, "\x1b[6~");
+    ASSERT_CURSOR_AT(&te, 8, 0, "PgDn: rows - 2");
+    send(&te, "\x1b[5~");
+    ASSERT_CURSOR_AT(&te, 0, 0, "PgUp: the same step back");
     fx_close(&f);
 }
 
@@ -392,6 +414,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_typing_newlines_and_deleting),
     TEST_CASE(test_columns_and_vertical_movement),
     TEST_CASE(test_render_and_scroll),
+    TEST_CASE(test_page_overlap),
     TEST_CASE(test_soft_wrap),
     TEST_CASE(test_summary),
 };

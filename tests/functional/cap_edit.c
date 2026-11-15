@@ -314,7 +314,7 @@ static void cap_listview(void) {
     tui_listview_move_up(&lv);
     CHECK_INT(lv.selected, 0, "up");
     tui_listview_page_down(&lv);
-    CHECK_INT(lv.selected, 5, "page down");
+    CHECK_INT(lv.selected, 3, "page down: viewport - 2, two rows overlap");
     tui_listview_page_up(&lv);
     CHECK_INT(lv.selected, 0, "page up");
     tui_listview_end(&lv);

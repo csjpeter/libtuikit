@@ -463,6 +463,11 @@ program; the movement keys shared by every TUI of the workspace (`j`/`k`,
 `tui_listview_handle` and `tui_textview_handle` beside the arrows and the
 page keys.
 
+**Paging rule (TUI-134):** every paging widget (textview, sgrview, mdview, textedit,
+listview, table, histview, dialog, file chooser) moves PgUp/PgDn (and ctrl-b/ctrl-f) by
+the visible rows less 2, at least 1, so that 2 lines overlap; at the ends it stops, it
+does not wrap (`tui__page()` in `src/internal.h`).
+
 ### 4.5 `tui_screen` — cells and rendering (M3)
 
 ```c

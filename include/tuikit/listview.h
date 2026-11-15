@@ -49,8 +49,8 @@ TUI_API void tui_listview_select(tui_listview *lv, int index);
 
 TUI_API void tui_listview_move_up(tui_listview *lv);    /**< Up: one item */
 TUI_API void tui_listview_move_down(tui_listview *lv);  /**< Down: one item */
-TUI_API void tui_listview_page_up(tui_listview *lv);    /**< PgUp: one viewport */
-TUI_API void tui_listview_page_down(tui_listview *lv);  /**< PgDn: one viewport */
+TUI_API void tui_listview_page_up(tui_listview *lv);    /**< PgUp: viewport - 2, at least 1 */
+TUI_API void tui_listview_page_down(tui_listview *lv);  /**< PgDn: viewport - 2, at least 1 */
 TUI_API void tui_listview_home(tui_listview *lv);       /**< Home: first item */
 TUI_API void tui_listview_end(tui_listview *lv);        /**< End: last item */
 
