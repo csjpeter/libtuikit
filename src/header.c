@@ -71,12 +71,12 @@ static void layout(const tui_header *h, int cols, line *ln) {
     if (rw > 0) add(ln, cols - LEAD - rw, h->right, rw, h->bar);
 }
 
-/* The notice on the bar: the role's colour becomes the background, so that a
- * red or green notice reads on the blue bar; the role's attributes stay.  A
- * role without a colour (plain information) is the bar plus its attributes. */
+/* The notice on the bar: coloured letters on the bar's own background, never
+ * a differently filled box; the role's attributes stay.  A role without a
+ * colour (plain information) is the bar plus its attributes. */
 static tui_style on_bar(const tui_header *h, tui_style role) {
     tui_style st = h->bar;
-    if (role.fg != TUI_COLOR_DEFAULT) st.bg = role.fg;
+    if (role.fg != TUI_COLOR_DEFAULT) st.fg = role.fg;
     st.attrs = (uint16_t)(st.attrs | role.attrs);
     return st;
 }

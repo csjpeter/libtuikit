@@ -810,6 +810,23 @@ static void test_table_marks_failures(void) {
     tui_table_free(&t);
 }
 
+static void foot_noop(void *ctx, int row, int col, tui_table_cell *c) {
+    (void)ctx; (void)row; (void)col; (void)c;
+}
+
+static void test_table_footer_failure(void) {
+    fault_reset();
+    tui_table t;
+    tui_table_init(&t, NULL, 0, NULL);
+    fault_arm(F_CALLOC, 0, 1, ENOMEM);
+    errno = 0;
+    ASSERT_EQ_INT(tui_table_set_footer(&t, 1, foot_noop, NULL), -1, "footer: out of memory");
+    ASSERT_EQ_INT(errno, ENOMEM, "ENOMEM");
+    fault_reset();
+    ASSERT_EQ_INT(tui_table_set_footer(&t, 1, foot_noop, NULL), 0, "works again");
+    tui_table_free(&t);
+}
+
 static int fault_cmd(void *u, const char *a, char *m, size_t n) {
     (void)u; (void)a; (void)m; (void)n;
     return 0;
@@ -840,6 +857,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_htmlrender_failures),
     TEST_CASE(test_sgrview_failures),
     TEST_CASE(test_table_marks_failures),
+    TEST_CASE(test_table_footer_failure),
     TEST_CASE(test_dialog_and_decoder_failures),
     TEST_CASE(test_lineedit_failures),
     TEST_CASE(test_lineedit_run_failures),

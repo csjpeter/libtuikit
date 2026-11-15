@@ -245,6 +245,28 @@ TUI_API int tui_table_format_row(const tui_table *t, int cols, int index,
 /** @brief The header as tui_table_format_row() does a row. */
 TUI_API int tui_table_format_header(const tui_table *t, int cols, char *out, size_t outsz);
 
+/**
+ * @brief Gives the table @p rows footer rows (totals): the last lines of
+ *        the area, under the body, whose cells @p cell fills (as the
+ *        model's cell callback does, for footer row @p row) under the
+ *        columns' widths and alignments (a numeric column right-aligned),
+ *        in the header's style.  A footer row is never selected and never
+ *        scrolls; the viewport is the area less the header and the footer.
+ *        @p rows 0 removes the footer.  Not shown in front of a message.
+ * @return 0, or -1 with errno EINVAL (@p rows < 0, or no @p cell) or ENOMEM.
+ */
+TUI_API int tui_table_set_footer(tui_table *t, int rows,
+                                 void (*cell)(void *ctx, int row, int col, tui_table_cell *c),
+                                 void *ctx);
+
+/** @brief Draws only the footer rows (on the last lines of @p c). */
+TUI_API void tui_table_render_footer(tui_table *t, tui_canvas c);
+
+/** @brief Footer row @p row as tui_table_format_row() does a row; -1 too
+ *         when there is no such footer row. */
+TUI_API int tui_table_format_footer(const tui_table *t, int cols, int row,
+                                    char *out, size_t outsz);
+
 #ifdef __cplusplus
 }
 #endif

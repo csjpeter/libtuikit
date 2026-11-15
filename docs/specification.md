@@ -232,7 +232,7 @@ Non-goals:
 | `tuikit/listview.h` | scroll + selection, row rendering | yes | M4 |
 | `tuikit/tree.h` | the opening and closing tree over the list view | yes | |
 | `tuikit/histview.h` | the history view: recorded steps in a table, a Revert entry with a confirmation | yes | TUI-63 |
-| `tuikit/table.h` | columns, header, the selection the widget owns | yes | TUI-48 |
+| `tuikit/table.h` | columns, header, footer rows (totals), the selection the widget owns | yes | TUI-48, TUI-128 |
 | `tuikit/header.h` | the top bar: view, program name and a notice area (messages, standing warnings) | yes | TUI-109 |
 | `tuikit/statusline.h` | the one bottom line: hints that fit, position, prompt (message and wait deprecated: they no longer show) | yes | TUI-51, TUI-109 |
 | `tuikit/tabrow.h` | the tab row of a screen with sub-views, the active tab by attribute | yes | TUI-69 |
@@ -556,7 +556,7 @@ choice and is drawn as it is; only the widgets' defaults are roles.
 | `tui_dialog` message, confirm, prompt, menu, checklist, quick menu, help | `text` (fill), `frame` (the frame, and the matched words of the help), `selection` (a menu row; the buttons in focus in bold, bold reverse built-in), `accent` (a quick key), `input.focus` over `input` (the prompt's field) |
 | `tui_filechooser` | `frame` (the frame), `text` (fill, rows), `input`/`input.focus` (the typing field), `selection` (the row under the cursor, with its `>`), `hint` (the status row), `progress` ("Reading..."), `error` (a refusal, an unreadable directory) |
 | `tui_fieldset` | `text` (labels, candidates), `accent` (the focused label, a choice), `input` and `input.focus` (a text value), `selection` (the chosen candidate), `error` |
-| `tui_header` | `header` (the bar), and for the notice the colour of the role the program passes (`ok`, `progress`) or `error` (a warning) as the background of the notice, with the role's attributes; no new role |
+| `tui_header` | `header` (the bar), and for the notice the colour of the role the program passes (`ok`, `progress`) or `error` (a warning) as the colour of the notice letters on the bar background, with the role's attributes; no new role |
 | `tui_statusline` | `status` (the bar) |
 | `tui_yesno` | `text` (the row), `text`+bold (the suffix `(y/N)`) |
 | `tui_tabrow` | `tab.active` (the active tab, plus bold and underline), `tab.inactive` (the others and the marks) |
@@ -723,9 +723,9 @@ widget the program routes events to first.
     standing warning (`tui_header_set_warning`, the `error` role, bold) stays
     across keys until `tui_header_clear_warning` or another warning; it
     replaces a plain notice that shows and wins over one set later (that
-    one is dropped). The notice is drawn with the role's colour as its
-    background and the role's attributes, so it reads on the bar and is
-    told apart without colour.
+    one is dropped). The notice is drawn in the role's colour as the
+    colour of its letters, on the bar's own background (never a filled box),
+    with the role's attributes, so it is told apart without colour.
   - *Clipping* (a narrow row): the left text is cut first (`…`, then
     dropped), then the notice (`…`); the name is never cut unless it alone
     is wider than the row.
@@ -795,8 +795,8 @@ widget the program routes events to first.
 - **`tui_menu`** (TUI-108) — the main menu of a program with several main
   views (`policies/tui-interface-model.md`, "Navigation"), drawn on the canvas
   between the top bars and the status line.
-  - *Entries*: `{label, count, attention, description}`, at most 9, not copied
-    (`tui_menu_set`, cursor clamped). The hot keys are the digits 1 to 9, in
+  - *Entries*: `{label, count, attention, description}`, at most 10, not copied
+    (`tui_menu_set`, cursor clamped). The hot keys are the digits 1 to 9 and 0 (the tenth entry), in
     the text colour. `count` below 0 shows none; `attention` above 0 adds
     `(M)` after `N`, in the the warning colour, bold orange (256-colour index 208); no words in the row.
   - *Layout*: a row is `> 1  Label  N (M)`; the block is left-aligned inside,
