@@ -192,6 +192,21 @@ name the ticket that closes the gap; there is none now.
 | `tui_readline` | `tests/functional/cap_terminal.c` | `cap_readline` |
 | `tui_readline_opts_init` | `tests/functional/cap_terminal.c` | `cap_readline` |
 
+## SGR view
+
+| Capability | Functional test | Phase |
+|---|---|---|
+| `tui_sgrview_free` | `tests/functional/cap_edit.c` | `cap_sgrview` |
+| `tui_sgrview_handle` | `tests/functional/cap_edit.c` | `cap_sgrview` |
+| `tui_sgrview_init` | `tests/functional/cap_edit.c` | `cap_sgrview` |
+| `tui_sgrview_lines` | `tests/functional/cap_edit.c` | `cap_sgrview` |
+| `tui_sgrview_render` | `tests/functional/cap_edit.c` | `cap_sgrview` |
+| `tui_sgrview_scroll` | `tests/functional/cap_edit.c` | `cap_sgrview` |
+| `tui_sgrview_scroll_end` | `tests/functional/cap_edit.c` | `cap_sgrview` |
+| `tui_sgrview_scroll_to` | `tests/functional/cap_edit.c` | `cap_sgrview` |
+| `tui_sgrview_set_text` | `tests/functional/cap_edit.c` | `cap_sgrview` |
+| `tui_sgrview_top` | `tests/functional/cap_edit.c` | `cap_sgrview` |
+
 ## Markdown view
 
 | Capability | Functional test | Phase |
