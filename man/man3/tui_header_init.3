@@ -43,8 +43,8 @@ set the two texts (controls become spaces; NULL or "" clears).
 shows a plain notice in
 .IR style ,
 .BR TUI_STYLE_OK ", " TUI_STYLE_ERROR ", " TUI_STYLE_PROGRESS
-or the default; the style's colour becomes the notice's background and its
-attributes are added, so no new colour is used.
+or the default; the style's colour becomes the colour of the notice's letters, on the
+bar's own background, and its attributes are added.
 A plain notice is cleared by the next key or paste that reaches
 .BR tui_header_handle ()
 (it returns

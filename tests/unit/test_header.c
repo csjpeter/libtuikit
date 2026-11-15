@@ -207,23 +207,26 @@ static void test_render_bar_and_colours(void) {
     show(scr, s, &h);
     ASSERT_EQ_STR(pty_row_text(s, 0, b, sizeof(b)), " Inbox (42)  Saved"
                   "            email-tui", "ok notice");
-    ASSERT_EQ_INT(pty_cell_bg(s, 0, 14), 42, "ok: green");
+    ASSERT_EQ_INT(pty_cell_fg(s, 0, 14), 32, "ok: green letters");
+    ASSERT_EQ_INT(pty_cell_bg(s, 0, 14), bar_bg, "on the bar, not a box");
     ASSERT_EQ_INT(pty_cell_bg(s, 0, 1), bar_bg, "the view keeps the bar");
     ASSERT_EQ_INT(pty_cell_bg(s, 0, 31), bar_bg, "and so does the name");
 
     tui_header_set_notice(&h, "Fetching", TUI_STYLE_PROGRESS);
     show(scr, s, &h);
-    ASSERT_EQ_INT(pty_cell_bg(s, 0, 14), 43, "progress: yellow");
+    ASSERT_EQ_INT(pty_cell_fg(s, 0, 14), 33, "progress: yellow letters");
+    ASSERT_EQ_INT(pty_cell_bg(s, 0, 14), bar_bg, "on the bar");
     ASSERT_EQ_INT(pty_cell_attr(s, 0, 14) & PTY_ATTR_ITALIC, PTY_ATTR_ITALIC, "and italic");
 
     tui_header_set_warning(&h, "Sync failed");
     show(scr, s, &h);
-    ASSERT_EQ_INT(pty_cell_bg(s, 0, 14), 41, "warning: red");
+    ASSERT_EQ_INT(pty_cell_fg(s, 0, 14), 31, "warning: red letters");
+    ASSERT_EQ_INT(pty_cell_bg(s, 0, 14), bar_bg, "on the bar");
     ASSERT_EQ_INT(pty_cell_attr(s, 0, 14) & PTY_ATTR_BOLD, PTY_ATTR_BOLD, "and bold");
     tui_event k = key('j');
     tui_header_handle(&h, &k);
     show(scr, s, &h);
-    ASSERT_EQ_INT(pty_cell_bg(s, 0, 14), 41, "still red after a key");
+    ASSERT_EQ_INT(pty_cell_fg(s, 0, 14), 31, "still red after a key");
     ASSERT_EQ_INT(pty_cell_bg(s, 0, 12), bar_bg, "the gap before it is the bar");
     tui_header_clear_warning(&h);
     show(scr, s, &h);
@@ -244,7 +247,8 @@ static void test_render_narrow_and_edges(void) {
     show(scr, s, &h);
     char b[128];
     ASSERT_EQ_STR(pty_row_text(s, 0, b, sizeof(b)), " Sync failed\xE2\x80\xA6 email-tui", "the left text gave way");
-    ASSERT_EQ_INT(pty_cell_bg(s, 0, 1), 41, "the warning is red at 24 columns");
+    ASSERT_EQ_INT(pty_cell_fg(s, 0, 1), 31, "the warning is red at 24 columns");
+    ASSERT_EQ_INT(pty_cell_bg(s, 0, 1), 44, "on the blue bar at 24 columns");
     tui_header_render(NULL, tui_canvas_of(scr));
     tui_canvas none = tui_canvas_sub(tui_canvas_of(scr), tui_rect_make(0, 0, 0, 0));
     tui_header_render(&h, none);

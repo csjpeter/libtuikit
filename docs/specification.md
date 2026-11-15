@@ -546,7 +546,7 @@ choice and is drawn as it is; only the widgets' defaults are roles.
 | `tui_dialog` message, confirm, prompt, menu, checklist, quick menu, help | `text` (fill), `frame` (the frame, and the matched words of the help), `selection` (a menu row; the buttons in focus in bold, bold reverse built-in), `accent` (a quick key), `input.focus` over `input` (the prompt's field) |
 | `tui_filechooser` | `frame` (the frame), `text` (fill, rows), `input`/`input.focus` (the typing field), `selection` (the row under the cursor, with its `>`), `hint` (the status row), `progress` ("Reading..."), `error` (a refusal, an unreadable directory) |
 | `tui_fieldset` | `text` (labels, candidates), `accent` (the focused label, a choice), `input` and `input.focus` (a text value), `selection` (the chosen candidate), `error` |
-| `tui_header` | `header` (the bar), and for the notice the colour of the role the program passes (`ok`, `progress`) or `error` (a warning) as the background of the notice, with the role's attributes; no new role |
+| `tui_header` | `header` (the bar), and for the notice the colour of the role the program passes (`ok`, `progress`) or `error` (a warning) as the colour of the notice letters on the bar background, with the role's attributes; no new role |
 | `tui_statusline` | `status` (the bar) |
 | `tui_yesno` | `text` (the row), `text`+bold (the suffix `(y/N)`) |
 | `tui_tabrow` | `tab.active` (the active tab, plus bold and underline), `tab.inactive` (the others and the marks) |
@@ -713,9 +713,9 @@ widget the program routes events to first.
     standing warning (`tui_header_set_warning`, the `error` role, bold) stays
     across keys until `tui_header_clear_warning` or another warning; it
     replaces a plain notice that shows and wins over one set later (that
-    one is dropped). The notice is drawn with the role's colour as its
-    background and the role's attributes, so it reads on the bar and is
-    told apart without colour.
+    one is dropped). The notice is drawn in the role's colour as the
+    colour of its letters, on the bar's own background (never a filled box),
+    with the role's attributes, so it is told apart without colour.
   - *Clipping* (a narrow row): the left text is cut first (`…`, then
     dropped), then the notice (`…`); the name is never cut unless it alone
     is wider than the row.
