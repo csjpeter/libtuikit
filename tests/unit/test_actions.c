@@ -406,13 +406,18 @@ static void test_menu_serious_action_asks_naming_the_target(void) {
     ASSERT(fx_open(&f, 12, 60) == 0, "fixtures");
     fx_draw(&f, &m);
     const char *const expect[] = {
-        "", "", "",
-        "          ┌─ Delete ────────────────────────────┐",
-        "          │ Delete mail 7? It cannot be undone. │",
-        "          │                                     │",
-        "          │           [ Yes ]  [ No ]           │",
-        "          └─────────────────────────────────────┘",
-        "", "", "", "", NULL };
+        "",
+        "",
+        "        ┌─ Delete ─────────────────────────────────┐",
+        "        │                                          │",
+        "        │ Delete mail 7? It cannot be undone.      │",
+        "        │                                          │",
+        "        │             [ Yes ]  [ No  ]             │",
+        "        └──────────────────────────────────────────┘",
+        "",
+        "",
+        "",
+        "", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
     ASSERT(pty_screen_contains(f.s, "mail 7"), "the target is named");
     /* The default is No, in the focus style; Yes is plain. */

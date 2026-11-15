@@ -153,13 +153,13 @@ static const char *const g_confirm[] = {
     "",
     "> Alpha",
     "  Bravo",
-    "  Charlie",
+    "  C┌─ Delete ─────────────────────────────────┐",
+    "   │                                          │",
+    "   │ Delete Alpha? It cannot be undone.       │",
+    "   │                                          │",
+    "   │             [ Yes ]  [ No  ]             │",
+    "   └──────────────────────────────────────────┘",
     "",
-    "      ┌─ Delete ───────────────────────────┐",
-    "      │ Delete Alpha? It cannot be undone. │",
-    "      │                                    │",
-    "      │          [ Yes ]  [ No ]           │",
-    "      └────────────────────────────────────┘",
     NULL };
 
 /* A serious action from the menu: the confirmation names the target, No is
@@ -171,7 +171,7 @@ static void test_menu_serious_action_confirms(void) {
     pty_send_str(s, "-jj\r");                               /* Delete */
     ASSERT_WAIT_SCREEN(s, g_confirm, 3000);
     ASSERT(pty_screen_contains(s, "Delete Alpha? It cannot be undone."), "the target is named");
-    ASSERT(pty_screen_contains(s, "[ Yes ]  [ No ]"), "Yes and No");
+    ASSERT(pty_screen_contains(s, "[ Yes ]  [ No  ]"), "Yes and No");
     char d[160];
     int r = 0, c = 0;
     for (r = 0; r < ROWS; r++) {

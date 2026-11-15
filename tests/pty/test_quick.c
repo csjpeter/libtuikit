@@ -104,7 +104,7 @@ static void test_quick_key_runs_and_confirms(void) {
     /* The serious entry: the confirmation opens, nothing is done yet. */
     pty_send_str(s, "-d");
     ASSERT_WAIT_FOR(s, "Delete Alpha? It cannot be undone.", 3000);
-    ASSERT(pty_screen_contains(s, "[ Yes ]  [ No ]"), "Yes and No");
+    ASSERT(pty_screen_contains(s, "[ Yes ]  [ No  ]"), "Yes and No");
     ASSERT(pty_screen_contains(s, "done: Move"), "nothing was performed");
     pty_send_str(s, "\r");                                  /* Enter on the default No */
     ASSERT_WAIT_GONE(s, "Delete Alpha?", 3000);

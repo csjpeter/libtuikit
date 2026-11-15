@@ -368,13 +368,13 @@ static void test_filter(void) {
         "│Árvíztűrő tükörfúrógép  ││The arrow keys or j and k move, Enter reads, /      │",
         "│Wide characters         ││filters, n writes, ? lists the keys and Esc quits.  │",
         "│Budget 2027             ││                                                    │",
-        "│Meeting notes           ││                                                    │",
-        "│Re: Budget 2027         ││                                                    │",
+        "│Meeting notes    ┌─ Filter the subjects ────────────────────┐                 │",
+        "│Re: Budget 2027  │                                          │                 │",
+        "│                 │ Subject contains:                        │                 │",
+        "│                 │                                          │                 │",
+        "│                 │ Budget                                   │                 │",
+        "│                 └──────────────────────────────────────────┘                 │",
         "│                        ││                                                    │",
-        "│                      ┌─ Filter the subjects ──────────┐                      │",
-        "│                      │ Subject contains:              │                      │",
-        "│                      │ Budget                         │                      │",
-        "│                      └────────────────────────────────┘                      │",
         "│                        ││                                                    │",
         "│                        ││                                                    │",
         "│                        ││                                                    │",
@@ -387,14 +387,16 @@ static void test_filter(void) {
         "↑↓ move  Enter read  / filter  c clear  n new  ? help  Esc quit",
         NULL };
     const char *const prompt_map[] = {
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-        "A................................A",
-        "A................................A",
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "A..........................................A",
+        "A..........................................A",
+        "A..........................................A",
+        "A..........................................A",
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
         NULL };
     ASSERT_WAIT_SCREEN(s, prompt, 3000);
-    ASSERT_REGION_STYLE(s, PTY_REGION(10, 23, 4, 34), prompt_map, g_legend);
-    ASSERT_WAIT_CURSOR(s, 12, 31, 3000, "the cursor in the input line");
+    ASSERT_REGION_STYLE(s, PTY_REGION(7, 18, 6, 44), prompt_map, g_legend);
+    ASSERT_WAIT_CURSOR(s, 11, 26, 3000, "the cursor in the input line");
     pty_send_key(s, PTY_KEY_ENTER);
     const char *const filtered[] = {
         " Inbox · 2 of 6 · filter: Budget                                    tuikit-demo",
@@ -867,18 +869,23 @@ static void test_compose_refusals_and_discard(void) {
     ASSERT_WAIT_REGION(s, PTY_REGION(1, 0, 1, 80), kept, 3000);
     pty_send_key(s, PTY_KEY_ESC);
     const char *const ask[] = {
-        "┌─ Discard the message ──────┐",
-        "│ Throw away what was typed? │",
-        "│                            │",
-        "│      [ Yes ]  [ No ]       │",
-        "└────────────────────────────┘",
+        "┌─ Discard the message ────────────────────┐",
+        "│                                          │",
+        "│ Throw away what was typed?               │",
+        "│                                          │",
+        "│             [ Yes ]  [ No  ]             │",
+        "└──────────────────────────────────────────┘",
         NULL };
-    ASSERT_WAIT_REGION(s, PTY_REGION(9, 25, 5, 30), ask, 3000);
+    ASSERT_WAIT_REGION(s, PTY_REGION(7, 18, 6, 44), ask, 3000);
     const char *const ask_map[] = {
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", "A............................A",
-        "A............................A", "A...............SSSSSS.......A",
-        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", NULL };
-    ASSERT_REGION_STYLE(s, PTY_REGION(9, 25, 5, 30), ask_map, g_legend);
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        "A..........................................A",
+        "A..........................................A",
+        "A..........................................A",
+        "A......................SSSSSSS.............A",
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+        NULL };
+    ASSERT_REGION_STYLE(s, PTY_REGION(7, 18, 6, 44), ask_map, g_legend);
     pty_send_str(s, "n");                        /* No: back, nothing lost */
     ASSERT_WAIT_GONE(s, "Throw away", 3000);
     ASSERT_WAIT_REGION(s, PTY_REGION(1, 0, 1, 80), kept, 3000);
