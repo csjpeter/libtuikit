@@ -1,0 +1,71 @@
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_YESNO_INIT 3 2026-11-15 "libtuikit 0.8" "libtuikit Manual"
+.SH NAME
+tui_yesno_init, tui_yesno_handle, tui_yesno_get, tui_yesno_render, tui_yesno_format \-
+the inline one-row yes/no question
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/yesno.h>
+.PP
+.BI "void tui_yesno_init(tui_yesno *" yn ", const char *" text );
+.BI "tui_yesno_result tui_yesno_handle(tui_yesno *" yn ", const tui_event *" ev );
+.BI "tui_yesno_result tui_yesno_get(const tui_yesno *" yn );
+.BI "void tui_yesno_render(const tui_yesno *" yn ", tui_canvas " c ", int " row );
+.BI "int  tui_yesno_format(const tui_yesno *" yn ", int " cols ", char *" out ", size_t " outsz );
+.fi
+.SH DESCRIPTION
+.B tui_yesno
+is the question a program asks on one row of the screen, usually the bottom
+one (\(lqDelete R01? (y/N)\(rq), and answers with one key.
+It is the one-row form of the modal
+.BR tui_dialog_confirm (): the screen stays as it is and nothing is drawn
+over it.
+It is a pure model: the program gives it the events while it is open, draws
+it, and reads the outcome.
+.PP
+.BR tui_yesno_init ()
+opens the question
+.IR text ;
+the widget adds the suffix \(lq(y/N)\(rq.
+Controls in the text are blanks; more than 255 bytes are cut at a character.
+.PP
+.BR tui_yesno_handle ()
+takes one event and returns the outcome so far:
+.TP
+.B TUI_YESNO_YES
+the key y or Y (without Ctrl or Alt);
+.TP
+.B TUI_YESNO_INTERRUPT
+Ctrl-C, or the terminal hanging up: the program is expected to leave;
+.TP
+.B TUI_YESNO_NO
+any other key, Esc included (the capital N of the suffix is the default);
+.TP
+.B TUI_YESNO_OPEN
+a paste, a resize or another event that is not a key.
+.PP
+Once answered, the outcome stays.
+.BR tui_yesno_get ()
+reads it again.
+.PP
+.BR tui_yesno_render ()
+draws the question on row
+.I row
+of the canvas, over its whole width, in the role
+.B text
+with the suffix in bold; while the question is open the terminal cursor is
+placed after the suffix.
+A question wider than the row is cut with an ellipsis so that the suffix stays;
+a row narrower than six columns shows the front of the suffix.
+A row outside the canvas draws nothing.
+.BR tui_yesno_format ()
+writes the same row as plain text for
+.I cols
+columns; it returns the length, or \-1 when
+.I outsz
+was too small (the text is then cut at a character).
+.SH SEE ALSO
+.BR libtuikit (7),
+.BR tui_dialog_message (3),
+.BR tui_statusline_init (3)

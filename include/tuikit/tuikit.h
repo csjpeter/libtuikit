@@ -30,6 +30,7 @@
 #include "tuikit/screen.h"
 #include "tuikit/statusline.h"
 #include "tuikit/tabrow.h"
+#include "tuikit/yesno.h"
 #include "tuikit/table.h"
 #include "tuikit/term.h"
 #include "tuikit/text.h"

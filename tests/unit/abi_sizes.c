@@ -59,5 +59,6 @@ int main(void) {
     SHOW(tui_tree);
     SHOW(tui_treerow);
     SHOW(tui_treeset);
+    SHOW(tui_yesno);
     return 0;
 }
