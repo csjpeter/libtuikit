@@ -253,7 +253,10 @@ name the ticket that closes the gap; there is none now.
 | `tui_textedit_lines` | `tests/functional/cap_edit.c` | `cap_textedit` |
 | `tui_textedit_render` | `tests/functional/cap_edit.c` | `cap_textedit` |
 | `tui_textedit_set_text` | `tests/functional/cap_edit.c` | `cap_textedit` |
+| `tui_textedit_set_wrap` | `tests/functional/cap_edit.c` | `cap_textedit` |
 | `tui_textedit_summary` | `tests/functional/cap_edit.c` | `cap_textedit` |
+| `tui_textedit_wrap_rows` | `tests/functional/cap_edit.c` | `cap_textedit` |
+| `tui_textedit_wrapped` | `tests/functional/cap_edit.c` | `cap_textedit` |
 
 ## History view
 

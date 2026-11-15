@@ -126,6 +126,20 @@ static void cap_textedit(void) {
     free(t);
     tui_screen_free(s);
 
+    tui_screen *w = tui_screen_new(4, 6);
+    tui_textedit_set_text(&te, "abcdefghij");
+    CHECK_INT(tui_textedit_wrapped(&te), 0, "not wrapped by default");
+    tui_textedit_set_wrap(&te, 1);
+    CHECK_INT(tui_textedit_wrapped(&te), 1, "wrap on");
+    tui_textedit_render(&te, tui_canvas_of(w), TUI_STYLE_DEFAULT);
+    CHECK_INT(tui_textedit_wrap_rows(&te), 2, "ten characters in six columns: two rows");
+    t = cap_screen_text(w, NULL);
+    CHECK_HAS(t, "abcdef", "first wrapped row");
+    CHECK_HAS(t, "ghij", "second wrapped row");
+    free(t);
+    CHECK_STR(buf, "abcdefghij", "the text is not changed");
+    tui_screen_free(w);
+
     char sum[64];
     CHECK_INT(tui_textedit_summary("first line\nsecond", 40, sum, sizeof sum), 20, "summary columns");
     CHECK_STR(sum, "first line (2 lines)", "summary is the first line and the count");

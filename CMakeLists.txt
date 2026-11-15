@@ -385,6 +385,8 @@ set(TUIKIT_MAN3_ALIASES
     tui_textedit_handle:tui_textedit_init tui_textedit_lines:tui_textedit_init
     tui_textedit_cursor:tui_textedit_init tui_textedit_render:tui_textedit_init
     tui_textedit_summary:tui_textedit_init
+    tui_textedit_set_wrap:tui_textedit_init tui_textedit_wrapped:tui_textedit_init
+    tui_textedit_wrap_rows:tui_textedit_init
     tui_cmdline_free:tui_cmdline_init tui_cmdline_register:tui_cmdline_init
     tui_cmdline_count:tui_cmdline_init tui_cmdline_help:tui_cmdline_init
     tui_cmdline_name:tui_cmdline_init tui_cmdline_handle:tui_cmdline_init
