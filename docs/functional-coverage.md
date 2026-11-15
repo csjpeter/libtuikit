@@ -226,6 +226,12 @@ name the ticket that closes the gap; there is none now.
 | `tui_mdview_set_text` | `tests/functional/cap_edit.c` | `cap_mdview` |
 | `tui_mdview_top` | `tests/functional/cap_edit.c` | `cap_mdview` |
 
+## HTML renderer
+
+| Capability | Functional test | Phase |
+|---|---|---|
+| `tui_html_render` | `tests/functional/cap_edit.c` | `cap_htmlrender` |
+
 ## Multi-line editor
 
 | Capability | Functional test | Phase |

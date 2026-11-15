@@ -116,6 +116,7 @@ set(TUIKIT_SOURCES
     src/statusline.c
     src/table.c
     src/mdview.c
+    src/htmlrender.c
     src/sgrview.c
     src/menu.c
     src/tabrow.c
@@ -468,6 +469,9 @@ function(tuikit_write_changelog _pkg)
 "${_pkg} (${TUIKIT_VERSION}) stable; urgency=medium
 
   * Build from git commit ${TUIKIT_GIT_COMMIT}.
+  * new: tui_html_render() (TUI-124): a bounded HTML subset (b, i, u, s, a,
+    br, p, ul, ol, li, blockquote, pre, table, entities, style colour) as
+    reflowed text, plain or with SGR; no script runs, nothing is loaded.
   * 1.3.0: new: tui_sgrview, a scrolling text view of text that carries ANSI SGR
     styles (TUI-122): bold, dim, italic, underline, strike, blink, reverse, 16,
     256 and 24-bit colour, kept across wrap and scroll.

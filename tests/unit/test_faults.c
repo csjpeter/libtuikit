@@ -127,6 +127,38 @@ static const char *MD_FAULT_DOC =
 
 /* Fails the n-th allocation, for every n there is: no call may crash, and a
  * failure is -1 with ENOMEM; past the last allocation the call succeeds. */
+static void test_htmlrender_failures(void) {
+    const char *doc = "<h1>T</h1><p>a <b>b</b> <a href=\"https://x.org/\">l</a></p>"
+                      "<ul><li>x</ul><table><tr><th>h</th></tr><tr><td>c</td></tr></table>";
+    fault_reset();
+    tui_buf b;
+    tui_buf_init(&b);
+    fault_arm(F_CALLOC, 0, 1, ENOMEM);
+    errno = 0;
+    ASSERT_EQ_INT(tui_html_render(doc, 40, 1, &b), -1, "html: the state cannot be allocated");
+    ASSERT_EQ_INT(errno, ENOMEM, "ENOMEM");
+    fault_reset();
+    tui_buf_free(&b);
+
+    int failed = 0, passed = 0;
+    for (int skip = 0; skip < 60; skip++) {
+        tui_buf_init(&b);
+        fault_arm(F_REALLOC, skip, 1, ENOMEM);
+        errno = 0;
+        int rc = tui_html_render(doc, 40, 1, &b);
+        fault_reset();
+        if (rc == -1) {
+            failed++;
+            ASSERT_EQ_INT(errno, ENOMEM, "html: ENOMEM");
+        } else {
+            passed++;
+        }
+        tui_buf_free(&b);
+    }
+    ASSERT(failed >= 3, "html: several allocations were failed");
+    ASSERT(passed > 0, "html: and the later ones succeeded");
+}
+
 static void test_mdview_failures(void) {
     fault_reset();
     tui_mdview mv;
@@ -789,6 +821,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_screen_failures),
     TEST_CASE(test_textview_failures),
     TEST_CASE(test_mdview_failures),
+    TEST_CASE(test_htmlrender_failures),
     TEST_CASE(test_sgrview_failures),
     TEST_CASE(test_table_marks_failures),
     TEST_CASE(test_dialog_and_decoder_failures),

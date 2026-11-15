@@ -140,6 +140,7 @@ symbol tui_histview_render
 symbol tui_histview_selected
 symbol tui_histview_set_failed
 symbol tui_histview_set_rows
+symbol tui_html_render
 symbol tui_key_reserved
 symbol tui_keycode_name
 symbol tui_keycode_of
