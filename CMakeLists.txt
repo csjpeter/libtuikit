@@ -116,6 +116,7 @@ set(TUIKIT_SOURCES
     src/statusline.c
     src/table.c
     src/mdview.c
+    src/htmlrender.c
     src/menu.c
     src/tabrow.c
     src/tree.c
@@ -462,6 +463,9 @@ function(tuikit_write_changelog _pkg)
 "${_pkg} (${TUIKIT_VERSION}) stable; urgency=medium
 
   * Build from git commit ${TUIKIT_GIT_COMMIT}.
+  * new: tui_html_render() (TUI-124): a bounded HTML subset (b, i, u, s, a,
+    br, p, ul, ol, li, blockquote, pre, table, entities, style colour) as
+    reflowed text, plain or with SGR; no script runs, nothing is loaded.
   * 1.2.0: new: tui_mdview, the Markdown text view (TUI-117): headings, bold,
     italic, code, lists, quotes, tables and links, paragraphs reflowed to the
     width, scrolling, a plain fallback; tui_md_render(), tui_md_render_marked()

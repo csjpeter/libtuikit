@@ -228,6 +228,7 @@ Non-goals:
 | `tuikit/tabrow.h` | the tab row of a screen with sub-views, the active tab by attribute | yes | TUI-69 |
 | `tuikit/menu.h` | the main menu: numbered entries, live counts, the description of the entry under the cursor | yes | TUI-108 |
 | `tuikit/textview.h` | wrapped, scrollable text | yes | M4 |
+| `tuikit/htmlrender.h` | HTML to text with SGR: the subset above, a width, no script, no remote load | yes | TUI-124 |
 | `tuikit/mdview.h` | Markdown view: headings, lists, tables, code, reflow, scrolling, plain fallback; the renderer as text | yes | TUI-117 |
 | `tuikit/lineedit.h` | single-line editor model, history | yes | M5 |
 | `tuikit/dialog.h` | message, confirm, prompt, menu | yes | M6 |
@@ -928,6 +929,33 @@ the parts so that a program cannot invent a binding.
   other views. The scroll bar of TUI-110 is drawn while the text is longer
   than the area. Not supported (drawn as text): images, HTML, footnotes,
   reference-style links, setext headings, task lists.
+- **The HTML renderer (TUI-124).** `tui_html_render(html, width, ansi, out)`
+  (`tuikit/htmlrender.h`) turns an HTML body (a mail) into reflowed text, plain
+  or with SGR; the mail reader of email-cli keeps no renderer of its own. One
+  pass over the markup, no DOM: inline text collects with style markers,
+  a block end wraps it (white space collapses, words wider than a line are
+  split at the column, the width is at least 20), the last step turns the
+  markers into SGR or drops them. **Subset:** b/strong, i/em, u/ins,
+  s/strike/del, code/tt/kbd (cyan), a, br, hr, p, h1-h6 (bold), div and the
+  other block elements, ul/ol (`start`, nesting, bullets alternate), li,
+  blockquote (`> ` prefix), pre (literal, hard-split), table (tr, th, td:
+  columns, the widest one shortened with an ellipsis, a header row of th
+  ruled; a nested table is flattened into its cell), img (the alt text in
+  brackets), named/decimal/hex entities (the Latin-1 and Hungarian letters
+  too; an unknown entity stays as written), the style colour of an element
+  (`style="color:"`, `font color=`: #rgb, #rrggbb, rgb(), basic names, as
+  38;2;r;g;b; also font-weight, font-style, text-decoration). **Safety:** no
+  script runs and nothing is loaded; script, style, head, title, template,
+  object, embed, iframe, applet, svg, math, select, textarea and comments are
+  dropped with their content; a link shows "text (url)" only for http, https
+  and mailto and when the URL is not the text; bidi overrides, BOM and
+  control characters are dropped or become spaces. **Broken markup** renders
+  what it can: unknown tags are ignored, an end tag closes down to its
+  element, a stray one is ignored, li/td/th/tr/p close the previous one,
+  an unfinished tag or entity is dropped or kept as text, the nesting is
+  capped (64 open elements, 8 prefix levels, 128 table rows, 16 columns,
+  512 distinct styles). Not supported: CSS beyond the four properties,
+  background colours, images, forms, frames, `dir`/`rtl`.
 - **Search in the help (TUI-59).** `/` in a help dialog opens a one-line
   search (a `tui_lineedit` over a buffer the dialog allocates on first use,
   kept in the otherwise unused `checked` array, so no public struct changes).

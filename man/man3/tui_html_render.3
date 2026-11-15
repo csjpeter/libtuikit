@@ -1,0 +1,72 @@
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_HTML_RENDER 3 2026-11-15 "libtuikit 1.2" "libtuikit Manual"
+.SH NAME
+tui_html_render \- HTML shown as styled terminal text
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/htmlrender.h>
+.PP
+.BI "int tui_html_render(const char *" html ", int " width ", int " ansi ", tui_buf *" out );
+.fi
+.SH DESCRIPTION
+.BR tui_html_render ()
+renders an HTML body (a mail, a fragment) as text, reflowed to
+.I width
+columns (values under 20 mean 20), appended to
+.I out
+without a trailing newline.
+Nothing runs and nothing is loaded: scripts, styles and images are never
+touched.
+.PP
+Supported: b, strong, i, em, u, s, strike, del, code, tt, kbd (bold, italic,
+underline, strike, cyan), a, br, hr, p, h1 to h6 (bold), div and the other
+block elements, ul, ol (with
+.IR start ),
+li (nested), blockquote (lines start with
+.BR "> " ),
+pre (kept as written, split at the column), table with tr, th and td (cells in
+columns; the widest column is shortened with an ellipsis, a header row of th
+is ruled), img (its alt text in brackets), the named, decimal and hexadecimal
+entities, and the colour of an element:
+.B style="color:..."
+or
+.BR "<font color=...>" ,
+as #rgb, #rrggbb, rgb() or a basic name; also font-weight, font-style and
+text-decoration.
+.PP
+A link reads
+.RB \(lq "text (url)" \(rq
+for an http, https or mailto address that is not the text itself; any other
+target (javascript:, data:, cid:, a relative one) is not shown.
+script, style, head, title, template, object, embed, iframe, applet, svg, math,
+select, textarea and comments are dropped with their content.
+Unknown tags are ignored, their text kept.
+Broken markup (unclosed or mis-nested tags, stray end tags, unfinished tags and
+entities, missing optional end tags of li, td, th, tr and p) renders what can
+be rendered.
+Control characters, bidi overrides and the byte order mark are dropped or
+shown as spaces.
+.PP
+With
+.I ansi
+0 the text is plain and readable.
+With 1 it carries SGR sequences: bold 1, italic 3, underline 4, strike 9, code
+36, colour 38;2;r;g;b; each line resets its own and a style open at a line
+break is opened again on the next line.
+.SH RETURN VALUE
+0, or \-1 with
+.B errno
+set to
+.B ENOMEM
+(or
+.B EINVAL
+for a NULL
+.IR out ).
+A NULL or empty
+.I html
+renders nothing.
+.SH SEE ALSO
+.BR tui_mdview_init (3),
+.BR tui_buf_init (3),
+.BR libtuikit (7)

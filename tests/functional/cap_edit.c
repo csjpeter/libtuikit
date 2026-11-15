@@ -426,6 +426,30 @@ static void cap_cmdline(void) {
     tui_cmdline_free(&cl);
 }
 
+static void cap_htmlrender(void) {
+    const char *html = "<html><head><style>p{}</style></head><body><h1>Title</h1>"
+                       "<p>Some <b>bold</b> and <a href=\"https://example.org/x\">a link</a>"
+                       " &amp; <font color=\"#ff0000\">red</font></p>"
+                       "<ul><li>one</li><li>two</li></ul>"
+                       "<table><tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr></table>"
+                       "<script>alert(1)</script></body></html>";
+    tui_buf out;
+    tui_buf_init(&out);
+    CHECK_INT(tui_html_render(html, 80, 0, &out), 0, "tui_html_render, plain");
+    CHECK_HAS(out.data, "Title\n\nSome bold and a link (https://example.org/x) & red", "the paragraph, the link");
+    CHECK_HAS(out.data, " \xE2\x80\xA2 one\n \xE2\x80\xA2 two", "the list");
+    CHECK_HAS(out.data, "  A \xE2\x94\x82 B", "the table");
+    CHECK(strstr(out.data, "alert") == NULL, "no script");
+    CHECK(strchr(out.data, '\x1b') == NULL, "no escape in the plain text");
+    tui_buf_reset(&out);
+    CHECK_INT(tui_html_render(html, 80, 1, &out), 0, "tui_html_render, ansi");
+    CHECK_HAS(out.data, "\x1b[1mbold\x1b[0m", "bold carries SGR");
+    CHECK_HAS(out.data, "\x1b[38;2;255;0;0mred\x1b[0m", "the colour carries SGR");
+    CHECK_INT(tui_html_render("x", 40, 0, NULL), -1, "no output buffer");
+    CHECK_INT(errno, EINVAL, "EINVAL");
+    tui_buf_free(&out);
+}
+
 int main(void) {
     cap_history();
     cap_lineedit();
@@ -436,5 +460,6 @@ int main(void) {
     cap_histview();
     cap_cmdline();
     cap_mdview();
+    cap_htmlrender();
     return cap_finish("cap-edit");
 }
