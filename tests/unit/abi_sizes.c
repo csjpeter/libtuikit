@@ -27,6 +27,7 @@ int main(void) {
     SHOW(tui_completion);
     SHOW(tui_decoder);
     SHOW(tui_dialog);
+    SHOW(tui_dialog_form);
     SHOW(tui_event);
     SHOW(tui_field);
     SHOW(tui_fieldset);

@@ -1,0 +1,71 @@
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_DIALOG_FORM_INIT 3 2026-11-15 "libtuikit 1.4" "libtuikit Manual"
+.SH NAME
+tui_dialog_form_init, tui_dialog_form_free, tui_dialog_form_handle,
+tui_dialog_form_render \- a form in a modal frame
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/fieldset.h>
+.PP
+.BI "int  tui_dialog_form_init(tui_dialog_form *" d ", const char *" title ,
+.BI "                          const char *" hint ", tui_fieldset *" form );
+.BI "void tui_dialog_form_free(tui_dialog_form *" d );
+.BI "tui_dialog_state tui_dialog_form_handle(tui_dialog_form *" d ", const tui_event *" ev );
+.BI "void tui_dialog_form_render(tui_dialog_form *" d ", tui_canvas " c );
+.fi
+.SH DESCRIPTION
+A
+.BR tui_fieldset (3)
+in a centred box with a frame: the
+.I title
+in the top border and a key
+.I hint
+in the bottom border.
+.I hint
+may be NULL, which gives
+.B TUI_DIALOG_FORM_HINT
+(" Tab next  Enter OK  Esc cancel ").
+Like every dialog it neither blocks nor reads the terminal: the program gives it
+events and draws it last.
+.PP
+.BR tui_dialog_form_init ()
+copies the title and the hint and keeps the pointer to
+.IR form ,
+which the caller owns and frees (with
+.BR tui_fieldset_free (3))
+after
+.BR tui_dialog_form_free ().
+It returns 0, or \-1 with
+.B EINVAL
+(no dialog or no form) or
+.BR ENOMEM .
+The members
+.I frame
+and
+.I fill
+(styles; the scheme's frame and text roles) may be set afterwards.
+.PP
+.BR tui_dialog_form_handle ()
+passes one event to the form and returns its state: the keys of
+.BR tui_fieldset_handle (3),
+Enter submits through the form's
+.I validate
+(a refusal shows its reason inside the frame and the dialog stays open), Esc
+and Ctrl-C cancel.
+The outcome, too, is
+.IR form\->state :
+.B TUI_DIALOG_OK
+or
+.BR TUI_DIALOG_CANCELLED .
+.PP
+.BR tui_dialog_form_render ()
+draws the box centred in
+.IR c ,
+sized to the fields (the widest label and value, the title, the hint), to the
+completion drop-down's rows when a field completes, and to one row for the error,
+and at most to the canvas less a margin of one cell.
+The cursor goes to the focused text field.
+.SH SEE ALSO
+.BR tui_fieldset_init (3),
+.BR tui_dialog_message (3)

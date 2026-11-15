@@ -18,6 +18,7 @@ size tui_cmdline 912 8
 size tui_completion 16 8
 size tui_decoder 312 8
 size tui_dialog 280 8
+size tui_dialog_form 48 8
 size tui_event 56 8
 size tui_field 152 8
 size tui_fieldset 632 8
@@ -98,12 +99,17 @@ symbol tui_decoder_pending
 symbol tui_decoder_timeout
 symbol tui_dialog_checklist
 symbol tui_dialog_confirm
+symbol tui_dialog_form_free
+symbol tui_dialog_form_handle
+symbol tui_dialog_form_init
+symbol tui_dialog_form_render
 symbol tui_dialog_free
 symbol tui_dialog_handle
 symbol tui_dialog_help
 symbol tui_dialog_is_checked
 symbol tui_dialog_menu
 symbol tui_dialog_message
+symbol tui_dialog_password
 symbol tui_dialog_prompt
 symbol tui_dialog_render
 symbol tui_event_name
