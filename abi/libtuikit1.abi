@@ -38,6 +38,8 @@ size tui_readline_opts 32 8
 size tui_rect 16 4
 size tui_scheme 204 4
 size tui_scheme_report 196 4
+size tui_sgrline 32 8
+size tui_sgrview 48 8
 size tui_statusline 920 8
 size tui_style 12 4
 size tui_table 152 8
@@ -222,6 +224,16 @@ symbol tui_screen_rows
 symbol tui_screen_set_cursor
 symbol tui_screen_set_sync
 symbol tui_selection_style
+symbol tui_sgrview_free
+symbol tui_sgrview_handle
+symbol tui_sgrview_init
+symbol tui_sgrview_lines
+symbol tui_sgrview_render
+symbol tui_sgrview_scroll
+symbol tui_sgrview_scroll_end
+symbol tui_sgrview_scroll_to
+symbol tui_sgrview_set_text
+symbol tui_sgrview_top
 symbol tui_statusline_begin_prompt
 symbol tui_statusline_clear_message
 symbol tui_statusline_clear_wait
