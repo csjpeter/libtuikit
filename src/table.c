@@ -495,23 +495,65 @@ int tui_table_next_marked(const tui_table *t, int after) {
 
 /* ── Layout ────────────────────────────────────────────────────────── */
 
+static int cell_width(const tui_table_cell *c, int from_span);
+
+/* The display width of the longest cell of column @p col over the data rows. */
+static int column_content(const tui_table *t, int col) {
+    int best = 0;
+    tui_table_cell cell;
+    for (int r = 0; r < t->lv.count; r++) {
+        if (t->model.row) {
+            tui_table_row row;
+            row_describe(t, r, &row);
+            if (row.kind != TUI_ROW_DATA) continue;
+        }
+        cell_describe(t, r, col, &cell);
+        int w = cell_width(&cell, 0);
+        if (w > best) best = w;
+    }
+    return best;
+}
+
 int tui_table_widths(const tui_table *t, int cols, int *widths) {
     if (!t || !widths) return 0;
-    int shown = 0, fixed = 0, weights = 0;
+    int shown = 0, sum = 0, weights = 0;
+    int minw[64];
     for (int i = 0; i < t->ncols; i++) {
         const tui_table_col *c = &t->cols[i];
         int hide = c->hide_below > 0 && cols < c->hide_below;
-        widths[i] = hide ? 0 : (c->width > 0 ? c->width : 1);
+        int base = c->width > 0 ? c->width : 1;
+        widths[i] = hide ? 0 : base;
+        if (i < 64) minw[i] = base;
         if (hide) continue;
         shown++;
-        fixed += widths[i];
-        if (c->weight > 0) weights += c->weight;
+        if (c->flags & TUI_COL_FIT) {
+            /* width: the minimum, weight: the maximum (0: none) */
+            int w = column_content(t, i);
+            if (c->weight > 0 && w > c->weight) w = c->weight;
+            if (w > base) widths[i] = w;
+        } else if (c->weight > 0) {
+            weights += c->weight;
+        }
+        sum += widths[i];
     }
-    int avail = cols - GUTTER - (shown > 1 ? shown - 1 : 0) - fixed;
+    int room = cols - GUTTER - (shown > 1 ? shown - 1 : 0);
+    int avail = room - sum;
+    /* Too tight: the widest FIT columns lose width first, one cell at a
+     * time, never below their minimum; the weighted columns keep theirs. */
+    while (avail < 0) {
+        int pick = -1;
+        for (int i = 0; i < t->ncols && i < 64; i++) {
+            if (!(t->cols[i].flags & TUI_COL_FIT) || widths[i] <= minw[i]) continue;
+            if (pick < 0 || widths[i] > widths[pick]) pick = i;
+        }
+        if (pick < 0) break;
+        widths[pick]--;
+        avail++;
+    }
     if (avail > 0 && weights > 0) {
         int given = 0, last = -1;
         for (int i = 0; i < t->ncols; i++) {
-            if (!widths[i] || t->cols[i].weight <= 0) continue;
+            if (!widths[i] || (t->cols[i].flags & TUI_COL_FIT) || t->cols[i].weight <= 0) continue;
             int add = avail * t->cols[i].weight / weights;
             widths[i] += add;
             given += add;
@@ -658,7 +700,7 @@ static tui_canvas row_canvas(tui_canvas c, int r) {
 }
 
 static void draw_row(const tui_table *t, tui_canvas row, int index, int selected,
-                     tui_style blank) {
+                     tui_style blank, const int *widths) {
     tui_table_row r;
     row_describe(t, index, &r);
     r.style = over_text(r.style);
@@ -671,11 +713,7 @@ static void draw_row(const tui_table *t, tui_canvas row, int index, int selected
         return;
     }
     draw_gutter(t, row, r.style, sel, &r, row_marked(t, index));
-    int widths[64];
     int n = t->ncols < 64 ? t->ncols : 64;
-    tui_table tt = *t;
-    tt.ncols = n;
-    tui_table_widths(&tt, tui_canvas_cols(row), widths);
     tui_table_cell cell;
     int x = GUTTER;
     for (int i = 0; i < n && x < tui_canvas_cols(row); i++) {
@@ -793,8 +831,12 @@ int tui_table_render_row(tui_table *t, tui_canvas c, int index) {
         return 0;
     int line = header_rows(t) + (index - t->lv.scroll_top);
     if (line >= tui_canvas_rows(c)) return 0;
+    int widths[64];
+    tui_table tt = *t;
+    tt.ncols = t->ncols < 64 ? t->ncols : 64;
+    tui_table_widths(&tt, tui_canvas_cols(c), widths);
     draw_row(t, row_canvas(c, line), index, index == t->lv.selected,
-             tui_scheme_style(TUI_ROLE_TEXT));
+             tui_scheme_style(TUI_ROLE_TEXT), widths);
     return 1;
 }
 
@@ -819,10 +861,14 @@ void tui_table_render(tui_table *t, tui_canvas c, tui_style blank) {
     if (bar) body = tui_canvas_sub(c, tui_rect_make(0, 0, rows, cols - 1));
     render_header(t, body);
     render_footer(t, body);
+    int widths[64];
+    tui_table tt = *t;
+    tt.ncols = t->ncols < 64 ? t->ncols : 64;
+    tui_table_widths(&tt, tui_canvas_cols(body), widths);
     for (int i = 0; i < t->lv.rows_visible; i++) {
         int index = t->lv.scroll_top + i;
         if (index >= t->lv.count) break;
-        draw_row(t, row_canvas(body, hdr + i), index, index == t->lv.selected, blank);
+        draw_row(t, row_canvas(body, hdr + i), index, index == t->lv.selected, blank, widths);
     }
     if (bar)
         tui__scrollbar(tui_canvas_sub(c, tui_rect_make(hdr, 0, body_rows > 0 ? body_rows : 0, cols)),

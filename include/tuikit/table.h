@@ -33,14 +33,17 @@ extern "C" {
 
 /** @brief Column flags. */
 enum {
-    TUI_COL_CUT_START = 1  /**< a cell too long loses its beginning ("…tail") */
+    TUI_COL_CUT_START = 1, /**< a cell too long loses its beginning ("…tail") */
+    TUI_COL_FIT = 2        /**< fits its content: @c width is the minimum, @c weight the
+                                maximum (0: none); see tui_table_widths() */
 };
 
 /** @brief A column.  The columns are separated by one blank cell. */
 typedef struct tui_table_col {
     const char *title;   /**< header text; NULL for none */
-    int         width;   /**< cells; the minimum when @c weight > 0 */
-    int         weight;  /**< 0: fixed; > 0: shares the remaining width */
+    int         width;   /**< cells; the minimum when @c weight > 0 or TUI_COL_FIT */
+    int         weight;  /**< 0: fixed; > 0: shares the remaining width;
+                              with TUI_COL_FIT: the maximum width */
     tui_align   align;   /**< TUI_ALIGN_LEFT / CENTER / RIGHT */
     int         hide_below; /**< hidden when the table is narrower; 0: never */
     int         sort;    /**< header marker: 1 "▲", -1 "▼", 0 none */

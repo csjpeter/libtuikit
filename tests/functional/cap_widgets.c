@@ -62,6 +62,17 @@ static void cap_table(void) {
     CHECK_INT(w[1], 6, "fixed column keeps its width");
     CHECK(w[0] >= 8, "the weighted column takes the rest");
 
+    static const tui_table_col fitc[] = {
+        { "Name", 3, 10, TUI_ALIGN_LEFT, 0, 0, TUI_COL_FIT },
+        { "Note", 4, 1, TUI_ALIGN_LEFT, 0, 0, 0 },
+    };
+    tui_table ft;
+    tui_table_init(&ft, fitc, 2, &m);
+    tui_table_set_count(&ft, 10);
+    CHECK_INT(tui_table_widths(&ft, 40, w), 2, "a FIT column is shown");
+    CHECK(w[0] >= 3 && w[0] <= 10, "a FIT column stays within its limits");
+    tui_table_free(&ft);
+
     tui_table_select(&t, 2);
     CHECK_INT(tui_table_selected(&t), 3, "a section row is passed over");
     tui_event ev = cap_ev("\x1b[A");
