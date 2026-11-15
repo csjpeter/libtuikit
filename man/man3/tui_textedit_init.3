@@ -5,7 +5,8 @@
 .SH NAME
 tui_textedit_init, tui_textedit_set_text, tui_textedit_insert,
 tui_textedit_handle, tui_textedit_lines, tui_textedit_cursor,
-tui_textedit_render, tui_textedit_summary \- multi-line text editor
+tui_textedit_render, tui_textedit_set_wrap, tui_textedit_wrapped,
+tui_textedit_wrap_rows, tui_textedit_summary \- multi-line text editor
 .SH SYNOPSIS
 .nf
 .B #include <tuikit/textedit.h>
@@ -17,6 +18,9 @@ tui_textedit_render, tui_textedit_summary \- multi-line text editor
 .BI "int    tui_textedit_lines(const tui_textedit *" te );
 .BI "void   tui_textedit_cursor(const tui_textedit *" te ", int *" row ", int *" col );
 .BI "void   tui_textedit_render(tui_textedit *" te ", tui_canvas " c ", tui_style " st );
+.BI "void   tui_textedit_set_wrap(tui_textedit *" te ", int " on );
+.BI "int    tui_textedit_wrapped(const tui_textedit *" te );
+.BI "int    tui_textedit_wrap_rows(const tui_textedit *" te );
 .BI "int    tui_textedit_summary(const char *" text ", int " cols ", char *" out ", size_t " outsz );
 .fi
 .SH DESCRIPTION
@@ -33,8 +37,10 @@ Positions are byte offsets on character boundaries; a combining mark moves
 and is deleted with its character.
 Columns are display columns: a wide character takes two, a combining mark
 none, a tab reaches the next multiple of eight.
-Lines are not wrapped: the view scrolls horizontally as well as vertically,
-so a column on the screen is a column in the text.
+Lines are not wrapped by default: the view scrolls horizontally as well as
+vertically, so a column on the screen is a column in the text (see
+.B Soft wrap
+below).
 .PP
 .BR tui_textedit_init ()
 starts editing
@@ -92,6 +98,34 @@ and
 .BR tui_textedit_cursor ()
 report the number of lines and the cursor's line and display column, for a
 status line.
+.SS Soft wrap
+.BR tui_textedit_set_wrap ()
+turns soft wrap on or off (off after init; the mode survives
+.BR tui_textedit_set_text ()).
+Wrapped, a line longer than the canvas is shown on several rows, broken
+between characters (a wide character that does not fit moves to the next
+row, a tab is expanded within its row), and the text is not changed.
+There is no horizontal scrolling; the view follows the cursor over the
+wrapped rows, and
+.I te\->top
+counts rows.
+Up, Down, PgUp and PgDn move by row, keeping the column aimed for.
+Home, End, Ctrl-A, Ctrl-E and Ctrl-K still act on the text line, and
+.BR tui_textedit_lines ()
+and
+.BR tui_textedit_cursor ()
+still count text lines and the column in the text line.
+A line whose last row is exactly full gets one empty row more, where the
+cursor stands after its last character.
+The width is the canvas width of the last
+.BR tui_textedit_render ()
+(80 until the first one), so a program that sizes the editor should draw
+before it feeds keys.
+.BR tui_textedit_wrapped ()
+returns 1 when wrap is on.
+.BR tui_textedit_wrap_rows ()
+returns the rows the whole text takes at that width, for a scroll bar (the
+number of lines when not wrapped).
 .PP
 .BR tui_textedit_summary ()
 writes one line summarising a text for a form row: its first line, cut to

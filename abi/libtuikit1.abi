@@ -335,7 +335,10 @@ symbol tui_textedit_insert
 symbol tui_textedit_lines
 symbol tui_textedit_render
 symbol tui_textedit_set_text
+symbol tui_textedit_set_wrap
 symbol tui_textedit_summary
+symbol tui_textedit_wrap_rows
+symbol tui_textedit_wrapped
 symbol tui_textview_append
 symbol tui_textview_at_end
 symbol tui_textview_free

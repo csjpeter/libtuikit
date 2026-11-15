@@ -53,6 +53,10 @@ Added after the first implementation (2026-10-03):
   keeps newlines and tabs -- issue-manager's `tui_textarea`, generalised to
   display widths and tab stops, with a one-line summary for form rows.  (Not
   `tui_textarea`: issue-manager keeps that name for its own, §3.)
+  Soft wrap (TUI-129, `tui_textedit_set_wrap()`): a long line shows on
+  several rows, broken between characters, the text untouched; the flag and
+  the layout width live in `left` (negative = wrapped), as the struct cannot
+  grow; `top` counts rows then; Up/Down/PgUp/PgDn move by row.
 - Menu and checklist rows (TUI-49) are drawn in the table's selection: the
   whole row on the dark blue of the colour depth (taken from COLORTERM and
   TERM at render time, so no struct changes), the text keeping its
