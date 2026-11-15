@@ -34,6 +34,12 @@ static void t_cell(void *ctx, int i, int col, tui_table_cell *c) {
 }
 static uint64_t t_id(void *ctx, int i) { (void)ctx; return 1000u + (uint64_t)i; }
 
+static void t_foot(void *ctx, int row, int col, tui_table_cell *c) {
+    (void)ctx; (void)row;
+    if (col == 0) tui_table_cell_put(c, "Total", TUI_STYLE_DEFAULT);
+    else if (col == 1) tui_table_cell_put(c, "450", TUI_STYLE_DEFAULT);
+}
+
 static void cap_table(void) {
     static const tui_table_col cols[] = {
         { "Name", 8, 1, TUI_ALIGN_LEFT, 0, 1, 0 },
@@ -141,6 +147,23 @@ static void cap_table(void) {
     CHECK(tui_table_format_row(&t, 40, 1, line, sizeof line) > 0, "format_row");
     CHECK_HAS(line, "name1", "row text");
     CHECK_HAS(line, "10", "cell text");
+
+    CHECK_INT(tui_table_set_footer(&t, 1, t_foot, NULL), 0, "set_footer");
+    tui_canvas_clear(c, TUI_STYLE_DEFAULT);
+    tui_table_render(&t, c, TUI_STYLE_DEFAULT);
+    txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "Total", "footer under the body");
+    CHECK_HAS(txt, "450", "footer cell under its column");
+    free(txt);
+    tui_canvas_clear(c, TUI_STYLE_DEFAULT);
+    tui_table_render_footer(&t, c);
+    txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "Total", "render_footer");
+    CHECK(strstr(txt, "name1") == NULL, "footer alone has no rows");
+    free(txt);
+    CHECK(tui_table_format_footer(&t, 40, 0, line, sizeof line) > 0, "format_footer");
+    CHECK_HAS(line, "450", "footer text");
+    tui_table_set_footer(&t, 0, NULL, NULL);
 
     tui_table_set_message(&t, "nothing here", TUI_STYLE_HINT);
     tui_canvas_clear(c, TUI_STYLE_DEFAULT);

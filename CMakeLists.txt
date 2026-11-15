@@ -311,6 +311,8 @@ set(TUIKIT_MAN3_ALIASES
     tui_table_render:tui_table_init tui_table_render_header:tui_table_init
     tui_table_render_row:tui_table_init tui_table_format_row:tui_table_init
     tui_table_format_header:tui_table_init
+    tui_table_set_footer:tui_table_init tui_table_render_footer:tui_table_init
+    tui_table_format_footer:tui_table_init
     tui_table_set_row_id:tui_table_init tui_table_marked:tui_table_init
     tui_table_marked_count:tui_table_init tui_table_set_marked:tui_table_init
     tui_table_toggle_mark:tui_table_init tui_table_mark_all:tui_table_init
