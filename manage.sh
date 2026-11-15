@@ -79,7 +79,7 @@ Commands:
                         changed against the mainline
   check-deep            QA 2: sanitizer-build tests (unit, pty, functional), valgrind and
                         coverage, one after the other; results in build/result/
-  package [deb|rpm|all] Build the packages with CPack into build/packages/ (libtuikit1,
+  package [deb|rpm|all] Build the packages with CPack into build/packages/ (libtuikit2,
                         libtuikit-dev), lintian-checked; empty on failure; never tags or pushes
   tag-build VERSION     Make the annotated tag vVERSION on HEAD, locally; pushes nothing
   timing [KEY-N]        Print the gate line "Gate 1 (PROJECT, KEY-N): <total>s (...)" from

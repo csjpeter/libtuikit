@@ -29,13 +29,14 @@ asks the library for a role and chooses no colour of its own.
 Every widget draws with the roles of the active scheme, and the palette
 macros of
 .I tuikit/screen.h
-(TUI_STYLE_HEADER, _SELECTION, _ACCENT, _OK, _ERROR, _HINT, _PROGRESS)
+(TUI_STYLE_HEADER, _SELECTION, _ACCENT, _OK, _ERROR, _WARNING, _HINT, _PROGRESS)
 are run-time lookups of the roles
 .BR header ,
 .BR selection ,
 .BR accent ,
 .BR ok ,
 .BR error ,
+.BR warning ,
 .B hint
 and
 .BR progress :
@@ -63,7 +64,10 @@ text (labels), accent (focused label), input / input.focus (a text value), selec
 scrollbar.track (default: dim), scrollbar.thumb (default: plain)
 .TP
 .B status line
-status (the bar), text (a message), error, ok, progress
+status (the bar), text (a message), error, warning, ok, progress
+.TP
+.B menu attention count
+warning (default: bold orange, 256-colour index 208; bold yellow on an 8-colour terminal)
 .TP
 .B prompt line of a dialog
 input.focus
@@ -108,6 +112,7 @@ The keys in a file are
 .BR tab.inactive ,
 .BR ok ,
 .BR error ,
+.BR warning ,
 .BR hint ,
 .BR progress ,
 .B scrollbar.track
@@ -175,7 +180,7 @@ is looked up in
 (or
 .I ~/.config/tuikit/schemes/
 when that is unset or not an absolute path) first, then in
-.IR /usr/share/libtuikit1/schemes/ ;
+.IR /usr/share/libtuikit2/schemes/ ;
 a user's scheme of a name wins over the system's.
 A name is letters, digits,
 .BR _ ,
@@ -192,7 +197,7 @@ in
 .IR /etc/tuikit/tuikit.conf ;
 when neither names one, the built-in palette is used.
 The package installs
-.I /usr/share/libtuikit1/schemes/default.scheme
+.I /usr/share/libtuikit2/schemes/default.scheme
 with exactly the built-in styles.
 .SH FUNCTIONS
 .BR tui_scheme_load ()
