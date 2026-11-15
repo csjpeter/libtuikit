@@ -162,8 +162,24 @@ draws a box centred in
 .IR c ,
 sized to the text, the title and the buttons or items, and to at most the
 canvas less a margin of one cell; the text is wrapped to the box.
-Short of rows, the blank line above the buttons goes first, so the text
-keeps at least one row.
+.PP
+The message, the question and the two prompts share one proportioned layout
+(TUI-139).
+The box is 40 to 70 cells of text wide, by the text, and never wider than the
+canvas less 4; lines are wrapped inside it and only a word longer than the box
+is cut.
+One blank cell lies inside the border on both sides, one blank row under the
+top border, one between the text and the field or buttons.
+The buttons are in the last row, together and centred, of one width and two
+cells apart; the focused one is reversed.
+The box is centred across and a little above the middle (two fifths of the free
+rows over it).
+Its height follows the content; when the canvas is lower, the text scrolls
+(Up, Down, Page Up, Page Down) and the field and buttons stay.
+When even one text row does not fit, or the canvas is narrower than 20 cells,
+no box is drawn and a line at the bottom says
+.IR "Terminal too small for this dialog" ;
+the keys still work.
 A prompt puts the terminal cursor in its input line; the other kinds hide
 it.
 The styles of the frame, the inside and the focused button or selected

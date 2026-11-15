@@ -73,16 +73,17 @@ static void test_message(void) {
     ASSERT(fx_open(&f, 9, 30) == 0, "fixtures");
     fx_draw(&f, &d);
     const char *const expect[] = {
-        "", "",
-        "         ┌─ Note ───┐",
-        "         │ Saved.   │",
-        "         │          │",
-        "         │  [ OK ]  │",
-        "         └──────────┘",
+        "",
+        "  ┌─ Note ─────────────────┐",
+        "  │                        │",
+        "  │ Saved.                 │",
+        "  │                        │",
+        "  │         [ OK ]         │",
+        "  └────────────────────────┘",
         "", "", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
-    const char *const map[] = { "A..SSSSSS..A", NULL };
-    ASSERT_REGION_STYLE(f.s, PTY_REGION(5, 9, 1, 12), map, legend);
+    const char *const map[] = { "A"  "........." "SSSSSS" "........." "A", NULL };
+    ASSERT_REGION_STYLE(f.s, PTY_REGION(5, 2, 1, 26), map, legend);
     ASSERT_EQ_INT(send(&d, "x"), TUI_DIALOG_OPEN, "other keys leave it open");
     ASSERT_EQ_INT(send(&d, " "), TUI_DIALOG_OK, "Space closes it");
     ASSERT_EQ_INT(send(&d, "\x1b"), TUI_DIALOG_OK, "closed stays closed");
@@ -104,21 +105,22 @@ static void test_confirm(void) {
     ASSERT(fx_open(&f, 9, 30) == 0, "fixtures");
     fx_draw(&f, &d);
     const char *const expect[] = {
-        "", "",
-        "     ┌─ Delete? ───────┐",
-        "     │ Delete 3 files? │",
-        "     │                 │",
-        "     │ [ Yes ]  [ No ] │",
-        "     └─────────────────┘",
+        "",
+        "  ┌─ Delete? ──────────────┐",
+        "  │                        │",
+        "  │ Delete 3 files?        │",
+        "  │                        │",
+        "  │    [ Yes ]  [ No  ]    │",
+        "  └────────────────────────┘",
         "", "", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
-    const char *const map_no[] = { "A..........SSSSSS.A", NULL };
-    ASSERT_REGION_STYLE(f.s, PTY_REGION(5, 5, 1, 19), map_no, legend);
+    const char *const map_no[] = { "A" "............." "SSSSSSS" "...." "A", NULL };
+    ASSERT_REGION_STYLE(f.s, PTY_REGION(5, 2, 1, 26), map_no, legend);
     ASSERT_EQ_INT(send(&d, "\x1b[D"), TUI_DIALOG_OPEN, "Left");
     ASSERT_EQ_INT(d.answer, 1, "focus on Yes");
     fx_draw(&f, &d);
-    const char *const map_yes[] = { "A.SSSSSSS.........A", NULL };
-    ASSERT_REGION_STYLE(f.s, PTY_REGION(5, 5, 1, 19), map_yes, legend);
+    const char *const map_yes[] = { "A" "...." "SSSSSSS" "............." "A", NULL };
+    ASSERT_REGION_STYLE(f.s, PTY_REGION(5, 2, 1, 26), map_yes, legend);
     send(&d, "\t");
     ASSERT_EQ_INT(d.answer, 0, "Tab moves back to No");
     ASSERT_EQ_INT(send(&d, "\r"), TUI_DIALOG_OK, "Enter takes the focused button");
@@ -150,17 +152,19 @@ static void test_prompt(void) {
     ASSERT(fx_open(&f, 9, 30) == 0, "fixtures");
     fx_draw(&f, &d);
     const char *const expect[] = {
-        "", "",
-        " ┌─ Rename ─────────────────┐",
-        " │ New name:                │",
-        " │ old.txt                  │",
-        " └──────────────────────────┘",
-        "", "", "", NULL };
+        "",
+        "  ┌─ Rename ───────────────┐",
+        "  │                        │",
+        "  │ New name:              │",
+        "  │                        │",
+        "  │ old.txt                │",
+        "  └────────────────────────┘",
+        "", "", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
     int r, c;
     pty_cursor(f.s, &r, &c);
-    ASSERT_EQ_INT(r, 4, "cursor in the input line");
-    ASSERT_EQ_INT(c, 10, "cursor after the text");
+    ASSERT_EQ_INT(r, 5, "cursor in the input line");
+    ASSERT_EQ_INT(c, 11, "cursor after the text");
     ASSERT_EQ_INT(send(&d, "\x7f\x7f\x7fmd"), TUI_DIALOG_OPEN, "editing");
     ASSERT_EQ_STR(buf, "old.md", "edited in the caller's buffer");
     ASSERT_EQ_INT(send(&d, "\x04\x04\x04"), TUI_DIALOG_OPEN, "Ctrl-D does not close a prompt");
@@ -423,14 +427,10 @@ static void test_small_terminal(void) {
     Fx f;
     ASSERT(fx_open(&f, 6, 16) == 0, "fixtures");
     fx_draw(&f, &d);
-    const char *const expect[] = {
-        "",
-        " ┌─ A rather…─┐",
-        " │ This      █│",
-        " │   [ OK ]   │",
-        " └────────────┘",
-        "", NULL };
-    ASSERT_SCREEN_EQ(f.s, expect);
+    /* TUI-139: a box that cannot show its button whole is not opened. */
+    ASSERT_ROW_CONTAINS(f.s, 5, "Terminal too");
+    ASSERT(!pty_screen_contains(f.s, "┌"), "no box");
+    ASSERT_EQ_INT(send(&d, "\r"), TUI_DIALOG_OK, "the keys still work");
     tui_dialog_free(&d);
     tui_dialog_render(NULL, tui_canvas_of(f.scr));
     tui_dialog_free(NULL);
@@ -624,6 +624,130 @@ static void test_menu_selection_depth_and_own_style(void) {
     fx_close(&f);
 }
 
+/* ── TUI-139: the layout of the message, the question and the prompts ── */
+
+static int blank_cell(const char *t) { return !t || !*t || strcmp(t, " ") == 0; }
+
+/* The box on the screen: its corners; -1 when there is none. */
+static int find_box(PtySession *s, int rows, int cols, int *r0, int *c0, int *r1, int *c1) {
+    *r0 = *c0 = *r1 = *c1 = -1;
+    for (int r = 0; r < rows && *r0 < 0; r++)
+        for (int c = 0; c < cols; c++)
+            if (strcmp(pty_cell_text(s, r, c), "┌") == 0) { *r0 = r; *c0 = c; break; }
+    if (*r0 < 0) return -1;
+    for (int c = *c0; c < cols; c++)
+        if (strcmp(pty_cell_text(s, *r0, c), "┐") == 0) { *c1 = c; break; }
+    for (int r = *r0; r < rows; r++)
+        if (strcmp(pty_cell_text(s, r, *c0), "└") == 0) { *r1 = r; break; }
+    return *c1 < 0 || *r1 < 0 ? -1 : 0;
+}
+
+static void check_layout(const char *text, int cols, int want_inner, int want_lines, int want_x) {
+    tui_dialog d;
+    const int rows = 24;
+    ASSERT_EQ_INT(tui_dialog_message(&d, "Note", text), 0, "create");
+    Fx f;
+    ASSERT(fx_open(&f, rows, cols) == 0, "fixtures");
+    fx_draw(&f, &d);
+    int r0, c0, r1, c1;
+    ASSERT_EQ_INT(find_box(f.s, rows, cols, &r0, &c0, &r1, &c1), 0, "the box is drawn");
+    int w = want_inner + 4, h = 2 + 1 + want_lines + 1 + 1;
+    ASSERT_EQ_INT(c1 - c0 + 1, w, "width: by the text, 40 to 70, never wider than the screen less 4");
+    ASSERT(w <= cols - 4, "at least two cells either side");
+    ASSERT_EQ_INT(c0, (cols - w) / 2, "centred across");
+    ASSERT_EQ_INT(r1 - r0 + 1, h, "height: by the content");
+    ASSERT_EQ_INT(r0, (rows - h) * 2 / 5, "a little above the middle");
+    for (int r = r0 + 1; r < r1; r++) {
+        ASSERT_EQ_STR(pty_cell_text(f.s, r, c0), "│", "left border");
+        ASSERT_EQ_STR(pty_cell_text(f.s, r, c1), "│", "right border");
+        ASSERT(blank_cell(pty_cell_text(f.s, r, c0 + 1)), "one blank cell inside the left border");
+    }
+    for (int c = c0 + 1; c < c1; c++) {
+        ASSERT(blank_cell(pty_cell_text(f.s, r0 + 1, c)), "a blank row under the top border");
+        ASSERT(blank_cell(pty_cell_text(f.s, r1 - 2, c)), "a blank row above the buttons");
+    }
+    /* the button, centred in the room between the margins */
+    int at = -1;
+    for (int c = c0; c <= c1; c++)
+        if (strcmp(pty_cell_text(f.s, r1 - 1, c), "[") == 0) at = c;
+    ASSERT_EQ_INT(at, c0 + 2 + (want_inner - 6) / 2, "[ OK ] centred in the last row");
+    int xs = 0;
+    for (int r = r0; r <= r1; r++)
+        for (int c = c0; c <= c1; c++)
+            if (strcmp(pty_cell_text(f.s, r, c), "x") == 0) xs++;
+    ASSERT_EQ_INT(xs, want_x, "no letter of a long word is lost");
+    for (int r = 0; r < rows; r++)
+        for (int c = 0; c < cols; c++)
+            if (r < r0 || r > r1 || c < c0 || c > c1)
+                ASSERT(blank_cell(pty_cell_text(f.s, r, c)), "nothing outside the box");
+    tui_dialog_free(&d);
+    fx_close(&f);
+}
+
+static void test_layout_widths(void) {
+    static const char five[] = "Line one\nLine two\nLine three\nLine four\nLine five";
+    char word[101];
+    memset(word, 'x', 100);
+    word[100] = '\0';
+    static const int widths[] = { 60, 80, 200 };
+    for (int i = 0; i < 3; i++) {
+        int cols = widths[i];
+        int room = cols - 8;
+        check_layout("Saved.", cols, 40, 1, 0);
+        check_layout(five, cols, 40, 5, 0);
+        int inner = room < 70 ? room : 70;
+        check_layout(word, cols, inner, (100 + inner - 1) / inner, 100);
+    }
+}
+
+/* A description taller than the box scrolls; the buttons stay. */
+static void test_layout_scroll_and_small(void) {
+    static const char five[] = "Line one\nLine two\nLine three\nLine four\nLine five";
+    tui_dialog d;
+    Fx f;
+    tui_dialog_message(&d, "Note", five);
+    ASSERT(fx_open(&f, 8, 60) == 0, "fixtures");
+    fx_draw(&f, &d);
+    ASSERT(pty_screen_contains(f.s, "Line one"), "the first line");
+    ASSERT(!pty_screen_contains(f.s, "Line two"), "the rest scrolls");
+    ASSERT(pty_screen_contains(f.s, "[ OK ]"), "the button stays");
+    ASSERT_EQ_INT(send(&d, "\x1b[B"), TUI_DIALOG_OPEN, "Down scrolls");
+    fx_draw(&f, &d);
+    ASSERT(pty_screen_contains(f.s, "Line two"), "the next line");
+    ASSERT(pty_screen_contains(f.s, "[ OK ]"), "the button stays");
+    tui_dialog_free(&d);
+    fx_close(&f);
+
+    /* Not even one text row fits: the box is not opened, a line says so. */
+    tui_dialog_confirm(&d, "Q", five, 0);
+    ASSERT(fx_open(&f, 6, 60) == 0, "fixtures");
+    fx_draw(&f, &d);
+    ASSERT(!pty_screen_contains(f.s, "┌"), "no box");
+    ASSERT_ROW_CONTAINS(f.s, 5, "Terminal too small");
+    tui_dialog_free(&d);
+    fx_close(&f);
+
+    /* Too narrow. */
+    tui_dialog_message(&d, "Q", "x");
+    ASSERT(fx_open(&f, 12, 18) == 0, "fixtures");
+    fx_draw(&f, &d);
+    ASSERT(!pty_screen_contains(f.s, "┌"), "no box");
+    ASSERT_ROW_CONTAINS(f.s, 11, "Terminal too");
+    tui_dialog_free(&d);
+    fx_close(&f);
+
+    /* The question's description scrolls too. */
+    tui_dialog_confirm(&d, "Q", five, 0);
+    ASSERT(fx_open(&f, 8, 60) == 0, "fixtures");
+    fx_draw(&f, &d);
+    ASSERT_EQ_INT(send(&d, "\x1b[B"), TUI_DIALOG_OPEN, "Down scrolls");
+    fx_draw(&f, &d);
+    ASSERT(pty_screen_contains(f.s, "Line two"), "the next line");
+    ASSERT(pty_screen_contains(f.s, "[ Yes ]  [ No  ]"), "the buttons together");
+    tui_dialog_free(&d);
+    fx_close(&f);
+}
+
 static const TestCase tests[] = {
     TEST_CASE(test_menu_selection_depth_and_own_style),
     TEST_CASE(test_message),
@@ -636,6 +760,8 @@ static const TestCase tests[] = {
     TEST_CASE(test_text),
     TEST_CASE(test_text_page_overlap),
     TEST_CASE(test_small_terminal),
+    TEST_CASE(test_layout_widths),
+    TEST_CASE(test_layout_scroll_and_small),
 };
 
 int main(int argc, char **argv) {
