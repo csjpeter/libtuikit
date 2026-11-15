@@ -228,6 +228,7 @@ Non-goals:
 | `tuikit/tabrow.h` | the tab row of a screen with sub-views, the active tab by attribute | yes | TUI-69 |
 | `tuikit/menu.h` | the main menu: numbered entries, live counts, the description of the entry under the cursor | yes | TUI-108 |
 | `tuikit/textview.h` | wrapped, scrollable text | yes | M4 |
+| `tuikit/sgrview.h` | text carrying ANSI SGR styles (bold, italic, underline, strike, 16/256/24-bit colour): wrap, scroll | yes | TUI-122 |
 | `tuikit/mdview.h` | Markdown view: headings, lists, tables, code, reflow, scrolling, plain fallback; the renderer as text | yes | TUI-117 |
 | `tuikit/lineedit.h` | single-line editor model, history | yes | M5 |
 | `tuikit/dialog.h` | message, confirm, prompt, menu | yes | M6 |
@@ -897,6 +898,20 @@ the parts so that a program cannot invent a binding.
   commands that match (a lone match gets a blank, several are listed above
   the line), and the handler's message stays on the line, in the ok or error
   role, until the line is opened again. The editing is `tui_lineedit`.
+- **The SGR view (TUI-122).** `tui_sgrview` (`tuikit/sgrview.h`) is the
+  text view for text that carries ANSI SGR sequences (the body of a mail the
+  reader of email-tui shows): the sequences `ESC [ ... m` are zero-width
+  styles, not characters. Wrapping is that of `tui_textview` (spaces first,
+  inside a word when it must, a wide character never split, tabs to the next
+  multiple of eight); every wrapped line stores the SGR state at its start,
+  so a run keeps its style across a wrap and a scroll, and across a newline.
+  Understood: 0, 1, 2, 3, 4, 5/6, 7, 9, 22-25, 27, 29, 30-37, 90-97, 40-47,
+  100-107, 38/48 with `5;n` or `2;r;g;b` (`:` also separates), 39, 49; other
+  codes are ignored, other CSI sequences are dropped. The style is laid over
+  the base style of `tui_sgrview_render()` (a colour set by the text wins, a
+  default one keeps the base; attributes add). A separate widget, not a mode
+  of `tui_textview`: the public `tui_textview` struct may not change size
+  within SOVERSION 1. Keys and scroll bar as in `tui_mdview`.
 - **The Markdown view (TUI-117).** `tui_mdview` (`tuikit/mdview.h`) shows
   Markdown readably; the renderer of issue-manager (IM-390,
   `core/markdown.c`) moved into the library, so that a program does not
