@@ -253,7 +253,10 @@ name the ticket that closes the gap; there is none now.
 | `tui_textedit_lines` | `tests/functional/cap_edit.c` | `cap_textedit` |
 | `tui_textedit_render` | `tests/functional/cap_edit.c` | `cap_textedit` |
 | `tui_textedit_set_text` | `tests/functional/cap_edit.c` | `cap_textedit` |
+| `tui_textedit_set_wrap` | `tests/functional/cap_edit.c` | `cap_textedit` |
 | `tui_textedit_summary` | `tests/functional/cap_edit.c` | `cap_textedit` |
+| `tui_textedit_wrap_rows` | `tests/functional/cap_edit.c` | `cap_textedit` |
+| `tui_textedit_wrapped` | `tests/functional/cap_edit.c` | `cap_textedit` |
 
 ## History view
 
@@ -334,6 +337,7 @@ name the ticket that closes the gap; there is none now.
 | `tui_table_cell_put` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_clear_marks` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_first_visible` | `tests/functional/cap_widgets.c` | `cap_table` |
+| `tui_table_format_footer` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_format_header` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_format_row` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_free` | `tests/functional/cap_widgets.c` | `cap_table` |
@@ -346,6 +350,7 @@ name the ticket that closes the gap; there is none now.
 | `tui_table_marked_count` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_next_marked` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_render` | `tests/functional/cap_widgets.c` | `cap_table` |
+| `tui_table_render_footer` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_render_header` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_render_row` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_row_kind` | `tests/functional/cap_widgets.c` | `cap_table` |
@@ -355,6 +360,7 @@ name the ticket that closes the gap; there is none now.
 | `tui_table_select` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_selected` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_set_colors` | `tests/functional/cap_widgets.c` | `cap_table` |
+| `tui_table_set_footer` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_set_count` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_set_marked` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_set_message` | `tests/functional/cap_widgets.c` | `cap_table` |
@@ -453,6 +459,7 @@ name the ticket that closes the gap; there is none now.
 | `tui_dialog_is_checked` | `tests/functional/cap_widgets.c` | `cap_dialog` |
 | `tui_dialog_menu` | `tests/functional/cap_widgets.c` | `cap_dialog` |
 | `tui_dialog_message` | `tests/functional/cap_widgets.c` | `cap_dialog` |
+| `tui_dialog_password` | `tests/functional/cap_widgets.c` | `cap_dialog` |
 | `tui_dialog_prompt` | `tests/functional/cap_widgets.c` | `cap_dialog` |
 | `tui_dialog_render` | `tests/functional/cap_widgets.c` | `cap_dialog` |
 | `tui_dialog_text` | `tests/functional/cap_widgets.c` | `cap_dialog` |
@@ -461,6 +468,10 @@ name the ticket that closes the gap; there is none now.
 
 | Capability | Functional test | Phase |
 |---|---|---|
+| `tui_dialog_form_free` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
+| `tui_dialog_form_handle` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
+| `tui_dialog_form_init` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
+| `tui_dialog_form_render` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
 | `tui_field_choice` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
 | `tui_fieldset_focus` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
 | `tui_fieldset_free` | `tests/functional/cap_widgets.c` | `cap_fieldset` |

@@ -40,6 +40,7 @@ typedef enum tui_dialog_kind {
     TUI_DIALOG_HELP,         /**< the keys of a view, closed by Esc, q or Backspace */
     TUI_DIALOG_QUICKMENU,    /**< a menu whose items start with a quick-key letter, drawn
                                   in the accent colour (made by tui_actionmenu_open()) */
+    TUI_DIALOG_PASSWORD,     /**< text and a line of masked input: one '*' per character */
     TUI_DIALOG_TEXT          /**< scrollable wrapped text with a scroll bar, closed by
                                   Esc, q, Backspace or Enter */
 } tui_dialog_kind;
@@ -89,6 +90,16 @@ TUI_API int tui_dialog_confirm(tui_dialog *d, const char *title, const char *tex
  */
 TUI_API int tui_dialog_prompt(tui_dialog *d, const char *title, const char *text,
                               char *buf, size_t size, const char *initial);
+
+/**
+ * @brief A masked prompt (TUI-131): like tui_dialog_prompt(), but the line
+ *        shows one '*' per character and never the text; the text is edited
+ *        in @p buf (capacity @p size), empty at first.  Enter confirms, Esc
+ *        or Ctrl-C cancels; the keys are those of tui_lineedit_handle(3).
+ *        The caller wipes @p buf when done.
+ */
+TUI_API int tui_dialog_password(tui_dialog *d, const char *title, const char *text,
+                                char *buf, size_t size);
 
 /**
  * @brief A menu of @p n items, @p selected first: the list keys move,

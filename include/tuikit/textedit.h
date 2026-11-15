@@ -15,7 +15,8 @@
  * body.  It is a pure model like tui_lineedit: tui_textedit_handle() applies
  * one event, tui_textedit_render() draws the visible part on a canvas,
  * scrolled to keep the cursor in view (vertically and horizontally; lines
- * are not wrapped, so a column on the screen is a column in the text).
+ * are not wrapped by default, so a column on the screen is a column in the
+ * text; tui_textedit_set_wrap() shows long lines on several rows instead).
  *
  * Positions are byte offsets on character boundaries; columns are display
  * columns: a wide character takes two, a combining mark none, a tab reaches
@@ -42,7 +43,7 @@ typedef struct tui_textedit {
     size_t  cur;        /**< cursor, a byte offset on a character boundary */
     int     want_col;   /**< the column Up/Down aim for, -1 when none */
     int     top;        /**< first line shown */
-    int     left;       /**< first column shown */
+    int     left;       /**< first column shown; negative when wrapped (see tui_textedit_set_wrap()) */
     int     rows;       /**< height it was last drawn at: a PgUp/PgDn step */
     int     truncated;  /**< the last insertion did not fit whole */
     int     dirty;      /**< the text changed since init or set_text */
@@ -91,6 +92,26 @@ TUI_API void tui_textedit_cursor(const tui_textedit *te, int *row, int *col);
  *        the cursor.
  */
 TUI_API void tui_textedit_render(tui_textedit *te, tui_canvas c, tui_style st);
+
+/**
+ * @brief Turns soft wrap on or off (off at init).  Wrapped, a line longer
+ *        than the canvas shows on several rows, broken between characters,
+ *        and the text is not changed; there is no horizontal scrolling,
+ *        Up/Down/PgUp/PgDn move by row (keeping the column), and @c top
+ *        counts rows.  Home/End and Ctrl-A/Ctrl-E/Ctrl-K still act on the
+ *        text line, tui_textedit_lines() and tui_textedit_cursor() count
+ *        text lines and columns.  The mode survives tui_textedit_set_text().
+ *        A line whose last row is exactly full gets one empty row more, for
+ *        the cursor after its last character.
+ */
+TUI_API void tui_textedit_set_wrap(tui_textedit *te, int on);
+
+/** @brief 1 when soft wrap is on. */
+TUI_API int tui_textedit_wrapped(const tui_textedit *te);
+
+/** @brief Rows the whole text takes at the width last drawn (the lines when
+ *         not wrapped). */
+TUI_API int tui_textedit_wrap_rows(const tui_textedit *te);
 
 /**
  * @brief One line summarising @p text for a form row: its first line, cut

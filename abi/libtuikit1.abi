@@ -18,6 +18,7 @@ size tui_cmdline 912 8
 size tui_completion 16 8
 size tui_decoder 312 8
 size tui_dialog 280 8
+size tui_dialog_form 48 8
 size tui_event 56 8
 size tui_field 152 8
 size tui_fieldset 632 8
@@ -98,12 +99,17 @@ symbol tui_decoder_pending
 symbol tui_decoder_timeout
 symbol tui_dialog_checklist
 symbol tui_dialog_confirm
+symbol tui_dialog_form_free
+symbol tui_dialog_form_handle
+symbol tui_dialog_form_init
+symbol tui_dialog_form_render
 symbol tui_dialog_free
 symbol tui_dialog_handle
 symbol tui_dialog_help
 symbol tui_dialog_is_checked
 symbol tui_dialog_menu
 symbol tui_dialog_message
+symbol tui_dialog_password
 symbol tui_dialog_prompt
 symbol tui_dialog_render
 symbol tui_dialog_text
@@ -273,6 +279,7 @@ symbol tui_table_cell_prefix
 symbol tui_table_cell_put
 symbol tui_table_clear_marks
 symbol tui_table_first_visible
+symbol tui_table_format_footer
 symbol tui_table_format_header
 symbol tui_table_format_row
 symbol tui_table_free
@@ -285,6 +292,7 @@ symbol tui_table_marked
 symbol tui_table_marked_count
 symbol tui_table_next_marked
 symbol tui_table_render
+symbol tui_table_render_footer
 symbol tui_table_render_header
 symbol tui_table_render_row
 symbol tui_table_row_kind
@@ -295,6 +303,7 @@ symbol tui_table_select
 symbol tui_table_selected
 symbol tui_table_set_colors
 symbol tui_table_set_count
+symbol tui_table_set_footer
 symbol tui_table_set_marked
 symbol tui_table_set_message
 symbol tui_table_set_row_id
@@ -327,7 +336,10 @@ symbol tui_textedit_insert
 symbol tui_textedit_lines
 symbol tui_textedit_render
 symbol tui_textedit_set_text
+symbol tui_textedit_set_wrap
 symbol tui_textedit_summary
+symbol tui_textedit_wrap_rows
+symbol tui_textedit_wrapped
 symbol tui_textview_append
 symbol tui_textview_at_end
 symbol tui_textview_free

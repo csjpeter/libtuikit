@@ -266,6 +266,100 @@ static void test_render_and_scroll(void) {
     fx_close(&f);
 }
 
+static void test_soft_wrap(void) {
+    char buf[512];
+    tui_textedit te;
+    tui_textedit_init(&te, buf, sizeof(buf), "abcdefghijklmnop\nxy\n\nABCDEFGH");
+    ASSERT_EQ_INT(tui_textedit_wrapped(&te), 0, "off at init");
+    ASSERT_EQ_INT(tui_textedit_wrap_rows(&te), 4, "not wrapped: the lines");
+    tui_textedit_set_wrap(&te, 1);
+    ASSERT_EQ_INT(tui_textedit_wrapped(&te), 1, "on");
+    Fx f;
+    ASSERT(fx_open(&f, 8, 10) == 0, "fixtures");
+    tui_rect area = tui_rect_make(1, 1, 6, 8);
+    fx_draw(&f, &te, area);
+    /* 16 chars -> 2 rows of 8 plus the empty row for the cursor (full row);
+     * "xy"; ""; "ABCDEFGH" is exactly full -> one more empty row. */
+    ASSERT_EQ_INT(tui_textedit_wrap_rows(&te), 7, "rows at width 8");
+    const char *const expect[] = { "", " abcdefgh", " ijklmnop", "", " xy", "", " ABCDEFGH", "", NULL };
+    ASSERT_SCREEN_EQ(f.s, expect);
+    ASSERT_EQ_STR(buf, "abcdefghijklmnop\nxy\n\nABCDEFGH", "text untouched");
+    int r, c;
+    pty_cursor(f.s, &r, &c);
+    ASSERT_EQ_INT(r, 1, "cursor on the first row");
+    ASSERT_EQ_INT(c, 1, "cursor column");
+
+    /* Down moves by row, keeping the column. */
+    send(&te, "\x1b[C\x1b[C\x1b[C");
+    send(&te, "\x1b[B");
+    ASSERT_EQ_INT(te.cur, 11, "Down: second row, same column");
+    fx_draw(&f, &te, area);
+    pty_cursor(f.s, &r, &c);
+    ASSERT_EQ_INT(r, 2, "cursor on the second row");
+    ASSERT_EQ_INT(c, 4, "same column");
+    send(&te, "\x1b[B");
+    ASSERT_EQ_INT(te.cur, 16, "Down: the empty row after a full row is the end of the line");
+    send(&te, "\x1b[B");
+    ASSERT_EQ_INT(te.cur, 19, "Down: next text line, column clamped");
+    send(&te, "\x1b[A\x1b[A\x1b[A");
+    ASSERT_EQ_INT(te.cur, 3, "Up three rows");
+    send(&te, "\x1b[6~\x1b[6~\x1b[6~");
+    ASSERT_EQ_INT(te.cur, 29, "PgDn clamps at the last row");
+    send(&te, "\x1b[5~\x1b[5~\x1b[5~");
+    ASSERT_EQ_INT(te.cur, 3, "PgUp clamps at the first row, keeping the column");
+
+    /* The cursor after the last character of a full line stands on the extra row. */
+    send(&te, "\x1b[1;5F");
+    fx_draw(&f, &te, area);
+    ASSERT_EQ_INT(te.left, -8, "the width is kept in left");
+    ASSERT_EQ_INT(te.top, 1, "scrolled by rows: 7 rows in 6");
+    pty_cursor(f.s, &r, &c);
+    ASSERT_EQ_INT(r, 6, "cursor on the last row");
+    ASSERT_EQ_INT(c, 1, "at the left edge");
+    ASSERT_CURSOR_AT(&te, 3, 8, "logical cursor stays line and column");
+
+    /* Typing inside the wrapped text reflows it. */
+    tui_textedit_set_text(&te, "abcdefghijkl");
+    ASSERT_EQ_INT(tui_textedit_wrapped(&te), 1, "set_text keeps the mode");
+    send(&te, "XY");
+    fx_draw(&f, &te, area);
+    ASSERT_EQ_INT(tui_textedit_wrap_rows(&te), 2, "two rows");
+    const char *const typed[] = { "", " XYabcdef", " ghijkl", "", "", "", "", "", NULL };
+    ASSERT_SCREEN_EQ(f.s, typed);
+
+    /* Tabs, wide characters and combining marks. */
+    tui_textedit_set_text(&te, "ab\tcd\xE4\xB8\xAD\xE6\x96\x87" "e\xCC\x81" "fgh");
+    fx_draw(&f, &te, area);
+    /* row 1: "ab" + tab to column 8; row 2: cd, two wide chars (4) = 6, e+acute = 7, f = 8 -> full */
+    const char *const mixed[] = { "", " ab", " cd\xE4\xB8\xAD\xE6\x96\x87" "e\xCC\x81" "f", " gh", "", "", "", "", NULL };
+    ASSERT_SCREEN_EQ(f.s, mixed);
+    /* A wide character that does not fit moves to the next row. */
+    tui_textedit_set_text(&te, "abcdefg\xE4\xB8\xAD" "h");
+    fx_draw(&f, &te, area);
+    const char *const wide[] = { "", " abcdefg", " \xE4\xB8\xAD" "h", "", "", "", "", "", NULL };
+    ASSERT_SCREEN_EQ(f.s, wide);
+
+    /* Narrower than a tab or a wide character: one per row, no hang. */
+    tui_textedit_set_text(&te, "\t\xE4\xB8\xAD" "a");
+    tui_textedit_render(&te, tui_canvas_sub(tui_canvas_of(f.scr), tui_rect_make(0, 0, 4, 1)),
+                        TUI_STYLE_DEFAULT);
+    ASSERT_EQ_INT(tui_textedit_wrap_rows(&te), 4, "width 1: a row per character plus the cursor row");
+    send(&te, "\x1b[B\x1b[B\x1b[B");
+    ASSERT_EQ_INT(te.cur, 5, "walked down");
+
+    /* Off again. */
+    tui_textedit_set_wrap(&te, 0);
+    ASSERT_EQ_INT(tui_textedit_wrapped(&te), 0, "off");
+    ASSERT_EQ_INT(te.left, 0, "no offset");
+    tui_textedit_set_wrap(&te, 1);
+    tui_textedit_set_wrap(&te, 1);
+    ASSERT_EQ_INT(tui_textedit_wrapped(&te), 1, "on twice is on");
+    tui_textedit_set_wrap(NULL, 1);
+    ASSERT_EQ_INT(tui_textedit_wrapped(NULL), 0, "NULL");
+    ASSERT_EQ_INT(tui_textedit_wrap_rows(NULL), 0, "NULL rows");
+    fx_close(&f);
+}
+
 static void test_summary(void) {
     char out[64];
     ASSERT_EQ_INT(tui_textedit_summary("one line", 20, out, sizeof(out)), 8, "one line");
@@ -298,6 +392,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_typing_newlines_and_deleting),
     TEST_CASE(test_columns_and_vertical_movement),
     TEST_CASE(test_render_and_scroll),
+    TEST_CASE(test_soft_wrap),
     TEST_CASE(test_summary),
 };
 

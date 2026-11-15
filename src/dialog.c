@@ -66,6 +66,17 @@ int tui_dialog_prompt(tui_dialog *d, const char *title, const char *text,
     return 0;
 }
 
+int tui_dialog_password(tui_dialog *d, const char *title, const char *text,
+                        char *buf, size_t size) {
+    if (!buf || size == 0) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (setup(d, TUI_DIALOG_PASSWORD, title, text) != 0) return -1;
+    tui_lineedit_init(&d->edit, buf, size, "");
+    return 0;
+}
+
 int tui_dialog_menu(tui_dialog *d, const char *title, const char *const *items, int n,
                     int selected) {
     if ((!items && n > 0) || n < 0) {
@@ -258,6 +269,7 @@ tui_dialog_state tui_dialog_handle(tui_dialog *d, const tui_event *ev) {
                        ev->key == TUI_KEY_TAB))
             d->answer = !d->answer;
         break;
+    case TUI_DIALOG_PASSWORD:
     case TUI_DIALOG_PROMPT: {
         tui_edit_result r = tui_lineedit_handle(&d->edit, ev);
         if (r == TUI_EDIT_ACCEPT) return close_with(d, TUI_DIALOG_OK);
@@ -435,7 +447,7 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     if (tw > want) want = tw;
     if (d->kind == TUI_DIALOG_MESSAGE && want < 6) want = 6;
     if (d->kind == TUI_DIALOG_CONFIRM && want < 15) want = 15;
-    if (d->kind == TUI_DIALOG_PROMPT && want < 30) want = 30;
+    if ((d->kind == TUI_DIALOG_PROMPT || d->kind == TUI_DIALOG_PASSWORD) && want < 30) want = 30;
     int key_w = 0;
     if (d->kind == TUI_DIALOG_HELP) {
         int what_w = 0;
@@ -469,6 +481,7 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     case TUI_DIALOG_TEXT:    extra = 0; break;                     /* the text only */
     case TUI_DIALOG_MESSAGE:
     case TUI_DIALOG_CONFIRM: extra = lines > 0 ? 2 : 1; break;   /* blank + buttons */
+    case TUI_DIALOG_PASSWORD:
     case TUI_DIALOG_PROMPT:  extra = 1; break;                     /* the input line */
     case TUI_DIALOG_MENU:
     case TUI_DIALOG_QUICKMENU:
@@ -533,6 +546,22 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     case TUI_DIALOG_PROMPT:
         tui_lineedit_render(&d->edit, last, NULL, tui__input_style(tui_scheme_style(TUI_ROLE_INPUT), 1));
         break;
+    case TUI_DIALOG_PASSWORD: {
+        /* One '*' per character, scrolled so the cursor stays in the line;
+         * the text itself is never drawn. */
+        tui_style st = tui__input_style(tui_scheme_style(TUI_ROLE_INPUT), 1);
+        int avail = tui_canvas_cols(last), total = 0, cur = 0;
+        for (size_t i = 0; i < d->edit.len; i++) {
+            if (((unsigned char)d->edit.buf[i] & 0xC0) == 0x80) continue;
+            total++;
+            if (i < d->edit.cur) cur++;
+        }
+        int scroll = cur >= avail ? cur - avail + 1 : 0;
+        tui_canvas_clear(last, st);
+        for (int k = scroll; k < total && k - scroll < avail; k++) tui_canvas_put(last, 0, k - scroll, "*", st);
+        tui_canvas_set_cursor(last, 0, cur - scroll, 1);
+        break;
+    }
     case TUI_DIALOG_MENU:
     case TUI_DIALOG_QUICKMENU:
     case TUI_DIALOG_CHECKLIST: {

@@ -152,7 +152,7 @@ static void layout(const tui_menu *m, int rows, int cols, layout_t *ln) {
         tui_style t = cur ? on_selection(text, sel) : text;
         tui_style w = cur ? on_selection(warn, sel) : warn;
         char key[16], fit[LABEL_MAX];
-        snprintf(key, sizeof key, "%c %d", cur ? '>' : ' ', i + 1);
+        snprintf(key, sizeof key, "%c %d", cur ? '>' : ' ', (i + 1) % 10);   /* the tenth is key 0 */
         add(ln, row, left, key, t);
         tui_str_fit_ellipsis(lab[i], lw, fit, sizeof fit);
         add(ln, row, left + PREFIX, fit, t);
@@ -225,8 +225,8 @@ tui_menu_result tui_menu_handle(tui_menu *m, const tui_event *ev) {
     else if (ev->key == TUI_KEY_END) to = m->n - 1;
     else if (ev->key == TUI_KEY_CHAR && ev->mods == 0 && ev->cp == 'k') to--;
     else if (ev->key == TUI_KEY_CHAR && ev->mods == 0 && ev->cp == 'j') to++;
-    else if (ev->key == TUI_KEY_CHAR && ev->mods == 0 && ev->cp >= '1' && ev->cp <= '9') {
-        int d = (int)(ev->cp - '1');
+    else if (ev->key == TUI_KEY_CHAR && ev->mods == 0 && ev->cp >= '0' && ev->cp <= '9') {
+        int d = ev->cp == '0' ? 9 : (int)(ev->cp - '1');   /* 1..9, then 0 for the tenth */
         if (d >= m->n) return TUI_MENU_IGNORED;
         m->selected = d;
         return TUI_MENU_ACTIVATED;

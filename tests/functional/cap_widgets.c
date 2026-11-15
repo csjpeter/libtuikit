@@ -34,6 +34,12 @@ static void t_cell(void *ctx, int i, int col, tui_table_cell *c) {
 }
 static uint64_t t_id(void *ctx, int i) { (void)ctx; return 1000u + (uint64_t)i; }
 
+static void t_foot(void *ctx, int row, int col, tui_table_cell *c) {
+    (void)ctx; (void)row;
+    if (col == 0) tui_table_cell_put(c, "Total", TUI_STYLE_DEFAULT);
+    else if (col == 1) tui_table_cell_put(c, "450", TUI_STYLE_DEFAULT);
+}
+
 static void cap_table(void) {
     static const tui_table_col cols[] = {
         { "Name", 8, 1, TUI_ALIGN_LEFT, 0, 1, 0 },
@@ -142,6 +148,23 @@ static void cap_table(void) {
     CHECK_HAS(line, "name1", "row text");
     CHECK_HAS(line, "10", "cell text");
 
+    CHECK_INT(tui_table_set_footer(&t, 1, t_foot, NULL), 0, "set_footer");
+    tui_canvas_clear(c, TUI_STYLE_DEFAULT);
+    tui_table_render(&t, c, TUI_STYLE_DEFAULT);
+    txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "Total", "footer under the body");
+    CHECK_HAS(txt, "450", "footer cell under its column");
+    free(txt);
+    tui_canvas_clear(c, TUI_STYLE_DEFAULT);
+    tui_table_render_footer(&t, c);
+    txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "Total", "render_footer");
+    CHECK(strstr(txt, "name1") == NULL, "footer alone has no rows");
+    free(txt);
+    CHECK(tui_table_format_footer(&t, 40, 0, line, sizeof line) > 0, "format_footer");
+    CHECK_HAS(line, "450", "footer text");
+    tui_table_set_footer(&t, 0, NULL, NULL);
+
     tui_table_set_message(&t, "nothing here", TUI_STYLE_HINT);
     tui_canvas_clear(c, TUI_STYLE_DEFAULT);
     tui_table_render(&t, c, TUI_STYLE_DEFAULT);
@@ -240,6 +263,19 @@ static void cap_menu(void) {
     ev = cap_ev("j");
     CHECK_INT(tui_menu_handle(&m, &ev), TUI_MENU_MOVED, "j moves down");
     CHECK_INT(tui_menu_selected(&m), 1, "to the next entry");
+
+    /* ten entries: the tenth has the hot key 0 */
+    static const tui_menu_entry t[] = {
+        { "A", 1, 0, NULL }, { "B", 1, 0, NULL }, { "C", 1, 0, NULL }, { "D", 1, 0, NULL },
+        { "E", 1, 0, NULL }, { "F", 1, 0, NULL }, { "G", 1, 0, NULL }, { "H", 1, 0, NULL },
+        { "I", 1, 0, NULL }, { "J", 1, 0, "The tenth view." },
+    };
+    CHECK_INT(tui_menu_set(&m, t, 10, 0), 0, "a menu of ten");
+    ev = cap_ev("0");
+    CHECK_INT(tui_menu_handle(&m, &ev), TUI_MENU_ACTIVATED, "0 activates the tenth");
+    CHECK_INT(tui_menu_selected(&m), 9, "and moves the cursor to it");
+    CHECK(tui_menu_format(&m, 20, 60, out, sizeof out) > 0, "ten format");
+    CHECK_HAS(out, "> 0  J", "the tenth row has the key 0");
 }
 
 /* ---- header --------------------------------------------------------- */
@@ -396,6 +432,20 @@ static void cap_dialog(void) {
     ev = cap_ev("\r");
     CHECK_INT(tui_dialog_handle(&d, &ev), TUI_DIALOG_OK, "prompt accepted");
     CHECK_STR(buf, "abcd", "prompt text in the caller's buffer");
+    tui_dialog_free(&d);
+
+    char pw[16];
+    CHECK_INT(tui_dialog_password(&d, "Password", "Current:", pw, sizeof pw), 0, "password");
+    CHECK_INT(d.kind, TUI_DIALOG_PASSWORD, "password kind");
+    CAP_TYPE(tui_dialog_handle, &d, "hunter2");
+    tui_dialog_render(&d, tui_canvas_of(s));
+    txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "*******", "one star per character");
+    CHECK(strstr(txt, "hunter2") == NULL, "the password is never drawn");
+    free(txt);
+    ev = cap_ev("\r");
+    CHECK_INT(tui_dialog_handle(&d, &ev), TUI_DIALOG_OK, "password accepted");
+    CHECK_STR(pw, "hunter2", "password in the caller's buffer");
     tui_dialog_free(&d);
 
     const char *items[] = { "red", "green", "blue" };
@@ -611,6 +661,30 @@ static void cap_fieldset(void) {
     CHECK_INT(tui_fieldset_handle(&f, &ev), TUI_DIALOG_CANCELLED, "Esc cancels");
     tui_screen_free(s);
     tui_fieldset_free(&f);
+
+    /* The form in a modal frame (TUI-131). */
+    char nm[16];
+    tui_field ff[2];
+    tui_field_text(&ff[0], "Name:", nm, sizeof nm, "");
+    tui_field_choice(&ff[1], "Type:", kinds, 2, 0);
+    tui_fieldset fs;
+    tui_fieldset_init(&fs, ff, 2);
+    tui_dialog_form df;
+    CHECK_INT(tui_dialog_form_init(&df, "New client", NULL, &fs), 0, "form dialog");
+    s = tui_screen_new(12, 50);
+    tui_dialog_form_render(&df, tui_canvas_of(s));
+    txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "New client", "form dialog title");
+    CHECK_HAS(txt, "Name:", "form dialog field");
+    CHECK_HAS(txt, "Tab next", "form dialog key hint");
+    free(txt);
+    CAP_TYPE(tui_dialog_form_handle, &df, "acme");
+    CHECK_STR(nm, "acme", "form dialog edits the field");
+    ev = cap_ev("\r");
+    CHECK_INT(tui_dialog_form_handle(&df, &ev), TUI_DIALOG_OK, "form dialog: Enter submits");
+    tui_dialog_form_free(&df);
+    tui_fieldset_free(&fs);
+    tui_screen_free(s);
 }
 
 /* ---- actions: the key table, the action menu, the help ---------------- */

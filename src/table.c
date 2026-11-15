@@ -166,6 +166,60 @@ static int row_marked(const tui_table *t, int index) {
     return found;
 }
 
+/* ── Footer rows ───────────────────────────────────────────────────── */
+
+/* The footer (tui_table.reserved[1]): the number of rows and the callback
+ * that fills their cells. */
+typedef struct footer {
+    int  rows;
+    void (*cell)(void *ctx, int row, int col, tui_table_cell *c);
+    void *ctx;
+} footer;
+
+static const footer *footer_of(const tui_table *t) {
+    return (const footer *)t->reserved[1];
+}
+
+/* The footer rows shown: none in front of a message. */
+static int footer_rows(const tui_table *t) {
+    const footer *f = footer_of(t);
+    return f && !t->message ? f->rows : 0;
+}
+
+int tui_table_set_footer(tui_table *t, int rows,
+                         void (*cell)(void *ctx, int row, int col, tui_table_cell *c),
+                         void *ctx) {
+    if (!t || rows < 0 || (rows > 0 && !cell)) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (rows == 0) {
+        free(t->reserved[1]);
+        t->reserved[1] = NULL;
+        return 0;
+    }
+    footer *f = (footer *)t->reserved[1];
+    if (!f) {
+        f = calloc(1, sizeof(*f));
+        if (!f) return -1;
+        t->reserved[1] = f;
+    }
+    f->rows = rows;
+    f->cell = cell;
+    f->ctx = ctx;
+    return 0;
+}
+
+static void footer_describe(const tui_table *t, int row, int col, tui_table_cell *c) {
+    c->len = 0;
+    c->nspan = 0;
+    c->prefix_spans = 0;
+    c->body_started = 0;
+    c->text[0] = '\0';
+    const footer *f = footer_of(t);
+    f->cell(f->ctx, row, col, c);
+}
+
 /* ── State ─────────────────────────────────────────────────────────── */
 
 void tui_table_set_colors(tui_table *t, int colors) {
@@ -191,6 +245,8 @@ void tui_table_init(tui_table *t, const tui_table_col *cols, int ncols,
 
 void tui_table_free(tui_table *t) {
     if (!t) return;
+    free(t->reserved[1]);
+    t->reserved[1] = NULL;
     marks *m = marks_of(t);
     if (m) free(m->keys);
     free(m);
@@ -680,6 +736,45 @@ static void render_header(tui_table *t, tui_canvas c) {
     }
 }
 
+/* Footer row @p row in @p line: the cells under the columns' widths and
+ * alignments, in the header's style, never a selection stop. */
+static void draw_footer_row(const tui_table *t, tui_canvas line, int row) {
+    int widths[64];
+    int n = t->ncols < 64 ? t->ncols : 64;
+    tui_table tt = *t;
+    tt.ncols = n;
+    tui_table_widths(&tt, tui_canvas_cols(line), widths);
+    tui_canvas_clear(line, t->header);
+    int x = GUTTER;
+    tui_table_cell cell;
+    for (int i = 0; i < n; i++) {
+        if (widths[i] == 0) continue;
+        footer_describe(t, row, i, &cell);
+        tui_canvas cv = tui_canvas_sub(line, tui_rect_make(0, x, 1, widths[i]));
+        draw_cell(t, cv, &cell, widths[i], &t->cols[i], t->header, 0);
+        x += widths[i] + 1;
+    }
+}
+
+/* The footer sits on the last lines of @p c (those that are not the header). */
+static void render_footer(const tui_table *t, tui_canvas c) {
+    int nf = footer_rows(t);
+    int rows = tui_canvas_rows(c);
+    for (int i = 0; i < nf; i++) {
+        int y = rows - nf + i;
+        if (y < header_rows(t)) continue;
+        draw_footer_row(t, row_canvas(c, y), i);
+    }
+}
+
+void tui_table_render_footer(tui_table *t, tui_canvas c) {
+    if (!t) return;
+    int cols = tui_canvas_cols(c);
+    if (bar_shown(t, cols))
+        c = tui_canvas_sub(c, tui_rect_make(0, 0, tui_canvas_rows(c), cols - 1));
+    render_footer(t, c);
+}
+
 void tui_table_render_header(tui_table *t, tui_canvas c) {
     if (!t) return;
     int cols = tui_canvas_cols(c);
@@ -712,7 +807,9 @@ void tui_table_render(tui_table *t, tui_canvas c, tui_style blank) {
         return;
     }
     int hdr = header_rows(t);
-    tui_listview_set_viewport(&t->lv, rows > hdr ? rows - hdr : 0);
+    int nf = footer_rows(t);
+    int body_rows = rows - hdr - nf;
+    tui_listview_set_viewport(&t->lv, body_rows > 0 ? body_rows : 0);
     tui_canvas_clear(c, blank);
     /* More rows than the window: the scroll bar takes the last column of
      * the rows (not of the header). */
@@ -721,13 +818,15 @@ void tui_table_render(tui_table *t, tui_canvas c, tui_style blank) {
     int bar = bar_shown(t, cols);
     if (bar) body = tui_canvas_sub(c, tui_rect_make(0, 0, rows, cols - 1));
     render_header(t, body);
+    render_footer(t, body);
     for (int i = 0; i < t->lv.rows_visible; i++) {
         int index = t->lv.scroll_top + i;
         if (index >= t->lv.count) break;
         draw_row(t, row_canvas(body, hdr + i), index, index == t->lv.selected, blank);
     }
     if (bar)
-        tui__scrollbar(tui_canvas_sub(c, tui_rect_make(hdr, 0, rows - hdr, cols)), t->lv.count,
+        tui__scrollbar(tui_canvas_sub(c, tui_rect_make(hdr, 0, body_rows > 0 ? body_rows : 0, cols)),
+                       t->lv.count,
                        t->lv.scroll_top, t->lv.rows_visible);
 }
 
@@ -809,8 +908,9 @@ static int plain_finish(plain_out *o) {
     return o->cut ? -1 : (int)o->len;
 }
 
-static int format_cells(const tui_table *t, int cols, int index, const tui_table_row *r,
-                        char *out, size_t outsz) {
+/* @p index >= 0: a row; otherwise the header, or with @p frow >= 0 footer row @p frow. */
+static int format_cells(const tui_table *t, int cols, int index, int frow,
+                        const tui_table_row *r, char *out, size_t outsz) {
     plain_out o = { out, outsz, 0, 0 };
     if (outsz == 0) return -1;
     if (r && r->kind == TUI_ROW_SECTION) {
@@ -834,6 +934,8 @@ static int format_cells(const tui_table *t, int cols, int index, const tui_table
         first = 0;
         if (index >= 0) {
             cell_describe(t, index, i, &cell);
+        } else if (frow >= 0) {
+            footer_describe(t, frow, i, &cell);
         } else {
             cell.len = 0;
             cell.nspan = 0;
@@ -851,10 +953,16 @@ int tui_table_format_row(const tui_table *t, int cols, int index, char *out, siz
     if (!t || !out || outsz == 0 || index < 0 || index >= t->lv.count) return -1;
     tui_table_row r;
     row_describe(t, index, &r);
-    return format_cells(t, cols, index, &r, out, outsz);
+    return format_cells(t, cols, index, -1, &r, out, outsz);
 }
 
 int tui_table_format_header(const tui_table *t, int cols, char *out, size_t outsz) {
     if (!t || !out || outsz == 0) return -1;
-    return format_cells(t, cols, -1, NULL, out, outsz);
+    return format_cells(t, cols, -1, -1, NULL, out, outsz);
+}
+
+int tui_table_format_footer(const tui_table *t, int cols, int row, char *out, size_t outsz) {
+    if (!t || !out || outsz == 0 || !footer_of(t) || row < 0 || row >= footer_of(t)->rows)
+        return -1;
+    return format_cells(t, cols, -1, row, NULL, out, outsz);
 }
