@@ -21,7 +21,7 @@ the main menu of a program with several main views
 .SH DESCRIPTION
 .B tui_menu
 is the main menu: one entry per main view, each with a number as hot key
-(1 to 9), a live count and a description.
+(1 to 9, and 0 for the tenth), a live count and a description.
 An entry is
 .IR "{ label, count, attention, description }" :
 .I count
@@ -58,7 +58,7 @@ A resize needs nothing but the next render.
 .BR tui_menu_set ()
 sets the entries (at most
 .B TUI_MENU_MAX
-(9); the array and its strings are not copied, so a program may change the
+(10); the array and its strings are not copied, so a program may change the
 counts in it and draw again) and the cursor, which is clamped; it fails with
 .B EINVAL
 for more entries, a NULL array or a NULL label.
@@ -76,7 +76,7 @@ wrapping, and returns
 when it moved.
 Enter returns
 .BR TUI_MENU_ACTIVATED ;
-so does a digit 1 to 9 that names an entry, after moving the cursor to it.
+so does a digit 1 to 9, or 0 for the tenth entry, that names an entry, after moving the cursor to it.
 Everything else is
 .BR TUI_MENU_IGNORED .
 .PP

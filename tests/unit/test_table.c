@@ -923,6 +923,137 @@ static void test_table_marks_drawn(void) {
     fx_close(&f);
 }
 
+/* ── Footer rows ────────────────────────────────────────────────────── */
+
+static void foot_cell(void *ctx, int row, int col, tui_table_cell *c) {
+    (void)ctx;
+    if (row == 0) {
+        if (col == 0) tui_table_cell_put(c, "TOTAL", TUI_STYLE_DEFAULT);
+        else if (col == 2) tui_table_cell_put(c, "1246", tui_style_make(TUI_GREEN, TUI_COLOR_DEFAULT, 0));
+    } else if (col == 1) {
+        tui_table_cell_put(c, "second footer row", TUI_STYLE_DEFAULT);
+    }
+}
+
+static void test_table_footer(void) {
+    Fx f;
+    ASSERT(fx_open(&f, 7, 40) == 0, "fixtures");
+    tui_table t;
+    make_table(&t, 256);
+    ASSERT_EQ_INT(tui_table_set_footer(&t, 2, foot_cell, NULL), 0, "footer set");
+    tui_table_select(&t, 3);
+    tui_table_render(&t, tui_canvas_of(f.scr), TUI_STYLE_DEFAULT);
+    ASSERT_EQ_INT(t.lv.rows_visible, 4, "the viewport is the canvas less header and footer");
+    fx_show(&f);
+    char foot0[64], foot1[64];
+    want(foot0, sizeof(foot0), "", "TOTAL", "", "1246", "");
+    want(foot1, sizeof(foot1), "", "", "second footer row", "", "");
+    ASSERT_EQ_STR(rowtext(f.s, 5), foot0, "footer row 0 on the second last line");
+    ASSERT_EQ_STR(rowtext(f.s, 6), foot1, "footer row 1 on the last line");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 5, 30), "1", "the total starts at the left edge of column N");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 5, 33), "6", "and ends at its right edge: right-aligned");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 5, 34), " ", "and nothing after it");
+    ASSERT(strstr(rowtext(f.s, 1), "A-1") != NULL, "the body is above");
+    ASSERT_EQ_INT(pty_cell_attr(f.s, 5, 2) & PTY_ATTR_BOLD, PTY_ATTR_BOLD, "footer in the header style");
+    ASSERT_EQ_INT(pty_cell_fg(f.s, 5, 31), 32, "a cell keeps its own colour");
+    for (int col = 0; col < 40; col++)
+        ASSERT_EQ_INT(pty_cell_bg(f.s, 5, col), 0, "footer: no selection background");
+    ASSERT_EQ_INT(tui_table_selected(&t), 3, "the selection is a body row");
+    tui_event ev;
+    key(&ev, TUI_KEY_END);
+    tui_table_handle(&t, &ev);
+    ASSERT_EQ_INT(tui_table_selected(&t), 3, "End stops at the last body row");
+    ASSERT_EQ_INT(tui_table_last_visible(&t), 3, "the footer is no visible row");
+
+    /* The footer alone, and in plain text. */
+    tui_screen_clear(f.scr, TUI_STYLE_DEFAULT);
+    tui_table_render_footer(&t, tui_canvas_of(f.scr));
+    fx_show(&f);
+    ASSERT_EQ_STR(rowtext(f.s, 5), foot0, "render_footer draws row 0");
+    ASSERT_EQ_STR(rowtext(f.s, 1), "", "and not the body");
+    char out[128];
+    char plain0[80];
+    snprintf(plain0, sizeof(plain0), "%s ", foot0 + 2);  /* no gutter; a blank before the empty last cell */
+    ASSERT_EQ_INT(tui_table_format_footer(&t, 40, 0, out, sizeof(out)), (int)strlen(plain0),
+                  "format_footer length");
+    ASSERT_EQ_STR(out, plain0, "format_footer is the footer line");
+    ASSERT_EQ_INT(tui_table_format_footer(&t, 0, 0, out, sizeof(out)), 12, "unpadded");
+    ASSERT_EQ_STR(out, "TOTAL  1246 ", "no cut, no padding, empty cells between");
+    ASSERT_EQ_INT(tui_table_format_footer(&t, 40, 2, out, sizeof(out)), -1, "no such row");
+    ASSERT_EQ_INT(tui_table_format_footer(&t, 40, -1, out, sizeof(out)), -1, "negative row");
+    ASSERT_EQ_INT(tui_table_format_footer(&t, 40, 0, out, 4), -1, "too small");
+    ASSERT_EQ_INT(tui_table_format_footer(NULL, 40, 0, out, sizeof(out)), -1, "NULL table");
+
+    /* A message hides it; removing it gives the lines back. */
+    tui_table_set_message(&t, "empty", TUI_STYLE_DEFAULT);
+    tui_screen_clear(f.scr, TUI_STYLE_DEFAULT);
+    tui_table_render(&t, tui_canvas_of(f.scr), TUI_STYLE_DEFAULT);
+    fx_show(&f);
+    ASSERT_EQ_STR(rowtext(f.s, 5), "", "no footer in front of a message");
+    tui_table_set_message(&t, NULL, TUI_STYLE_DEFAULT);
+    ASSERT_EQ_INT(tui_table_set_footer(&t, 0, NULL, NULL), 0, "footer removed");
+    tui_table_render(&t, tui_canvas_of(f.scr), TUI_STYLE_DEFAULT);
+    ASSERT_EQ_INT(t.lv.rows_visible, 6, "the whole area is the body again");
+    ASSERT_EQ_INT(tui_table_format_footer(&t, 40, 0, out, sizeof(out)), -1, "no footer");
+    tui_table_free(&t);
+    fx_close(&f);
+}
+
+static void test_table_footer_with_scroll_bar(void) {
+    Fx f;
+    ASSERT(fx_open(&f, 4, 40) == 0, "fixtures");
+    tui_table t;
+    make_table(&t, 256);
+    tui_table_set_footer(&t, 1, foot_cell, NULL);
+    tui_table_render(&t, tui_canvas_of(f.scr), TUI_STYLE_DEFAULT);
+    ASSERT_EQ_INT(t.lv.rows_visible, 2, "two body rows of four");
+    fx_show(&f);
+    /* The columns are one cell narrower (the bar), the footer with them. */
+    ASSERT(strstr(rowtext(f.s, 3), "TOTAL") != NULL, "the footer is drawn");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 3, 39), " ", "the bar does not reach the footer");
+    ASSERT(pty_cell_text(f.s, 1, 39)[0] != '\0', "the bar is beside the body");
+    tui_screen_clear(f.scr, TUI_STYLE_DEFAULT);
+    tui_table_render_footer(&t, tui_canvas_of(f.scr));
+    fx_show(&f);
+    ASSERT(strstr(rowtext(f.s, 3), "TOTAL") != NULL, "render_footer keeps to the narrower width");
+    tui_table_free(&t);
+    fx_close(&f);
+
+    /* A canvas with no room for it: the header wins, nothing is drawn over it. */
+    ASSERT(fx_open(&f, 1, 40) == 0, "fixtures");
+    make_table(&t, 256);
+    tui_table_set_footer(&t, 1, foot_cell, NULL);
+    tui_table_render(&t, tui_canvas_of(f.scr), TUI_STYLE_DEFAULT);
+    ASSERT_EQ_INT(t.lv.rows_visible, 0, "no body");
+    fx_show(&f);
+    ASSERT(strstr(rowtext(f.s, 0), "KEY") != NULL, "the header stays");
+    tui_table_free(&t);
+    fx_close(&f);
+}
+
+static void test_table_footer_arguments(void) {
+    tui_table t;
+    make_table(&t, 256);
+    errno = 0;
+    ASSERT_EQ_INT(tui_table_set_footer(NULL, 1, foot_cell, NULL), -1, "NULL table");
+    ASSERT_EQ_INT(errno, EINVAL, "EINVAL");
+    errno = 0;
+    ASSERT_EQ_INT(tui_table_set_footer(&t, -1, foot_cell, NULL), -1, "negative rows");
+    ASSERT_EQ_INT(errno, EINVAL, "EINVAL");
+    errno = 0;
+    ASSERT_EQ_INT(tui_table_set_footer(&t, 1, NULL, NULL), -1, "rows without a callback");
+    ASSERT_EQ_INT(errno, EINVAL, "EINVAL");
+    ASSERT_EQ_INT(tui_table_set_footer(&t, 1, foot_cell, NULL), 0, "set");
+    ASSERT_EQ_INT(tui_table_set_footer(&t, 2, foot_cell, NULL), 0, "set again: the same footer");
+    char out[64];
+    ASSERT(tui_table_format_footer(&t, 0, 1, out, sizeof(out)) > 0, "two rows now");
+    tui_screen *scr = tui_screen_new(3, 40);
+    tui_table_render_footer(NULL, tui_canvas_of(scr));
+    tui_screen_free(scr);
+    tui_table_free(&t);
+    ASSERT_EQ_INT(tui_table_format_footer(&t, 0, 0, out, sizeof(out)), -1, "freed: none");
+}
+
 static const TestCase tests[] = {
     TEST_CASE(test_table_widths),
     TEST_CASE(test_table_render_256),
@@ -939,6 +1070,9 @@ static const TestCase tests[] = {
     TEST_CASE(test_table_marks_space_and_iteration),
     TEST_CASE(test_table_marks_follow_the_row_id),
     TEST_CASE(test_table_marks_drawn),
+    TEST_CASE(test_table_footer),
+    TEST_CASE(test_table_footer_with_scroll_bar),
+    TEST_CASE(test_table_footer_arguments),
 };
 
 int main(int argc, char **argv) {

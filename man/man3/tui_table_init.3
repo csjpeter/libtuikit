@@ -7,7 +7,8 @@ tui_table_set_total, tui_table_set_message, tui_table_select,
 tui_table_selected, tui_table_first_visible, tui_table_last_visible,
 tui_table_handle, tui_table_widths, tui_table_render,
 tui_table_render_header, tui_table_render_row, tui_table_format_row,
-tui_table_format_header, tui_table_row_kind, tui_table_row_style,
+tui_table_format_header, tui_table_set_footer, tui_table_render_footer,
+tui_table_format_footer, tui_table_row_kind, tui_table_row_style,
 tui_table_row_mark, tui_table_row_text, tui_table_cell_prefix,
 tui_table_cell_put, tui_table_set_row_id, tui_table_marked,
 tui_table_marked_count, tui_table_set_marked, tui_table_toggle_mark,
@@ -36,6 +37,12 @@ tui_table_next_marked, tui_table_free \- a table with columns, a header and a se
 .BI "int  tui_table_format_row(const tui_table *" t ", int " cols ", int " index ,
 .BI "                         char *" out ", size_t " outsz );
 .BI "int  tui_table_format_header(const tui_table *" t ", int " cols ,
+.BI "                            char *" out ", size_t " outsz );
+.BI "int  tui_table_set_footer(tui_table *" t ", int " rows ,
+.BI "                         void (*" cell ")(void *" ctx ", int " row ", int " col ,
+.BI "                                      tui_table_cell *" c "), void *" ctx );
+.BI "void tui_table_render_footer(tui_table *" t ", tui_canvas " c );
+.BI "int  tui_table_format_footer(const tui_table *" t ", int " cols ", int " row ,
 .BI "                            char *" out ", size_t " outsz );
 .PP
 .BI "void tui_table_row_kind(tui_table_row *" r ", tui_row_kind " kind );
@@ -214,6 +221,32 @@ and
 give the same columns as plain text, for a list printed to a pipe;
 .I cols
 of 0 or less means no cut and no padding, the full strings.
+.SS Footer
+.BR tui_table_set_footer ()
+gives the table footer rows, for totals: the last lines of the area, under
+the body, with their cells filled by a callback like the model's cell
+callback (for footer row
+.IR row ,
+column
+.IR col ).
+The cells take the widths and the alignment of the columns, so a numeric
+column (right-aligned) has its total under its digits, and the rows are in
+the header's style.
+A footer row is never selected and never scrolls: the viewport is the area
+less the header and the footer, and the scroll bar spans the body only.
+.BR tui_table_render ()
+draws it;
+.BR tui_table_render_footer ()
+draws the footer alone, and
+.BR tui_table_format_footer ()
+gives a footer row as plain text, as
+.BR tui_table_format_row ()
+does.
+A footer is not shown while a message is.
+.I rows
+of 0 removes it;
+.BR tui_table_free ()
+releases it.
 .SS Scroll bar
 When there are more rows than the window, the last column of the rows (not of
 the header) is a scroll bar: a track (role
@@ -231,11 +264,15 @@ keep to the narrower width too.  The history view and the tree draw it the same 
 returns 1 when the key was a movement key, 0 otherwise.
 .BR tui_table_selected ()
 returns the row, or \-1.
+.BR tui_table_set_footer ()
+returns 0, or \-1 with
+.B errno
+EINVAL (a negative number of rows, or rows without a callback) or ENOMEM.
 .BR tui_table_widths ()
 returns the number of columns shown and sets the width of each.
 .BR tui_table_render_row ()
 returns 1 when the row was drawn, 0 when it is not in view.
-The format functions return the bytes written, or \-1 when
+The format functions (also for a footer row that does not exist) return the bytes written, or \-1 when
 .I outsz
 was too small.
 .SH SEE ALSO

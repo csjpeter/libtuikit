@@ -4,7 +4,7 @@
 # The build, test, install and package definition of libtuikit.
 
 cmake_minimum_required(VERSION 3.20)
-project(libtuikit VERSION 1.3.0 LANGUAGES C)
+project(libtuikit VERSION 1.4.0 LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Version
@@ -311,6 +311,8 @@ set(TUIKIT_MAN3_ALIASES
     tui_table_render:tui_table_init tui_table_render_header:tui_table_init
     tui_table_render_row:tui_table_init tui_table_format_row:tui_table_init
     tui_table_format_header:tui_table_init
+    tui_table_set_footer:tui_table_init tui_table_render_footer:tui_table_init
+    tui_table_format_footer:tui_table_init
     tui_table_set_row_id:tui_table_init tui_table_marked:tui_table_init
     tui_table_marked_count:tui_table_init tui_table_set_marked:tui_table_init
     tui_table_toggle_mark:tui_table_init tui_table_mark_all:tui_table_init
@@ -380,6 +382,8 @@ set(TUIKIT_MAN3_ALIASES
     tui_field_choice:tui_fieldset_init tui_fieldset_focus:tui_fieldset_init
     tui_fieldset_set_error:tui_fieldset_init tui_fieldset_update_completion:tui_fieldset_init
     tui_fieldset_handle:tui_fieldset_init tui_fieldset_render:tui_fieldset_init
+    tui_dialog_form_free:tui_dialog_form_init tui_dialog_form_handle:tui_dialog_form_init
+    tui_dialog_form_render:tui_dialog_form_init tui_dialog_password:tui_dialog_message
     tui_tty_wait:tui_tty_is tui_lineedit_replace:tui_lineedit_init
     tui_textedit_set_text:tui_textedit_init tui_textedit_insert:tui_textedit_init
     tui_textedit_handle:tui_textedit_init tui_textedit_lines:tui_textedit_init
@@ -479,6 +483,9 @@ function(tuikit_write_changelog _pkg)
   * new: tui_html_render() (TUI-124): a bounded HTML subset (b, i, u, s, a,
     br, p, ul, ol, li, blockquote, pre, table, entities, style colour) as
     reflowed text, plain or with SGR; no script runs, nothing is loaded.
+  * 1.4.0: new: tui_dialog_form, a tui_fieldset in a modal frame with the title
+    and a key hint in the border (TUI-131), and tui_dialog_password(), a masked
+    prompt that shows one star per character.
   * 1.3.0: new: tui_sgrview, a scrolling text view of text that carries ANSI SGR
     styles (TUI-122): bold, dim, italic, underline, strike, blink, reverse, 16,
     256 and 24-bit colour, kept across wrap and scroll.

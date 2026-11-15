@@ -14,6 +14,8 @@
 #include "test_helpers.h"
 #include "tuikit/fieldset.h"
 
+#include <errno.h>
+
 int g_tests_run = 0;
 int g_tests_failed = 0;
 
@@ -524,7 +526,178 @@ static void test_lineedit_replace(void) {
     tui_lineedit_free(&le);
 }
 
+/* ── TUI-131: the form in a modal frame ─────────────────────────────── */
+
+static tui_dialog_state fsend(tui_dialog_form *d, const char *keys) {
+    tui_decoder dec;
+    tui_decoder_init(&dec);
+    tui_decoder_feed(&dec, keys, strlen(keys));
+    tui_event ev;
+    tui_dialog_state st = d->form->state;
+    while (tui_decoder_next(&dec, &ev)) st = tui_dialog_form_handle(d, &ev);
+    if (tui_decoder_timeout(&dec, &ev)) st = tui_dialog_form_handle(d, &ev);
+    tui_decoder_free(&dec);
+    return st;
+}
+
+/* The row and column where @p text starts on the emulated screen, or -1. */
+static int find_text(PtySession *s, int rows, int cols, const char *text, int *row, int *col) {
+    size_t n = strlen(text);
+    for (int r = 0; r < rows; r++)
+        for (int c = 0; c + (int)n <= cols; c++) {
+            size_t k = 0;
+            while (k < n && strcmp(pty_cell_text(s, r, c + (int)k), (char[2]){ text[k], 0 }) == 0) k++;
+            if (k == n) {
+                *row = r;
+                *col = c;
+                return 0;
+            }
+        }
+    return -1;
+}
+
+static int validate_nonempty(void *user, const tui_fieldset *f, char *err, size_t errsz) {
+    (void)user;
+    if (f->fields[0].edit.buf[0]) return -1;
+    snprintf(err, errsz, "To is empty");
+    return 0;
+}
+
+static void test_dialog_form(void) {
+    char name[32], url[32];
+    static const char *const kinds[] = { "web", "native" };
+    tui_field fields[3];
+    tui_field_text(&fields[0], "Name:", name, sizeof name, "");
+    tui_field_text(&fields[1], "Redirect URL:", url, sizeof url, "");
+    tui_field_choice(&fields[2], "Type:", kinds, 2, 0);
+    tui_fieldset fs;
+    tui_fieldset_init(&fs, fields, 3);
+    tui_dialog_form d;
+    ASSERT_EQ_INT(tui_dialog_form_init(&d, "New client", NULL, &fs), 0, "create");
+
+    tui_screen *scr = tui_screen_new(14, 60);
+    PtySession *s = pty_open(60, 14);
+    ASSERT(scr && s, "fixtures");
+    tui_buf out;
+    tui_buf_init(&out);
+    tui_canvas_clear(tui_canvas_of(scr), TUI_STYLE_DEFAULT);
+    tui_dialog_form_render(&d, tui_canvas_of(scr));
+    tui_screen_render(scr, &out);
+    pty_feed(s, out.data, out.len);
+
+    int r, c, tr, tc, br, bc;
+    ASSERT(pty_screen_contains(s, "New client"), "the title");
+    ASSERT(pty_screen_contains(s, "Name:"), "a label");
+    ASSERT(pty_screen_contains(s, "Redirect URL:"), "the widest label");
+    ASSERT(pty_screen_contains(s, "web"), "the choice");
+    ASSERT_EQ_INT(find_text(s, 14, 60, TUI_DIALOG_FORM_HINT, &br, &bc), 0, "the key hint");
+    ASSERT_EQ_INT(find_text(s, 14, 60, "New client", &tr, &tc), 0, "the title position");
+    ASSERT(br > tr + 3, "the hint is in the bottom border, below the fields");
+    ASSERT_EQ_STR(pty_cell_text(s, tr, tc - 3), "┌", "the title is in the top border");
+    ASSERT_EQ_STR(pty_cell_text(s, br, bc - 1), "─", "the hint sits in the bottom border");
+    ASSERT_EQ_STR(pty_cell_text(s, br, bc - 2), "└", "the bottom-left corner");
+    int rn, cn;
+    ASSERT_EQ_INT(find_text(s, 14, 60, "Name:", &rn, &cn), 0, "label position");
+    ASSERT_EQ_STR(pty_cell_text(s, rn, cn - 2), "│", "the fields are inside the frame");
+    ASSERT_EQ_INT(pty_cell_fg(s, tr, tc), PTY_FG_CYAN, "the frame colour (the accent)");
+    ASSERT_EQ_INT(pty_cell_fg(s, br, bc), PTY_FG_CYAN, "the hint is in the frame colour");
+    pty_cursor(s, &r, &c);
+    ASSERT_EQ_INT(r, rn, "the cursor is in the first field");
+
+    /* The centre: the box is as far from the left as from the right. */
+    int right = -1;
+    for (int col = 59; col > 0 && right < 0; col--)
+        if (strcmp(pty_cell_text(s, tr, col), "┐") == 0) right = col;
+    int left = tc - 3;
+    ASSERT(right > 0 && (left - (59 - right)) >= -1 && (left - (59 - right)) <= 1, "centred");
+
+    ASSERT_EQ_INT(fsend(&d, "acme\t"), TUI_DIALOG_OPEN, "typing and Tab");
+    ASSERT_EQ_STR(name, "acme", "typed into the first field");
+    ASSERT_EQ_INT(fs.focus, 1, "Tab moves on");
+    fsend(&d, "https://x.example/cb\t\x1b[C");
+    ASSERT_EQ_STR(url, "https://x.example/cb", "second field");
+    ASSERT_EQ_INT(fields[2].choice, 1, "Right changes the choice");
+    ASSERT_EQ_INT(fsend(&d, "\r"), TUI_DIALOG_OK, "Enter submits");
+    ASSERT_EQ_INT(fsend(&d, "\x1b"), TUI_DIALOG_OK, "a closed dialog stays closed");
+    ASSERT_EQ_INT(fs.state, TUI_DIALOG_OK, "the form's state is the outcome");
+
+    /* Esc cancels. */
+    fs.state = TUI_DIALOG_OPEN;
+    ASSERT_EQ_INT(fsend(&d, "\x1b"), TUI_DIALOG_CANCELLED, "Esc cancels");
+    tui_dialog_form_free(&d);
+    tui_dialog_form_free(&d);
+    tui_dialog_form_free(NULL);
+    tui_buf_free(&out);
+    tui_screen_free(scr);
+    pty_close(s);
+    tui_fieldset_free(&fs);
+}
+
+/* A validator keeps the dialog open and shows its reason inside the frame;
+ * a custom hint replaces the default; a completing field gets room for its drop-down. */
+static void test_dialog_form_validation_and_sizes(void) {
+    char to[32];
+    tui_field fl;
+    tui_field_text(&fl, "To:", to, sizeof to, "");
+    fl.complete = complete_contacts;
+    fl.separators = ";,";
+    tui_fieldset fs;
+    tui_fieldset_init(&fs, &fl, 1);
+    fs.validate = validate_nonempty;
+    tui_dialog_form d;
+    ASSERT_EQ_INT(tui_dialog_form_init(&d, "A very long title for a small form dialog, cut to the screen",
+                                       " Enter send ", &fs), 0, "create");
+    tui_screen *scr = tui_screen_new(12, 40);
+    PtySession *s = pty_open(40, 12);
+    tui_buf out;
+    tui_buf_init(&out);
+    ASSERT_EQ_INT(fsend(&d, "\r"), TUI_DIALOG_OPEN, "the validator keeps it open");
+    tui_canvas_clear(tui_canvas_of(scr), TUI_STYLE_DEFAULT);
+    tui_dialog_form_render(&d, tui_canvas_of(scr));
+    tui_screen_render(scr, &out);
+    pty_feed(s, out.data, out.len);
+    ASSERT(pty_screen_contains(s, "To is empty"), "the reason, inside the frame");
+    ASSERT(pty_screen_contains(s, " Enter send "), "the given hint");
+    ASSERT(!pty_screen_contains(s, "Tab next"), "not the default one");
+    int row, col;
+    ASSERT_EQ_INT(find_text(s, 12, 40, "To is empty", &row, &col), 0, "reason position");
+    ASSERT_EQ_STR(pty_cell_text(s, row, col - 2), "│", "left border beside it");
+
+    fsend(&d, "al\x1b[B");
+    tui_buf_reset(&out);
+    tui_canvas_clear(tui_canvas_of(scr), TUI_STYLE_DEFAULT);
+    tui_dialog_form_render(&d, tui_canvas_of(scr));
+    tui_screen_render(scr, &out);
+    pty_feed(s, out.data, out.len);
+    ASSERT(pty_screen_contains(s, "alice@example.com"), "the drop-down is inside the box");
+    ASSERT(pty_screen_contains(s, " Enter send "), "the hint stays under the drop-down");
+
+    /* A canvas too small for the box: clamped, nothing drawn outside it. */
+    tui_screen *tiny = tui_screen_new(4, 10);
+    tui_dialog_form_render(&d, tui_canvas_of(tiny));
+    tui_screen_free(tiny);
+    tui_screen *one = tui_screen_new(1, 1);
+    tui_dialog_form_render(&d, tui_canvas_of(one));
+    tui_screen_free(one);
+
+    tui_dialog_form_render(NULL, tui_canvas_of(scr));
+    tui_dialog_form_render(&d, (tui_canvas){ 0 });
+    ASSERT_EQ_INT(tui_dialog_form_handle(NULL, NULL), TUI_DIALOG_CANCELLED, "no dialog");
+    errno = 0;
+    ASSERT_EQ_INT(tui_dialog_form_init(&d, "t", NULL, NULL), -1, "no form");
+    ASSERT_EQ_INT(errno, EINVAL, "errno");
+    ASSERT_EQ_INT(tui_dialog_form_init(NULL, "t", NULL, &fs), -1, "no dialog");
+
+    tui_dialog_form_free(&d);
+    tui_buf_free(&out);
+    tui_screen_free(scr);
+    pty_close(s);
+    tui_fieldset_free(&fs);
+}
+
 static const TestCase tests[] = {
+    TEST_CASE(test_dialog_form),
+    TEST_CASE(test_dialog_form_validation_and_sizes),
     TEST_CASE(test_layout_and_focus),
     TEST_CASE(test_completion),
     TEST_CASE(test_candidate_selection_depth_and_own_style),
