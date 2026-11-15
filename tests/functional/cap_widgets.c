@@ -486,6 +486,22 @@ static void cap_dialog(void) {
     ev = cap_ev("\x1b");
     CHECK_INT(tui_dialog_handle(&d, &ev), TUI_DIALOG_OK, "events after closing are ignored");
     tui_dialog_free(&d);
+
+    tui_dialog_text(&d, "Long", "one\ntwo\nthree\nfour\nfive\nsix\nseven\neight\nnine\nten\n"
+                    "eleven\ntwelve\nthirteen\nfourteen\nfifteen\nsixteen\nseventeen\neighteen\n"
+                    "nineteen\ntwenty\ntwentyone\ntwentytwo\ntwentythree\ntwentyfour");
+    tui_dialog_render(&d, tui_canvas_of(s));
+    ev = cap_ev("j");
+    tui_dialog_handle(&d, &ev);
+    ev = cap_ev("G");
+    CHECK_INT(tui_dialog_handle(&d, &ev), TUI_DIALOG_OPEN, "a text dialog scrolls");
+    tui_dialog_render(&d, tui_canvas_of(s));
+    txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "twentyfour", "text dialog scrolled to the end");
+    free(txt);
+    ev = cap_ev("\r");
+    CHECK_INT(tui_dialog_handle(&d, &ev), TUI_DIALOG_OK, "Enter closes a text dialog");
+    tui_dialog_free(&d);
     tui_screen_free(s);
 }
 

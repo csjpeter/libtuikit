@@ -40,7 +40,9 @@ typedef enum tui_dialog_kind {
     TUI_DIALOG_HELP,         /**< the keys of a view, closed by Esc, q or Backspace */
     TUI_DIALOG_QUICKMENU,    /**< a menu whose items start with a quick-key letter, drawn
                                   in the accent colour (made by tui_actionmenu_open()) */
-    TUI_DIALOG_PASSWORD      /**< text and a line of masked input: one '*' per character */
+    TUI_DIALOG_PASSWORD,     /**< text and a line of masked input: one '*' per character */
+    TUI_DIALOG_TEXT          /**< scrollable wrapped text with a scroll bar, closed by
+                                  Esc, q, Backspace or Enter */
 } tui_dialog_kind;
 
 /** @brief Where the dialog stands. */
@@ -139,6 +141,17 @@ TUI_API int tui_dialog_checklist(tui_dialog *d, const char *title,
  */
 TUI_API int tui_dialog_help(tui_dialog *d, const char *title,
                             const char *const *pairs, int n);
+
+/**
+ * @brief A scrollable text: @p text (copied) wrapped in a framed box sized
+ *        to it and to the canvas, with a scroll bar in the right padding
+ *        column when it is longer than the box.
+ *
+ * Up, Down, PgUp, PgDn, Home, End, j, k (and ctrl-f, ctrl-b, g, G) scroll;
+ * Esc, q, Backspace, Enter and Ctrl-C close it (state TUI_DIALOG_OK);
+ * every other key changes nothing.
+ */
+TUI_API int tui_dialog_text(tui_dialog *d, const char *title, const char *text);
 
 /** @brief 1 when item @p i of a checklist is ticked, 0 otherwise. */
 TUI_API int tui_dialog_is_checked(const tui_dialog *d, int i);

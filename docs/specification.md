@@ -74,6 +74,12 @@ Added after the first implementation (2026-10-03):
   when it does not fit, other keys do nothing (TUI-18; the policy's "any
   key closes it" is changed by POL-28). Its rows are `items` read in pairs, so `tui_dialog` keeps its
   size.
+- `tui_dialog_text()` (TUI-127): a scrollable wrapped text in a framed box
+  sized to the text and the screen, a scroll bar in the right padding column
+  when the text is longer than the box (kind `TUI_DIALOG_TEXT`, the
+  `tui_textview` inside); Up/Down, PgUp/PgDn, Home/End, j/k scroll, Esc, q,
+  Backspace, Enter and Ctrl-C close it.  For devboard's Help full text,
+  Template and captured pane text.
 - `tui_lineedit_replace()`, for completions.
 - `tui_tty_read_password()` turns echo off before writing the prompt, and
   restores the terminal if SIGINT/SIGTERM/SIGHUP/SIGQUIT ends the process

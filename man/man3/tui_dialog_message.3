@@ -3,7 +3,7 @@
 .TH TUI_DIALOG_MESSAGE 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
 .SH NAME
 tui_dialog_message, tui_dialog_confirm, tui_dialog_prompt, tui_dialog_password, tui_dialog_menu,
-tui_dialog_checklist, tui_dialog_is_checked, tui_dialog_help, tui_dialog_free,
+tui_dialog_checklist, tui_dialog_is_checked, tui_dialog_help, tui_dialog_text, tui_dialog_free,
 tui_dialog_handle, tui_dialog_render \- modal dialogs
 .SH SYNOPSIS
 .nf
@@ -24,6 +24,7 @@ tui_dialog_handle, tui_dialog_render \- modal dialogs
 .BI "int  tui_dialog_is_checked(const tui_dialog *" d ", int " i );
 .BI "int  tui_dialog_help(tui_dialog *" d ", const char *" title ,
 .BI "                     const char *const *" pairs ", int " n );
+.BI "int  tui_dialog_text(tui_dialog *" d ", const char *" title ", const char *" text );
 .BI "void tui_dialog_free(tui_dialog *" d );
 .BI "tui_dialog_state tui_dialog_handle(tui_dialog *" d ", const tui_event *" ev );
 .BI "void tui_dialog_render(tui_dialog *" d ", tui_canvas " c );
@@ -140,6 +141,21 @@ The line is kept in the dialog's
 array, which a help has no other use for; a failed allocation leaves
 .B /
 without effect.
+.TP
+.BR tui_dialog_text ()
+A scrollable text: \fItext\fR (copied) wrapped in a framed box sized to
+the text and to the canvas, titled \fItitle\fR, with no button.
+When the text is longer than the box, a scroll bar is drawn in the padding
+column at the right edge of the frame, and the text keeps its width.
+Up, Down, PgUp, PgDn, Home, End,
+.BR j ", " k ", " ctrl\-f ", " ctrl\-b ", " g " and " G
+scroll it; Esc,
+.BR q ,
+Backspace, Enter and Ctrl\-C close it with
+.BR TUI_DIALOG_OK ;
+every other key changes nothing.
+Its kind is
+.BR TUI_DIALOG_TEXT .
 .PP
 .BR tui_dialog_render ()
 draws a box centred in

@@ -366,7 +366,7 @@ set(TUIKIT_MAN3_ALIASES
     tui_dialog_menu:tui_dialog_message tui_dialog_free:tui_dialog_message
     tui_dialog_handle:tui_dialog_message tui_dialog_render:tui_dialog_message
     tui_dialog_checklist:tui_dialog_message tui_dialog_is_checked:tui_dialog_message
-    tui_dialog_help:tui_dialog_message
+    tui_dialog_help:tui_dialog_message tui_dialog_text:tui_dialog_message
     tui_filechooser_set_hidden:tui_filechooser_open tui_filechooser_loading:tui_filechooser_open
     tui_filechooser_poll:tui_filechooser_open tui_filechooser_dir:tui_filechooser_open
     tui_filechooser_handle:tui_filechooser_open tui_filechooser_render:tui_filechooser_open

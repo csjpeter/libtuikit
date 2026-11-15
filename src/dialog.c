@@ -113,6 +113,10 @@ int tui_dialog_checklist(tui_dialog *d, const char *title, const char *const *it
     return 0;
 }
 
+int tui_dialog_text(tui_dialog *d, const char *title, const char *text) {
+    return setup(d, TUI_DIALOG_TEXT, title, text);
+}
+
 /* A help row's key or description; a NULL one is drawn empty. */
 static const char *help_str(const tui_dialog *d, int i) {
     return d->items[i] ? d->items[i] : "";
@@ -288,6 +292,13 @@ tui_dialog_state tui_dialog_handle(tui_dialog *d, const tui_event *ev) {
         }
         tui_listview_handle(&d->list, ev);
         d->answer = d->list.selected;
+        break;
+    case TUI_DIALOG_TEXT:
+        /* Back as from any view; the movement keys scroll the text. */
+        if (cancel || TUI_EV_IS_CHAR(ev, 'q') || (is_key && ev->key == TUI_KEY_ENTER) ||
+            (is_key && ev->key == TUI_KEY_BACKSPACE && ev->mods == 0))
+            return close_with(d, TUI_DIALOG_OK);
+        tui_textview_handle(&d->body, ev);
         break;
     case TUI_DIALOG_HELP: {
         /* Back as from any view: Esc, q, Backspace (and Ctrl-C, as in
@@ -467,6 +478,7 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     int help_text = d->kind == TUI_DIALOG_HELP && lines > 0 ? lines + 1 : 0;
     int extra = 0;
     switch (d->kind) {
+    case TUI_DIALOG_TEXT:    extra = 0; break;                     /* the text only */
     case TUI_DIALOG_MESSAGE:
     case TUI_DIALOG_CONFIRM: extra = lines > 0 ? 2 : 1; break;   /* blank + buttons */
     case TUI_DIALOG_PASSWORD:
@@ -519,6 +531,8 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     tui_canvas last = tui_canvas_sub(cc, tui_rect_make(rows - 1, 0, 1, inner_w));
     tui_screen_set_cursor(c.screen, 0, 0, 0);
     switch (d->kind) {
+    case TUI_DIALOG_TEXT:
+        break;
     case TUI_DIALOG_MESSAGE:
         tui_canvas_put_aligned(last, 0, "[ OK ]", TUI_ALIGN_CENTER, tui__button_focus(d->focus));
         break;
