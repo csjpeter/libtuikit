@@ -332,7 +332,7 @@ set(TUIKIT_MAN3_ALIASES
     tui_tabrow_set:tui_tabrow_init tui_tabrow_set_active:tui_tabrow_init
     tui_tabrow_active:tui_tabrow_init tui_tabrow_count:tui_tabrow_init
     tui_tabrow_handle:tui_tabrow_init tui_tabrow_render:tui_tabrow_init
-    tui_tabrow_format:tui_tabrow_init
+    tui_tabrow_format:tui_tabrow_init tui_tabrow_set_numbers:tui_tabrow_init
     tui_menu_set:tui_menu_init tui_menu_select:tui_menu_init
     tui_menu_selected:tui_menu_init tui_menu_count:tui_menu_init
     tui_menu_handle:tui_menu_init tui_menu_render:tui_menu_init
