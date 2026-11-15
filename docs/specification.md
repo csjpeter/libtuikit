@@ -38,6 +38,16 @@ Added after the first implementation (2026-10-03):
   completion drop-down per token, validation -- email-cli's compose dialog
   and issue-manager's issue form.  (Not `tui_form_*`: issue-manager uses
   that family, §3.)
+- `tui_dialog_form` (TUI-131, `tuikit/fieldset.h`): a `tui_fieldset` in a
+  centred modal frame -- the title in the top border, the key hint
+  (default `" Tab next  Enter OK  Esc cancel "`) in the bottom border, the
+  box sized to the fields (widest label, widest value, title, hint, the
+  drop-down's rows when a field completes, one row for the error).  Enter
+  submits through the form's `validate`, Esc cancels; the outcome is
+  `form->state`.  `tui_dialog_password()` (`tuikit/dialog.h`, kind
+  `TUI_DIALOG_PASSWORD`) is `tui_dialog_prompt()` with the text drawn as one
+  `*` per character; the text is never shown.  Roles: as `tui_dialog` (frame,
+  text) and `tui_fieldset`.
 - `tui_tty_wait()`: tg-cli's `terminal_wait_key()`, with EINTR reported.
 - `tui_textedit` (TUI-2, `tuikit/textedit.h`): a multi-line editor that
   keeps newlines and tabs -- issue-manager's `tui_textarea`, generalised to

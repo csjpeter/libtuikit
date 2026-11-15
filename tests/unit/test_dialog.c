@@ -175,6 +175,63 @@ static void test_prompt(void) {
     fx_close(&f);
 }
 
+/* TUI-131: the masked prompt shows one '*' per character, never the text. */
+static void test_password(void) {
+    tui_dialog d;
+    char buf[32];
+    ASSERT_EQ_INT(tui_dialog_password(&d, "Password", "Current password:", buf, sizeof(buf)), 0,
+                  "create");
+    ASSERT_EQ_INT(d.kind, TUI_DIALOG_PASSWORD, "kind");
+    Fx f;
+    ASSERT(fx_open(&f, 9, 40) == 0, "fixtures");
+    fx_draw(&f, &d);
+    ASSERT(pty_screen_contains(f.s, "Current password:"), "the explaining line");
+    ASSERT_EQ_INT(send(&d, "s3cr\xC3\xA9t"), TUI_DIALOG_OPEN, "typing");
+    ASSERT_EQ_STR(buf, "s3cr\xC3\xA9t", "the text is in the caller's buffer");
+    fx_draw(&f, &d);
+    ASSERT(pty_screen_contains(f.s, "******"), "one star per character (a two-byte one counts once)");
+    ASSERT(!pty_screen_contains(f.s, "*******"), "no more stars than characters");
+    ASSERT(!pty_screen_contains(f.s, "s3cr"), "the text is never shown");
+    ASSERT(!pty_screen_contains(f.s, "t\xC3\xA9"), "not a part of it either");
+    int r, c, r0 = -1, c0 = -1;
+    pty_cursor(f.s, &r, &c);
+    for (int row = 0; row < 9 && r0 < 0; row++)
+        for (int col = 0; col < 40; col++)
+            if (strcmp(pty_cell_text(f.s, row, col), "*") == 0) {
+                r0 = row;
+                c0 = col;
+                break;
+            }
+    ASSERT_EQ_INT(r, r0, "the cursor is in the input line");
+    ASSERT_EQ_INT(c, c0 + 6, "after the stars");
+    send(&d, "\x1b[D\x1b[D");
+    fx_draw(&f, &d);
+    pty_cursor(f.s, &r, &c);
+    ASSERT_EQ_INT(c, c0 + 4, "Left moves the cursor between the stars");
+    ASSERT_EQ_INT(send(&d, "\x7f"), TUI_DIALOG_OPEN, "Backspace");
+    ASSERT_EQ_STR(buf, "s3c\xC3\xA9t", "edited in the buffer");
+    ASSERT_EQ_INT(send(&d, "\r"), TUI_DIALOG_OK, "Enter confirms");
+    tui_dialog_free(&d);
+
+    /* A line longer than the field scrolls; the cursor stays in it. */
+    tui_dialog_password(&d, "P", NULL, buf, sizeof(buf));
+    send(&d, "0123456789012345678901234567");
+    fx_draw(&f, &d);
+    ASSERT(!pty_screen_contains(f.s, "0123"), "a long text is not shown either");
+    pty_cursor(f.s, &r, &c);
+    ASSERT(c >= 0 && c < 40, "the cursor stays on the screen");
+    ASSERT_EQ_INT(send(&d, "\x1b"), TUI_DIALOG_CANCELLED, "Esc cancels");
+    tui_dialog_free(&d);
+
+    tui_dialog_password(&d, "P", NULL, buf, sizeof(buf));
+    ASSERT_EQ_INT(send(&d, "abc\x03"), TUI_DIALOG_CANCELLED, "Ctrl-C cancels");
+    tui_dialog_free(&d);
+    errno = 0;
+    ASSERT_EQ_INT(tui_dialog_password(&d, "x", "y", NULL, 4), -1, "no buffer");
+    ASSERT_EQ_INT(errno, EINVAL, "errno");
+    fx_close(&f);
+}
+
 static void test_menu(void) {
     static const char *const items[] = { "Open", "Save as\xE2\x80\xA6", "Quit" };
     tui_dialog d;
@@ -497,6 +554,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_message),
     TEST_CASE(test_confirm),
     TEST_CASE(test_prompt),
+    TEST_CASE(test_password),
     TEST_CASE(test_menu),
     TEST_CASE(test_checklist),
     TEST_CASE(test_help),

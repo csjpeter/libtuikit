@@ -270,6 +270,22 @@ static void test_dialog_and_decoder_failures(void) {
     ASSERT_EQ_INT(errno, ENOMEM, "errno");
     fault_reset();
 
+    /* The form dialog's two copies (TUI-131): the title, then the hint. */
+    char fbuf[8];
+    tui_field fld;
+    tui_field_text(&fld, "A:", fbuf, sizeof fbuf, "");
+    tui_fieldset fs;
+    tui_fieldset_init(&fs, &fld, 1);
+    tui_dialog_form df;
+    for (int skip = 0; skip < 2; skip++) {
+        fault_arm(F_MALLOC, skip, 1, ENOMEM);
+        errno = 0;
+        ASSERT_EQ_INT(tui_dialog_form_init(&df, "t", "h", &fs), -1, "form dialog: allocation failure");
+        ASSERT_EQ_INT(errno, ENOMEM, "errno");
+        fault_reset();
+    }
+    tui_fieldset_free(&fs);
+
     tui_decoder dec;
     tui_decoder_init(&dec);
     tui_event ev;

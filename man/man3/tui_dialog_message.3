@@ -2,7 +2,7 @@
 .\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
 .TH TUI_DIALOG_MESSAGE 3 2026-10-03 "libtuikit 0.1" "libtuikit Manual"
 .SH NAME
-tui_dialog_message, tui_dialog_confirm, tui_dialog_prompt, tui_dialog_menu,
+tui_dialog_message, tui_dialog_confirm, tui_dialog_prompt, tui_dialog_password, tui_dialog_menu,
 tui_dialog_checklist, tui_dialog_is_checked, tui_dialog_help, tui_dialog_free,
 tui_dialog_handle, tui_dialog_render \- modal dialogs
 .SH SYNOPSIS
@@ -14,6 +14,8 @@ tui_dialog_handle, tui_dialog_render \- modal dialogs
 .BI "                        int " default_yes );
 .BI "int  tui_dialog_prompt(tui_dialog *" d ", const char *" title ", const char *" text ,
 .BI "                       char *" buf ", size_t " size ", const char *" initial );
+.BI "int  tui_dialog_password(tui_dialog *" d ", const char *" title ", const char *" text ,
+.BI "                         char *" buf ", size_t " size );
 .BI "int  tui_dialog_menu(tui_dialog *" d ", const char *" title ,
 .BI "                     const char *const *" items ", int " n ", int " selected );
 .BI "int  tui_dialog_checklist(tui_dialog *" d ", const char *" title ,
@@ -58,6 +60,23 @@ Text and one line of input, edited in the caller's
 by a
 .BR tui_lineedit_init (3)
 with all its keys; Enter confirms, Esc and Ctrl-C cancel.
+.TP
+.BR tui_dialog_password ()
+A masked prompt: as
+.BR tui_dialog_prompt (),
+but the line shows one
+.B *
+per character and never the text, which is edited in the caller's
+.I buf
+(empty at first) with the keys of
+.BR tui_lineedit_handle (3).
+The line scrolls with the cursor.
+.I d\->kind
+is
+.BR TUI_DIALOG_PASSWORD .
+The caller wipes
+.I buf
+when it is done.
 .TP
 .BR tui_dialog_menu ()
 A list of

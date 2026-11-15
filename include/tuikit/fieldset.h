@@ -150,6 +150,47 @@ TUI_API tui_dialog_state tui_fieldset_handle(tui_fieldset *f, const tui_event *e
  */
 TUI_API int tui_fieldset_render(tui_fieldset *f, tui_canvas c);
 
+/* ── The form in a modal frame (TUI-131) ─────────────────────────────── */
+
+/** @brief The hint line a form dialog writes into its bottom border when
+ *         none is given. */
+#define TUI_DIALOG_FORM_HINT " Tab next  Enter OK  Esc cancel "
+
+/**
+ * @brief A tui_fieldset in a centred, framed box: the title in the top
+ *        border, the fields sized to the box, a key hint in the bottom
+ *        border.  Enter submits (through the form's @c validate) and Esc
+ *        cancels, as the form does; read the outcome from
+ *        @c form->state.  The form is the caller's and outlives the dialog.
+ */
+typedef struct tui_dialog_form {
+    tui_fieldset *form;
+    char         *title;     /* private copy */
+    char         *hint;      /* private copy; the bottom border's text */
+    tui_style     frame;     /**< border, title and hint */
+    tui_style     fill;      /**< inside */
+} tui_dialog_form;
+
+/**
+ * @brief Frames @p form under @p title; @p hint (NULL: TUI_DIALOG_FORM_HINT)
+ *        is written into the bottom border.  Returns 0, or -1 with errno.
+ */
+TUI_API int tui_dialog_form_init(tui_dialog_form *d, const char *title, const char *hint,
+                                 tui_fieldset *form);
+
+/** @brief Frees the dialog's copies (not the form). */
+TUI_API void tui_dialog_form_free(tui_dialog_form *d);
+
+/** @brief Gives the form one event; returns its state afterwards. */
+TUI_API tui_dialog_state tui_dialog_form_handle(tui_dialog_form *d, const tui_event *ev);
+
+/**
+ * @brief Draws the dialog centred in @p c, sized to the fields (the widest
+ *        label and value, the title, the hint, the drop-down and the error
+ *        row) and to at most the canvas less a margin of one cell.
+ */
+TUI_API void tui_dialog_form_render(tui_dialog_form *d, tui_canvas c);
+
 #ifdef __cplusplus
 }
 #endif

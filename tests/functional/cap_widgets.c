@@ -398,6 +398,20 @@ static void cap_dialog(void) {
     CHECK_STR(buf, "abcd", "prompt text in the caller's buffer");
     tui_dialog_free(&d);
 
+    char pw[16];
+    CHECK_INT(tui_dialog_password(&d, "Password", "Current:", pw, sizeof pw), 0, "password");
+    CHECK_INT(d.kind, TUI_DIALOG_PASSWORD, "password kind");
+    CAP_TYPE(tui_dialog_handle, &d, "hunter2");
+    tui_dialog_render(&d, tui_canvas_of(s));
+    txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "*******", "one star per character");
+    CHECK(strstr(txt, "hunter2") == NULL, "the password is never drawn");
+    free(txt);
+    ev = cap_ev("\r");
+    CHECK_INT(tui_dialog_handle(&d, &ev), TUI_DIALOG_OK, "password accepted");
+    CHECK_STR(pw, "hunter2", "password in the caller's buffer");
+    tui_dialog_free(&d);
+
     const char *items[] = { "red", "green", "blue" };
     tui_dialog_menu(&d, "Colour", items, 3, 1);
     tui_dialog_render(&d, tui_canvas_of(s));
@@ -595,6 +609,30 @@ static void cap_fieldset(void) {
     CHECK_INT(tui_fieldset_handle(&f, &ev), TUI_DIALOG_CANCELLED, "Esc cancels");
     tui_screen_free(s);
     tui_fieldset_free(&f);
+
+    /* The form in a modal frame (TUI-131). */
+    char nm[16];
+    tui_field ff[2];
+    tui_field_text(&ff[0], "Name:", nm, sizeof nm, "");
+    tui_field_choice(&ff[1], "Type:", kinds, 2, 0);
+    tui_fieldset fs;
+    tui_fieldset_init(&fs, ff, 2);
+    tui_dialog_form df;
+    CHECK_INT(tui_dialog_form_init(&df, "New client", NULL, &fs), 0, "form dialog");
+    s = tui_screen_new(12, 50);
+    tui_dialog_form_render(&df, tui_canvas_of(s));
+    txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "New client", "form dialog title");
+    CHECK_HAS(txt, "Name:", "form dialog field");
+    CHECK_HAS(txt, "Tab next", "form dialog key hint");
+    free(txt);
+    CAP_TYPE(tui_dialog_form_handle, &df, "acme");
+    CHECK_STR(nm, "acme", "form dialog edits the field");
+    ev = cap_ev("\r");
+    CHECK_INT(tui_dialog_form_handle(&df, &ev), TUI_DIALOG_OK, "form dialog: Enter submits");
+    tui_dialog_form_free(&df);
+    tui_fieldset_free(&fs);
+    tui_screen_free(s);
 }
 
 /* ---- actions: the key table, the action menu, the help ---------------- */

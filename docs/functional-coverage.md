@@ -453,6 +453,7 @@ name the ticket that closes the gap; there is none now.
 | `tui_dialog_is_checked` | `tests/functional/cap_widgets.c` | `cap_dialog` |
 | `tui_dialog_menu` | `tests/functional/cap_widgets.c` | `cap_dialog` |
 | `tui_dialog_message` | `tests/functional/cap_widgets.c` | `cap_dialog` |
+| `tui_dialog_password` | `tests/functional/cap_widgets.c` | `cap_dialog` |
 | `tui_dialog_prompt` | `tests/functional/cap_widgets.c` | `cap_dialog` |
 | `tui_dialog_render` | `tests/functional/cap_widgets.c` | `cap_dialog` |
 
@@ -460,6 +461,10 @@ name the ticket that closes the gap; there is none now.
 
 | Capability | Functional test | Phase |
 |---|---|---|
+| `tui_dialog_form_free` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
+| `tui_dialog_form_handle` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
+| `tui_dialog_form_init` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
+| `tui_dialog_form_render` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
 | `tui_field_choice` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
 | `tui_fieldset_focus` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
 | `tui_fieldset_free` | `tests/functional/cap_widgets.c` | `cap_fieldset` |

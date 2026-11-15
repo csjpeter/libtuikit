@@ -14,6 +14,8 @@
 #include "internal.h"
 #include "tuikit/text.h"
 
+#include <errno.h>
+#include <stdlib.h>
 #include <string.h>
 
 void tui_field_text(tui_field *fl, const char *label, char *buf, size_t size,
@@ -298,4 +300,101 @@ int tui_fieldset_render(tui_fieldset *f, tui_canvas c) {
         r++;
     }
     return r;
+}
+
+/* ── The form in a modal frame (TUI-131) ─────────────────────────────── */
+
+static char *dup_str(const char *s) {
+    size_t n = strlen(s);
+    char *p = malloc(n + 1);
+    if (p) memcpy(p, s, n + 1);
+    return p;
+}
+
+int tui_dialog_form_init(tui_dialog_form *d, const char *title, const char *hint,
+                         tui_fieldset *form) {
+    if (!d || !form) {
+        errno = EINVAL;
+        return -1;
+    }
+    memset(d, 0, sizeof(*d));
+    d->form = form;
+    d->title = dup_str(title ? title : "");
+    d->hint = dup_str(hint ? hint : TUI_DIALOG_FORM_HINT);
+    d->frame = tui_scheme_style(TUI_ROLE_FRAME);
+    d->fill = tui_scheme_style(TUI_ROLE_TEXT);
+    if (!d->title || !d->hint) {
+        tui_dialog_form_free(d);
+        errno = ENOMEM;
+        return -1;
+    }
+    return 0;
+}
+
+void tui_dialog_form_free(tui_dialog_form *d) {
+    if (!d) return;
+    free(d->title);
+    free(d->hint);
+    d->title = d->hint = NULL;
+}
+
+tui_dialog_state tui_dialog_form_handle(tui_dialog_form *d, const tui_event *ev) {
+    if (!d || !d->form || !ev) return TUI_DIALOG_CANCELLED;
+    if (d->form->state != TUI_DIALOG_OPEN) return d->form->state;
+    return tui_fieldset_handle(d->form, ev);
+}
+
+/* A text field is shown this many columns wide at least; a longer buffer
+ * widens it up to FORM_VALUE_MAX. */
+#define FORM_VALUE_MIN 24
+#define FORM_VALUE_MAX 48
+/* Rows kept for the completion drop-down when a field completes. */
+#define FORM_CAND_ROWS 5
+
+void tui_dialog_form_render(tui_dialog_form *d, tui_canvas c) {
+    if (!d || !d->form || !c.screen) return;
+    tui_fieldset *f = d->form;
+    int avail_w = tui_canvas_cols(c) - 2, avail_h = tui_canvas_rows(c) - 2;
+
+    int label_w = 0, value_w = FORM_VALUE_MIN, completes = 0;
+    for (int i = 0; i < f->nfields; i++) {
+        const tui_field *fl = &f->fields[i];
+        int w = fl->label ? tui_str_width(fl->label) : 0;
+        if (w > label_w) label_w = w;
+        if (fl->kind == TUI_FIELD_CHOICE) {
+            for (int k = 0; k < fl->nchoices; k++) {
+                int cw = fl->choices[k] ? tui_str_width(fl->choices[k]) + 4 : 0;   /* "< x >" */
+                if (cw > value_w) value_w = cw;
+            }
+        } else {
+            int bw = fl->edit.size > 0 ? (int)fl->edit.size : 0;
+            if (bw > value_w) value_w = bw;
+            if (fl->complete) completes = 1;
+        }
+    }
+    if (value_w > FORM_VALUE_MAX) value_w = FORM_VALUE_MAX;
+    if (label_w > 0) label_w++;
+    int inner_w = label_w + value_w;
+    int tw = tui_str_width(d->title) + 2, hw = tui_str_width(d->hint) + 2;
+    if (tw > inner_w) inner_w = tw;
+    if (hw > inner_w) inner_w = hw;
+    if (inner_w > avail_w - 4) inner_w = avail_w - 4;
+    if (inner_w < 1) inner_w = 1;
+
+    /* The fields, the room of the drop-down, and a row for the error. */
+    int rows = f->nfields + (completes ? FORM_CAND_ROWS : 0) + 1;
+    int h = rows + 2;
+    if (h > avail_h) h = avail_h;
+    int w = inner_w + 4;
+
+    tui_rect box = tui_rect_center(tui_canvas_rect(c), h, w);
+    tui_canvas_fill(c, box, d->fill);
+    tui_canvas_box(c, box, d->title, d->frame);
+    if (d->hint[0] && box.rows > 0)
+        tui_canvas_put(tui_canvas_sub(c, tui_rect_make(box.row + box.rows - 1, box.col + 1, 1,
+                                                       box.cols - 2)),
+                       0, 1, d->hint, d->frame);
+    tui_canvas inner = tui_canvas_sub(c, tui_rect_make(box.row + 1, box.col + 2, box.rows - 2,
+                                                       box.cols - 4));
+    tui_fieldset_render(f, inner);
 }
