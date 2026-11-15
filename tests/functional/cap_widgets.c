@@ -240,6 +240,19 @@ static void cap_menu(void) {
     ev = cap_ev("j");
     CHECK_INT(tui_menu_handle(&m, &ev), TUI_MENU_MOVED, "j moves down");
     CHECK_INT(tui_menu_selected(&m), 1, "to the next entry");
+
+    /* ten entries: the tenth has the hot key 0 */
+    static const tui_menu_entry t[] = {
+        { "A", 1, 0, NULL }, { "B", 1, 0, NULL }, { "C", 1, 0, NULL }, { "D", 1, 0, NULL },
+        { "E", 1, 0, NULL }, { "F", 1, 0, NULL }, { "G", 1, 0, NULL }, { "H", 1, 0, NULL },
+        { "I", 1, 0, NULL }, { "J", 1, 0, "The tenth view." },
+    };
+    CHECK_INT(tui_menu_set(&m, t, 10, 0), 0, "a menu of ten");
+    ev = cap_ev("0");
+    CHECK_INT(tui_menu_handle(&m, &ev), TUI_MENU_ACTIVATED, "0 activates the tenth");
+    CHECK_INT(tui_menu_selected(&m), 9, "and moves the cursor to it");
+    CHECK(tui_menu_format(&m, 20, 60, out, sizeof out) > 0, "ten format");
+    CHECK_HAS(out, "> 0  J", "the tenth row has the key 0");
 }
 
 /* ---- header --------------------------------------------------------- */

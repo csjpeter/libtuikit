@@ -17,7 +17,7 @@
  * little above the middle so that the block and the description below it
  * look centred together.  No title and no program name.  A row is
  * <tt>"> 1  Label  N (M)"</tt>: the cursor row has the @c > mark and the
- * role "selection"; the hot key (the digits 1 to 9) is in the text colour;
+ * role "selection"; the hot key (the digits 1 to 9, 0 for the tenth entry) is in the text colour;
  * the count is @c N, and when @c attention is above zero @c "(M)" follows
  * it in the warning colour (bold orange).  The description of the entry under the cursor
  * is wrapped to two or three centered lines below the block.  Everything
@@ -33,8 +33,8 @@
 extern "C" {
 #endif
 
-/** @brief Most entries a menu holds: the hot keys are 1 to 9. */
-#define TUI_MENU_MAX 9
+/** @brief Most entries a menu holds: the hot keys are 1 to 9 and 0 (the tenth). */
+#define TUI_MENU_MAX 10
 
 /** @brief One entry.  The strings are not copied. */
 typedef struct tui_menu_entry {
