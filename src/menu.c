@@ -144,7 +144,7 @@ static void layout(const tui_menu *m, int rows, int cols, layout_t *ln) {
     if (left < 0) left = 0;
 
     tui_style text = tui_scheme_style(TUI_ROLE_TEXT);
-    tui_style warn = tui__warning_style();
+    tui_style warn = tui_scheme_style(TUI_ROLE_WARNING);
     tui_style sel = tui_selection_style();
     for (int i = 0; i < m->n; i++) {
         int row = top + i;

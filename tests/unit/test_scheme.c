@@ -70,7 +70,7 @@ static void poison(tui_scheme *sc) {
 /* ── Roles and the built-in palette ─────────────────────────────────── */
 
 static void test_roles(void) {
-    ASSERT_EQ_INT(TUI_ROLE_COUNT, 17, "seventeen roles");
+    ASSERT_EQ_INT(TUI_ROLE_COUNT, 18, "eighteen roles");
     for (int i = 0; i < TUI_ROLE_COUNT; i++) {
         const char *n = tui_role_name((tui_role)i);
         ASSERT(n != NULL, "every role has a key");
@@ -483,6 +483,36 @@ static void test_strike_and_blink_are_rendered(void) {
     tui_screen_free(s);
 }
 
+/* ── The warning role (TUI-135) ─────────────────────────────────────── */
+
+static void test_warning_role(void) {
+    tui_style w = tui_scheme_builtin(TUI_ROLE_WARNING);
+    ASSERT_EQ_STR(tui_role_name(TUI_ROLE_WARNING), "warning", "the key");
+    ASSERT_EQ_INT(tui_role_from_name("warning"), TUI_ROLE_WARNING, "found by name");
+    ASSERT_EQ_INT(w.fg, TUI_COLOR_256(208), "orange by default");
+    ASSERT_EQ_INT(w.bg, TUI_COLOR_DEFAULT, "no background");
+    ASSERT_EQ_INT(w.attrs, TUI_ATTR_BOLD, "bold by default");
+    ASSERT(same(tui_scheme_style(TUI_ROLE_WARNING), TUI_STYLE_WARNING), "the macro is the active role");
+
+    /* the user's file changes it, and nothing else */
+    tui_scheme sc;
+    tui_scheme_report rep;
+    tui_scheme_defaults(&sc);
+    ASSERT_EQ_INT(tui_scheme_parse(&sc, "warning = magenta - underline\n", "user", &rep), 0, "parses");
+    ASSERT(same(sc.styles[TUI_ROLE_WARNING], tui_style_make(TUI_MAGENTA, TUI_COLOR_DEFAULT, TUI_ATTR_UNDERLINE)),
+           "the user's warning");
+    ASSERT(same(sc.styles[TUI_ROLE_ERROR], tui_scheme_builtin(TUI_ROLE_ERROR)), "error untouched");
+    ASSERT(same(sc.styles[TUI_ROLE_OK], tui_scheme_builtin(TUI_ROLE_OK)), "ok untouched");
+    tui_scheme_defaults(&sc);
+    ASSERT_EQ_INT(tui_scheme_parse(&sc, "warning = 202 - bold\n", "user", &rep), 0, "an index");
+    ASSERT_EQ_INT(sc.styles[TUI_ROLE_WARNING].fg, TUI_COLOR_256(202), "index 202");
+
+    /* the colour depth: orange stays at 256 and is the nearest of 16, yellow at 8 */
+    ASSERT_EQ_INT(tui_color_reduce(w.fg, 256), TUI_COLOR_256(208), "orange at 256");
+    ASSERT_EQ_INT(tui_color_reduce(w.fg, 8), TUI_YELLOW, "yellow at 8");
+    ASSERT_EQ_INT(tui_color_reduce(w.fg, 16), TUI_BRIGHT_YELLOW, "bright yellow at 16");
+}
+
 static const TestCase tests[] = {
     TEST_CASE(test_roles),
     TEST_CASE(test_builtin_matches_palette),
@@ -496,6 +526,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_public_load_and_active),
     TEST_CASE(test_color_reduce),
     TEST_CASE(test_strike_and_blink_are_rendered),
+    TEST_CASE(test_warning_role),
 };
 
 int main(int argc, char **argv) {

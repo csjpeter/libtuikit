@@ -395,7 +395,7 @@ static void test_fieldset(void) {
 
 static void test_menu(void) {
     ASSERT_EQ_INT(use_scheme(g_scheme), 0, "the test scheme loads");
-    ASSERT_EQ_INT(tui__warning_style().fg, TUI_COLOR_256(C_WARN_FG), "the warning colour is orange");
+    ASSERT_EQ_INT(tui_scheme_style(TUI_ROLE_WARNING).fg, TUI_COLOR_256(C_WARN_FG), "the warning colour is orange");
     static const tui_menu_entry e[] = {
         { "Tickets", 12, 3, "The tickets." },
         { "Agents",   2, 1, "The agents." },

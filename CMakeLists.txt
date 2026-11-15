@@ -4,7 +4,7 @@
 # The build, test, install and package definition of libtuikit.
 
 cmake_minimum_required(VERSION 3.20)
-project(libtuikit VERSION 1.4.0 LANGUAGES C)
+project(libtuikit VERSION 2.0.0 LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Version
@@ -483,6 +483,11 @@ function(tuikit_write_changelog _pkg)
   * new: tui_html_render() (TUI-124): a bounded HTML subset (b, i, u, s, a,
     br, p, ul, ol, li, blockquote, pre, table, entities, style colour) as
     reflowed text, plain or with SGR; no script runs, nothing is loaded.
+  * 2.0.0: SOVERSION 2, package libtuikit2 (TUI-135).  tui_scheme grew by
+    the role warning (216 bytes), bold orange (index 208) by default, and the
+    macro TUI_STYLE_WARNING; the menu's attention count draws with it.  The
+    scheme directory is /usr/share/libtuikit2/schemes.  Rebuild dependants
+    against libtuikit2.
   * 1.4.0: new: tui_dialog_form, a tui_fieldset in a modal frame with the title
     and a key hint in the border (TUI-131), and tui_dialog_password(), a masked
     prompt that shows one star per character.

@@ -21,7 +21,7 @@
 
 static const char *const k_role_names[TUI_ROLE_COUNT] = {
     "text", "header", "status", "selection", "cursor", "accent", "frame", "input",
-    "input.focus", "tab.active", "tab.inactive", "ok", "error", "hint", "progress",
+    "input.focus", "tab.active", "tab.inactive", "ok", "error", "warning", "hint", "progress",
     "scrollbar.track", "scrollbar.thumb"
 };
 
@@ -39,14 +39,6 @@ int tui_role_from_name(const char *name) {
 
 /* ── Built-in styles: what default.scheme holds ─────────────────────── */
 
-/* The warning colour (policies/tui-interface-model.md: bold orange, 256-colour
- * index 208; the screen reduces it where the terminal has fewer colours).  It
- * is not yet a role of the scheme: a role would grow tui_scheme, which the ABI
- * of this SOVERSION forbids (abi/libtuikit0.abi), so it waits for the next one. */
-tui_style tui__warning_style(void) {
-    return tui_style_make(TUI_COLOR_256(208), TUI_COLOR_DEFAULT, TUI_ATTR_BOLD);
-}
-
 tui_style tui_scheme_builtin(tui_role role) {
     switch (role) {
     case TUI_ROLE_HEADER:       return tui_style_make(TUI_WHITE, TUI_BLUE, TUI_ATTR_BOLD);
@@ -58,6 +50,7 @@ tui_style tui_scheme_builtin(tui_role role) {
     case TUI_ROLE_TAB_ACTIVE:   return tui_style_make(TUI_CYAN, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD);
     case TUI_ROLE_OK:           return tui_style_make(TUI_GREEN, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD);
     case TUI_ROLE_ERROR:        return tui_style_make(TUI_RED, TUI_COLOR_DEFAULT, TUI_ATTR_BOLD);
+    case TUI_ROLE_WARNING:      return tui_style_make(TUI_COLOR_256(208), TUI_COLOR_DEFAULT, TUI_ATTR_BOLD);
     case TUI_ROLE_HINT:         return tui_style_make(TUI_YELLOW, TUI_COLOR_DEFAULT, 0);
     case TUI_ROLE_PROGRESS:     return tui_style_make(TUI_YELLOW, TUI_COLOR_DEFAULT, TUI_ATTR_ITALIC);
     case TUI_ROLE_SCROLLBAR_TRACK: return tui_style_attrs(TUI_ATTR_DIM);
@@ -282,7 +275,7 @@ int tui_scheme_parse(tui_scheme *sc, const char *text, const char *origin, tui_s
 typedef struct {
     const char *user_dir;   /* $XDG_CONFIG_HOME/tuikit, or NULL */
     const char *etc_dir;    /* /etc/tuikit */
-    const char *share_dir;  /* /usr/share/libtuikit1/schemes */
+    const char *share_dir;  /* /usr/share/libtuikit2/schemes */
 } scheme_dirs;
 
 static int join(char *out, size_t cap, const char *a, const char *b, const char *c, const char *d) {
@@ -400,7 +393,7 @@ done:
 int tui_scheme_load(tui_scheme *sc, const char *name, tui_scheme_report *rep) {
     tui_scheme_report local;
     char user[PATH_BYTES];
-    scheme_dirs d = { NULL, "/etc/tuikit", "/usr/share/libtuikit1/schemes" };
+    scheme_dirs d = { NULL, "/etc/tuikit", "/usr/share/libtuikit2/schemes" };
     const char *xdg = getenv("XDG_CONFIG_HOME");
     const char *home = getenv("HOME");
     if (!rep) rep = &local;
