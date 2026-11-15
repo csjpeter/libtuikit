@@ -6,7 +6,7 @@
 
 #
 # A widget takes its colours from the roles of the active scheme (TUI-65).
-# Only src/scheme.c (the built-in scheme) and src/selection.c (the built-in
+# Only src/sgrview.c (it decodes the colours an SGR text carries), src/scheme.c (the built-in scheme) and src/selection.c (the built-in
 # selection by colour depth, and its reduction) name a colour; the rest of
 # src/ must not: no named colour constant, no TUI_COLOR_256() or
 # TUI_COLOR_RGB() literal, no tui_style_make() with a colour argument.
@@ -23,7 +23,8 @@ colour='TUI_(BLACK|RED|GREEN|YELLOW|BLUE|MAGENTA|CYAN|WHITE|BRIGHT_[A-Z]+)\b|TUI
 
 files=0
 for f in *.c; do
-    case "$f" in scheme.c|selection.c) continue ;; esac
+    # sgrview.c: the colours are the text's own data (SGR 38/48), not a choice of the widget.
+    case "$f" in scheme.c|selection.c|sgrview.c) continue ;; esac
     files=$((files + 1))
     run=$((run + 1))
     hits="$(grep -nE "$colour" "$f" || true)"   # no hit is the good case: grep exits 1
