@@ -11,7 +11,11 @@
  * @brief The tab row: labels on one row, the active tab bold and
  *        underlined, scrolled so that it is always visible.
  *
- * Each tab is its label between two blanks, one blank between tabs.  The
+ * Each tab is its digit, a blank and its label, all between two blanks
+ * (" 1 Jobs "), one blank between tabs; the tabs 1 to 9 have a digit, a later
+ * one has none (" Label "), and tui_tabrow_set_numbers() switches the digits
+ * off.  The digit is part of the tab: it counts in the width, in the
+ * scrolling and in the guillemets, and tui_tabrow_format() writes it.  The
  * active tab is drawn in the role "tab.active" plus bold and underline, the
  * others in "tab.inactive", so that the active one is told apart without
  * colour (policies/tui-interface-model.md, "Navigation").  When the row is
@@ -44,6 +48,7 @@ typedef struct tui_tabrow {
     int                n;
     int                active;
     int                first;    /* private: the first tab of the window */
+    int                unnumbered; /* private: 1 when the digits are off */
 } tui_tabrow;
 
 /** @brief An empty row. */
@@ -57,6 +62,14 @@ TUI_API void tui_tabrow_init(tui_tabrow *tr);
  *         NULL row or label).
  */
 TUI_API int tui_tabrow_set(tui_tabrow *tr, const char *const *labels, int n, int active);
+
+/**
+ * @brief Switches the digit of each tab (1 to 9) in its label on (@p on
+ *        non-zero, the default of an initialised row) or off, for a row
+ *        where the digits do not apply.  Tab and Shift-Tab and the jump by
+ *        digit work either way.
+ */
+TUI_API void tui_tabrow_set_numbers(tui_tabrow *tr, int on);
 
 /** @brief Makes tab @p i the active one (clamped to the range). */
 TUI_API void tui_tabrow_set_active(tui_tabrow *tr, int i);

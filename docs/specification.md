@@ -745,6 +745,11 @@ widget the program routes events to first.
   - *Tabs*: the labels (at most 64, not copied) and the active index
     (`tui_tabrow_set`, clamped). A tab is its label between two blanks, one
     blank between tabs; controls in a label are blanks.
+  - *Numbers* (TUI-121): tabs 1 to 9 are drawn as their digit, a blank and
+    the label (`␣1 Jobs␣`), so the user sees which key jumps where; a tab
+    beyond 9 has no digit. The digit counts in the width, the scrolling and the
+    marks, and `tui_tabrow_format` writes it. `tui_tabrow_set_numbers(tr, 0)`
+    switches the digits off (default on); the struct size is unchanged.
   - *Active tab*: role `tab.active` with bold and underline added, so it is told
     apart without colour; the others use `tab.inactive`.
   - *Scrolling*: a row wider than the canvas keeps the first and last column

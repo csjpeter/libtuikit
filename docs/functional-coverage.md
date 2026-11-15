@@ -408,6 +408,7 @@ name the ticket that closes the gap; there is none now.
 | `tui_tabrow_render` | `tests/functional/cap_widgets.c` | `cap_tabrow` |
 | `tui_tabrow_set` | `tests/functional/cap_widgets.c` | `cap_tabrow` |
 | `tui_tabrow_set_active` | `tests/functional/cap_widgets.c` | `cap_tabrow` |
+| `tui_tabrow_set_numbers` | `tests/functional/cap_widgets.c` | `cap_tabrow` |
 
 ## Dialogs
 

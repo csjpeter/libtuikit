@@ -285,6 +285,7 @@ symbol tui_tabrow_init
 symbol tui_tabrow_render
 symbol tui_tabrow_set
 symbol tui_tabrow_set_active
+symbol tui_tabrow_set_numbers
 symbol tui_term_close
 symbol tui_term_fd
 symbol tui_term_flush_buf
