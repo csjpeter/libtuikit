@@ -702,8 +702,10 @@ widget the program routes events to first.
   (`policies/tui-interface-model.md`, "Lists"). The requirement set is the
   union of email-tui's lists (the reference), issue-tui's, pki-manager's
   and tg-cli's, collected on the ticket; each point below has a test.
-  - *Columns*: fixed or weighted width (the width is the minimum of a
-    weighted one), left/centre/right, hidden below a terminal width, a sort
+  - *Columns*: fixed, weighted or fitting width (the width is the minimum of a
+    weighted one; `TUI_COL_FIT`, TUI-137: the longest cell of the rows within
+    `width`..`weight`, the FIT columns served first, the weighted ones share the
+    rest, a tight line cuts the widest FIT columns first, down to their minimum), left/centre/right, hidden below a terminal width, a sort
     marker (`▲`/`▼`) at the column's right edge, `TUI_COL_CUT_START` for an
     address that keeps its tail. Text is cut by display width at a character
     boundary and the cut shows as `…`; a wide character is cut whole. A

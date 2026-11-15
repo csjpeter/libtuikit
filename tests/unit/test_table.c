@@ -14,6 +14,7 @@
 
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 
 int g_tests_run = 0;
 int g_tests_failed = 0;
@@ -162,6 +163,89 @@ static void test_table_widths(void) {
     int zw[1];
     tui_table_widths(&z, 40, zw);
     ASSERT_EQ_INT(zw[0], 1, "width of at least one cell");
+}
+
+/* ── Fitting columns (TUI-137) ──────────────────────────────────────── */
+
+static const char *g_fit_names[] = { "ab", "a-long-name-here", "\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e\xe6\x97\xa5\xe6\x9c\xac\xe8\xaa\x9e", "" };
+static int g_fit_wide;  /* 1: the third row is the wide-character one only */
+
+static void fit_row(void *ctx, int i, tui_table_row *r) {
+    (void)ctx;
+    if (i == 3) tui_table_row_kind(r, TUI_ROW_SECTION);
+}
+
+static void fit_cell(void *ctx, int i, int col, tui_table_cell *c) {
+    (void)ctx;
+    if (col == 0) tui_table_cell_put(c, g_fit_names[i], TUI_STYLE_DEFAULT);
+    else if (col == 1) tui_table_cell_put(c, "a note of some length", TUI_STYLE_DEFAULT);
+    else tui_table_cell_put(c, "run", TUI_STYLE_DEFAULT);
+}
+
+static void test_table_fit(void) {
+    static const tui_table_col cols[] = {
+        { "NAME", 4, 20, TUI_ALIGN_LEFT, 0, 0, TUI_COL_FIT },
+        { "NOTE", 6, 1,  TUI_ALIGN_LEFT, 0, 0, 0 },
+        { "ST",   2, 5,  TUI_ALIGN_LEFT, 50, 0, TUI_COL_FIT },
+    };
+    tui_table_model m = { fit_row, fit_cell, NULL };
+    tui_table t;
+    tui_table_init(&t, cols, 3, &m);
+    tui_table_set_count(&t, 4);
+    int w[3];
+    (void)g_fit_wide;
+
+    /* Roomy: the longest name (16) in full, the rest to the note. */
+    ASSERT_EQ_INT(tui_table_widths(&t, 80, w), 3, "roomy: three columns");
+    ASSERT_EQ_INT(w[0], 16, "roomy: the longest name in full");
+    ASSERT_EQ_INT(w[2], 3, "roomy: the status as wide as 'run'");
+    ASSERT_EQ_INT(w[1], 80 - 2 - 2 - 16 - 3, "roomy: the note takes the rest");
+
+    /* Tight: the note gets what is left, the name stays whole. */
+    tui_table_widths(&t, 55, w);
+    ASSERT_EQ_INT(w[0], 16, "55: the name still whole");
+    ASSERT_EQ_INT(w[1], 55 - 2 - 2 - 16 - 3, "55: the note is what is left");
+
+    /* Very tight (status hidden below 50): the widest FIT column is cut,
+     * never below its minimum; the note keeps its own minimum. */
+    tui_table_widths(&t, 22, w);
+    ASSERT_EQ_INT(w[1], 6, "22: the note at its minimum");
+    ASSERT_EQ_INT(w[0], 22 - 2 - 1 - 6, "22: the name loses what is missing");
+    tui_table_widths(&t, 12, w);
+    ASSERT_EQ_INT(w[0], 4, "12: the name at its minimum");
+    ASSERT_EQ_INT(w[1], 6, "12: the note at its minimum");
+
+    /* Hidden below a width: the FIT column drops out and takes nothing. */
+    ASSERT_EQ_INT(tui_table_widths(&t, 49, w), 2, "49: the status is hidden");
+    ASSERT_EQ_INT(w[2], 0, "hidden: width 0");
+    ASSERT_EQ_INT(w[0], 16, "hidden: the name unchanged");
+    ASSERT_EQ_INT(w[1], 49 - 2 - 1 - 16, "hidden: the note takes its place");
+
+    /* Wide characters are measured by display width (6 x 2 = 12), and the
+     * maximum caps the column. */
+    g_fit_names[1] = "x";
+    tui_table_widths(&t, 80, w);
+    ASSERT_EQ_INT(w[0], 12, "wide characters count two cells each");
+    g_fit_names[1] = "a-long-name-here-and-then-some-more-text";
+    tui_table_widths(&t, 120, w);
+    ASSERT_EQ_INT(w[0], 20, "the maximum caps the column");
+    g_fit_names[1] = "a-long-name-here";
+    /* A row shorter than the minimum gives the minimum. */
+    tui_table_set_count(&t, 1);
+    tui_table_widths(&t, 80, w);
+    ASSERT_EQ_INT(w[0], 4, "a short name: the minimum");
+    tui_table_set_count(&t, 4);
+
+    /* The picture: the name is whole beside the note. */
+    Fx f;
+    ASSERT_EQ_INT(fx_open(&f, 6, 60), 0, "fixture");
+    tui_table_render(&t, tui_canvas_of(f.scr), TUI_STYLE_DEFAULT);
+    fx_show(&f);
+    char line[256];
+    pty_row_text(f.s, 2, line, sizeof line);
+    ASSERT_EQ_INT(strstr(line, "a-long-name-here a note") != NULL, 1, "the name whole, then the note");
+    fx_close(&f);
+    tui_table_free(&t);
 }
 
 /* ── The picture ────────────────────────────────────────────────────── */
@@ -1056,6 +1140,7 @@ static void test_table_footer_arguments(void) {
 
 static const TestCase tests[] = {
     TEST_CASE(test_table_widths),
+    TEST_CASE(test_table_fit),
     TEST_CASE(test_table_render_256),
     TEST_CASE(test_table_render_colour_depths),
     TEST_CASE(test_table_selection_colour_mapping),

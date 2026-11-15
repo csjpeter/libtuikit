@@ -72,7 +72,7 @@ cc -o my-program my-program.c $(pkg-config --cflags --libs libtuikit)
 ```
 
 ```cmake
-find_package(tuikit 1.0 REQUIRED)
+find_package(tuikit 2.0 REQUIRED)
 target_link_libraries(my-program PRIVATE tuikit::tuikit)   # or tuikit::tuikit_static
 ```
 
