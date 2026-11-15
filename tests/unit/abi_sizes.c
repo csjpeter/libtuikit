@@ -30,6 +30,7 @@ int main(void) {
     SHOW(tui_event);
     SHOW(tui_field);
     SHOW(tui_fieldset);
+    SHOW(tui_filechooser);
     SHOW(tui_header);
     SHOW(tui_history);
     SHOW(tui_keyentry);

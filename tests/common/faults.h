@@ -21,7 +21,7 @@
 
 typedef enum {
     F_MALLOC, F_CALLOC, F_REALLOC, F_PIPE, F_FCNTL, F_TCGETATTR, F_TCSETATTR,
-    F_POLL, F_READ, F_WRITE, F_COUNT
+    F_POLL, F_READ, F_WRITE, F_SOCKETPAIR, F_PTHREAD_CREATE, F_COUNT
 } fault_fn;
 
 /* Lets @p skip calls of @p fn through, then fails the next @p times calls
@@ -31,6 +31,9 @@ void fault_arm(fault_fn fn, int skip, int times, int err);
 /* tcgetattr succeeds but reports ICANON set: a terminal that silently
  * ignored part of a mode change. */
 void fault_tcgetattr_lies(int skip, int times);
+
+/* Makes every opendir() wait @p ms milliseconds first: a slow mount (0: off). */
+void fault_opendir_delay(int ms);
 
 /* Disarms everything. */
 void fault_reset(void);

@@ -4,6 +4,9 @@
 /* Capability tests: tui_table, tui_statusline, tui_dialog, tui_fieldset, the key table. */
 
 #include "cap_common.h"
+#include "fc_tree.h"
+
+#include <poll.h>
 
 /* ---- table ---------------------------------------------------------- */
 
@@ -436,6 +439,73 @@ static void cap_dialog(void) {
     tui_screen_free(s);
 }
 
+/* ---- file chooser --------------------------------------------------- */
+
+static void cap_filechooser(void) {
+    char root[256];
+    snprintf(root, sizeof root, "%s/fc-cap-%d", TUIKIT_TEST_TMPDIR, (int)getpid());
+    fc_tree_make(root);
+    setenv("TZ", "UTC", 1);
+
+    tui_filechooser fc;
+    CHECK_INT(tui_filechooser_open(&fc, NULL, TUI_FC_OPEN, root, NULL), 0, "filechooser open");
+    CHECK(fc.notify_fd >= 0, "a descriptor to wait on");
+    for (int i = 0; i < 500 && (tui_filechooser_poll(&fc), tui_filechooser_loading(&fc)); i++) {
+        struct pollfd pfd = { fc.notify_fd, POLLIN, 0 };
+        poll(&pfd, 1, 10);
+    }
+    CHECK_INT(tui_filechooser_loading(&fc), 0, "the background read ended");
+    char want[300];
+    snprintf(want, sizeof want, "%s/", root);
+    CHECK_STR(tui_filechooser_dir(&fc), want, "the directory shown");
+
+    tui_screen *scr = tui_screen_new(24, 80);
+    tui_filechooser_render(&fc, tui_canvas_of(scr));
+    char *txt = cap_screen_text(scr, NULL);
+    CHECK_HAS(txt, "Open file", "the title");
+    CHECK_HAS(txt, "alpha/", "a directory");
+    CHECK_HAS(txt, "b.eml", "a file");
+    CHECK_HAS(txt, "2.0K", "its size");
+    CHECK_HAS(txt, "2026-01-02", "its date");
+    CHECK_HAS(txt, "03:04", "and time");
+    CHECK(strstr(txt, ".dots") == NULL, "no hidden name");
+    free(txt);
+
+    tui_filechooser_set_hidden(&fc, 1);
+    tui_filechooser_render(&fc, tui_canvas_of(scr));
+    txt = cap_screen_text(scr, NULL);
+    CHECK_HAS(txt, ".dots/", "set_hidden shows the dot names");
+    free(txt);
+    tui_filechooser_set_hidden(&fc, 0);
+
+    tui_event ev = cap_ev("\x1b[B");                           /* four times: a.txt */
+    for (int i = 0; i < 4; i++) tui_filechooser_handle(&fc, &ev);
+    ev = cap_ev("\r");
+    CHECK_INT(tui_filechooser_handle(&fc, &ev), TUI_FC_OK, "Enter on a file chooses it");
+    snprintf(want, sizeof want, "%s/a.txt", root);
+    CHECK_STR(fc.path, want, "the chosen path");
+    tui_filechooser_free(&fc);
+
+    CHECK_INT(tui_filechooser_open(&fc, "Pick", TUI_FC_SAVE, root, "*.eml"), 0, "save mode");
+    ev = cap_ev("\x1b");
+    CHECK_INT(tui_filechooser_handle(&fc, &ev), TUI_FC_CANCELLED, "Esc cancels");
+    tui_filechooser_free(&fc);
+    CHECK_INT(tui_filechooser_open(&fc, NULL, TUI_FC_DIR, root, NULL), 0, "directory mode");
+    for (int i = 0; i < 500 && (tui_filechooser_poll(&fc), tui_filechooser_loading(&fc)); i++) {
+        struct pollfd pfd = { fc.notify_fd, POLLIN, 0 };
+        poll(&pfd, 1, 10);
+    }
+    ev = cap_ev("\r");
+    CHECK_INT(tui_filechooser_handle(&fc, &ev), TUI_FC_OK, "Enter on the directory shown chooses it");
+    CHECK_STR(fc.path, root, "the directory");
+    tui_filechooser_free(&fc);
+    tui_screen_free(scr);
+
+    char cmd[400];
+    snprintf(cmd, sizeof cmd, "rm -rf '%s/fc-cap-%d'", TUIKIT_TEST_TMPDIR, (int)getpid());
+    if (system(cmd) != 0) fprintf(stderr, "cannot remove the test tree\n");
+}
+
 /* ---- fieldset ------------------------------------------------------- */
 
 static int complete(void *user, int field, const char *token, tui_completion *out, int max) {
@@ -580,10 +650,10 @@ static void cap_actions(void) {
     free(txt);
     CAP_TYPE(tui_actionmenu_handle, &m, "j");
     {
-        char q[8];
-        CHECK_INT(tui_keytable_assign_quick(&t, "list", NULL, q), 0, "every entry has a quick key");
-        CHECK_INT(q[0], 's', "Star is s");
-        CHECK_INT(q[1], 'd', "Delete is d, the verb table's letter");
+        char qk[8];
+        CHECK_INT(tui_keytable_assign_quick(&t, "list", NULL, qk), 0, "every entry has a quick key");
+        CHECK_INT(qk[0], 's', "Star is s");
+        CHECK_INT(qk[1], 'd', "Delete is d, the verb table's letter");
     }
     tui_event ent = cap_ev("\r");
     CHECK_INT(tui_actionmenu_handle(&m, &ent), TUI_ACTION_OPEN, "Delete asks first");
@@ -698,6 +768,7 @@ int main(void) {
     cap_menu();
     cap_dialog();
     cap_fieldset();
+    cap_filechooser();
     cap_actions();
     return cap_finish("cap-widgets");
 }

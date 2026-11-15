@@ -21,6 +21,7 @@
 #include "tuikit/fieldset.h"
 #include "tuikit/header.h"
 #include "tuikit/histview.h"
+#include "tuikit/filechooser.h"
 #include "tuikit/htmlrender.h"
 #include "tuikit/lineedit.h"
 #include "tuikit/listview.h"

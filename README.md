@@ -24,7 +24,8 @@ view, and the library gives it
   is testable without a terminal;
 - **layout and clipped drawing** (`tui_canvas`, `tui_rect`), a **list view**,
   a **text view**, a **line editor** with history, **dialogs** — message,
-  yes/no, prompt, menu — and **forms** (`tui_fieldset`): text and choice
+  yes/no, prompt, menu, and a **file chooser** (`tui_filechooser`, which reads
+  the directory in the background) — and **forms** (`tui_fieldset`): text and choice
   fields with a completion drop-down and validation;
 - **no-session helpers** in email-cli's style (`tui_tty`, `tui_readline`):
   size with fallbacks, raw mode for one key, waiting with a timeout, a

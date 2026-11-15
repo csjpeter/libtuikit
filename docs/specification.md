@@ -204,7 +204,7 @@ Non-goals:
   tui_term ──► tui_decoder ──► tui_event     tui_canvas ──► tui_screen ──► tui_buf ──► fd
    (fds, termios,  (bytes → keys)          (clipped rect)  (cells, diff)  (bytes)
     signals, size)
-                         widgets: tui_listview  tui_tree  tui_table  tui_header  tui_statusline  tui_tabrow  tui_yesno  tui_menu  tui_textview  tui_lineedit  tui_dialog
+                         widgets: tui_listview  tui_tree  tui_table  tui_header  tui_statusline  tui_tabrow  tui_yesno  tui_menu  tui_textview  tui_lineedit  tui_dialog  tui_filechooser
                          helpers: tui_text (UTF-8, width, sanitise)  tui_rect (layout)
 ```
 
@@ -234,6 +234,7 @@ Non-goals:
 | `tuikit/mdview.h` | Markdown view: headings, lists, tables, code, reflow, scrolling, plain fallback; the renderer as text | yes | TUI-117 |
 | `tuikit/lineedit.h` | single-line editor model, history | yes | M5 |
 | `tuikit/dialog.h` | message, confirm, prompt, menu | yes | M6 |
+| `tuikit/filechooser.h` | the file and directory chooser: a typing field, the list of a directory, a background read | no (a thread and a socket pair) | TUI-125 |
 
 ### 4.1 `tui_buf` — byte sink
 
@@ -543,6 +544,7 @@ choice and is drawn as it is; only the widgets' defaults are roles.
 |---|---|
 | `tui_table`, `tui_histview` | `text` (unstyled rows, blank, message in dim), `text`+bold (header row), `selection` (the one selection, by colour depth) |
 | `tui_dialog` message, confirm, prompt, menu, checklist, quick menu, help | `text` (fill), `frame` (the frame, and the matched words of the help), `selection` (a menu row; the buttons in focus in bold, bold reverse built-in), `accent` (a quick key), `input.focus` over `input` (the prompt's field) |
+| `tui_filechooser` | `frame` (the frame), `text` (fill, rows), `input`/`input.focus` (the typing field), `selection` (the row under the cursor, with its `>`), `hint` (the status row), `progress` ("Reading..."), `error` (a refusal, an unreadable directory) |
 | `tui_fieldset` | `text` (labels, candidates), `accent` (the focused label, a choice), `input` and `input.focus` (a text value), `selection` (the chosen candidate), `error` |
 | `tui_header` | `header` (the bar), and for the notice the colour of the role the program passes (`ok`, `progress`) or `error` (a warning) as the background of the notice, with the role's attributes; no new role |
 | `tui_statusline` | `status` (the bar) |
@@ -827,6 +829,48 @@ widget the program routes events to first.
 - **`tui_dialog`** — centred modal box: message (OK), confirm (yes/no),
   prompt (one `tui_lineedit`), menu (one `tui_listview`). Same
   `handle`/`render` shape, result read from the struct.
+- **`tui_filechooser`** (TUI-125) — the file and directory chooser, a modal
+  dialog of the same shape (`handle`, `render`, the outcome in `state` and
+  `path`), for every TUI that attaches or saves a file
+  (`policies/tui-interface-model.md`, "The toolbox first").
+  - *Layout*: the frame, a typing field (a `tui_lineedit`), a status row
+    (`Reading...`, a refusal, `N entries`, `, hidden shown`, `, filter PATTERN`),
+    then the list: directories first, then files, each by name without regard
+    to case; the size (`3B`, `2.0K`, `5.0M`, right-aligned in six columns) and
+    the date of change (`YYYY-MM-DD HH:MM`, local time) of a file, the date of
+    a directory; a `../` row (not at `/`); in directory mode a `./` row first
+    and only directories. A link to a directory is a directory. At most 76 by
+    20 cells; a dialog narrower than 36 columns drops size and date. A scroll
+    bar in the padding column when the list is longer than its rows.
+  - *Keys*: Up, Down, PgUp, PgDn, Home, End move the list and put the path of
+    the row into the field (j/k/g/G are typed: the field has the keyboard).
+    Typing selects the first name that starts with the typed leaf; a path with
+    a slash in it shows that directory (a new read). Tab completes the leaf
+    from the entries shown (whole when one matches, a directory with a slash;
+    the common beginning when several do). Enter acts on the field: a
+    directory is entered, a file is chosen (open), a missing name is refused
+    (open, directory) or chosen (save); in directory mode the field that shows
+    the shown directory itself chooses it. Backspace with nothing typed after
+    the directory goes up and stands on the directory it left. Alt-H toggles
+    the dot names (`tui_filechooser_set_hidden` sets it). Esc and Ctrl-C cancel.
+    Save asks `Replace it?` (a `tui_dialog` confirm, default No) for an
+    existing file.
+  - *Modes*: `TUI_FC_OPEN`, `TUI_FC_DIR`, `TUI_FC_SAVE`; the start directory
+    (NULL: the current one) and a name filter (`fnmatch(3)` on files; directories
+    always show) are parameters of `tui_filechooser_open`.
+  - *The background read*: a detached thread reads one directory (`opendir`,
+    `readdir`, a `stat` per entry, sorted) into a job shared by reference with
+    the dialog, so closing the dialog or moving on never waits for a stuck
+    mount and the thread frees the job if it is the last holder. It wakes the
+    program through `notify_fd`, one end of a `socketpair`
+    (`tui_term_wait`'s extra descriptor); `poll` takes the result in, and
+    `handle` and `render` do it too. While a read is on the field is live and
+    Enter waits (no key is lost). The dialog never stats a path on the key's
+    thread: what is a directory and what a file comes from the read, and a
+    directory that cannot be read is shown as `cannot read: reason`.
+  - *Result*: `path` is absolute and normalised by the text alone (no `.`,
+    `..`, doubled or trailing slash, symbolic links not resolved).
+  - *Linux*: threads, `socketpair`, `fstatat` (`docs/portability.md`).
 
 ### 4.7a Drop-down completion — one rule for every TUI
 

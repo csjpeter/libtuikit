@@ -104,6 +104,7 @@ set(TUIKIT_SOURCES
     src/decoder.c
     src/dialog.c
     src/fieldset.c
+    src/filechooser.c
     src/header.c
     src/cmdline.c
     src/histview.c
@@ -364,6 +365,10 @@ set(TUIKIT_MAN3_ALIASES
     tui_dialog_handle:tui_dialog_message tui_dialog_render:tui_dialog_message
     tui_dialog_checklist:tui_dialog_message tui_dialog_is_checked:tui_dialog_message
     tui_dialog_help:tui_dialog_message
+    tui_filechooser_set_hidden:tui_filechooser_open tui_filechooser_loading:tui_filechooser_open
+    tui_filechooser_poll:tui_filechooser_open tui_filechooser_dir:tui_filechooser_open
+    tui_filechooser_handle:tui_filechooser_open tui_filechooser_render:tui_filechooser_open
+    tui_filechooser_free:tui_filechooser_open
     tui_actionmenu_open:tui_keytable_init tui_actionmenu_open_keys:tui_keytable_init
     tui_keytable_assign_quick:tui_keytable_init tui_keytable_find:tui_keytable_init tui_registry_verb:tui_keytable_init
     tui_key_reserved:tui_keytable_init tui_keycode_of:tui_keytable_init
