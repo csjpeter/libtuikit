@@ -653,11 +653,48 @@ static void cap_actions(void) {
     tui_screen_free(scr);
 }
 
+static void cap_yesno(void) {
+    tui_yesno yn;
+    tui_yesno_init(&yn, "Delete R01?");
+    CHECK_INT(tui_yesno_get(&yn), TUI_YESNO_OPEN, "yesno starts open");
+    char out[128];
+    CHECK(tui_yesno_format(&yn, 80, out, sizeof out) > 0, "yesno format");
+    CHECK_STR(out, "Delete R01? (y/N)", "the question and the suffix");
+    tui_yesno_format(&yn, 10, out, sizeof out);
+    CHECK_STR(out, "Del\xE2\x80\xA6 (y/N)", "a narrow row keeps the suffix");
+
+    tui_screen *scr = tui_screen_new(4, 40);
+    tui_yesno_render(&yn, tui_canvas_of(scr), 3);
+    char *txt = cap_screen_text(scr, NULL);
+    CHECK_HAS(txt, "R01?", "yesno render on the given row");
+    CHECK_HAS(txt, "(y/N)", "with its suffix");
+    free(txt);
+    tui_screen_free(scr);
+
+    tui_event ev;
+    memset(&ev, 0, sizeof ev);
+    ev.type = TUI_EV_KEY;
+    ev.key = TUI_KEY_CHAR;
+    ev.cp = 'y';
+    CHECK_INT(tui_yesno_handle(&yn, &ev), TUI_YESNO_YES, "y is yes");
+    tui_yesno_init(&yn, "Save?");
+    ev.key = TUI_KEY_ESC;
+    ev.cp = 0;
+    CHECK_INT(tui_yesno_handle(&yn, &ev), TUI_YESNO_NO, "Esc is no");
+    tui_yesno_init(&yn, "Save?");
+    ev.key = TUI_KEY_CHAR;
+    ev.cp = 'c';
+    ev.mods = TUI_MOD_CTRL;
+    CHECK_INT(tui_yesno_handle(&yn, &ev), TUI_YESNO_INTERRUPT, "Ctrl-C is reported");
+    CHECK_INT(tui_yesno_get(&yn), TUI_YESNO_INTERRUPT, "yesno get");
+}
+
 int main(void) {
     cap_table();
     cap_header();
     cap_statusline();
     cap_tabrow();
+    cap_yesno();
     cap_menu();
     cap_dialog();
     cap_fieldset();
