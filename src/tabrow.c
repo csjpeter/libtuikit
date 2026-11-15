@@ -38,12 +38,17 @@ static void clean(char *dst, size_t size, const char *src) {
     dst[len] = '\0';
 }
 
-/* " label ", controls blanked. */
+/* " 3 label " (the digit for tabs 1 to 9 unless switched off) or " label ", controls blanked. */
 static void tab_text(const tui_tabrow *tr, int i, char *out) {
     char lab[LABEL_MAX];
     clean(lab, sizeof lab, tr->labels[i]);
-    out[0] = ' ';
-    strcpy(out + 1, lab);
+    size_t k = 0;
+    out[k++] = ' ';
+    if (!tr->unnumbered && i < 9) {
+        out[k++] = (char)('1' + i);
+        out[k++] = ' ';
+    }
+    strcpy(out + k, lab);
     strcat(out, " ");
 }
 
@@ -124,6 +129,10 @@ static void layout(const tui_tabrow *tr, int cols, int first, line *ln) {
 
 void tui_tabrow_init(tui_tabrow *tr) {
     if (tr) memset(tr, 0, sizeof *tr);
+}
+
+void tui_tabrow_set_numbers(tui_tabrow *tr, int on) {
+    if (tr) tr->unnumbered = on ? 0 : 1;
 }
 
 int tui_tabrow_set(tui_tabrow *tr, const char *const *labels, int n, int active) {

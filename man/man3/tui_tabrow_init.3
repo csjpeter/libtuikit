@@ -3,7 +3,7 @@
 .TH TUI_TABROW_INIT 3 2026-10-25 "libtuikit 0.8" "libtuikit Manual"
 .SH NAME
 tui_tabrow_init, tui_tabrow_set, tui_tabrow_set_active, tui_tabrow_active,
-tui_tabrow_count, tui_tabrow_handle, tui_tabrow_render, tui_tabrow_format \-
+tui_tabrow_count, tui_tabrow_set_numbers, tui_tabrow_handle, tui_tabrow_render, tui_tabrow_format \-
 the tab row of a screen with sub-views
 .SH SYNOPSIS
 .nf
@@ -14,6 +14,7 @@ the tab row of a screen with sub-views
 .BI "void tui_tabrow_set_active(tui_tabrow *" tr ", int " i );
 .BI "int  tui_tabrow_active(const tui_tabrow *" tr );
 .BI "int  tui_tabrow_count(const tui_tabrow *" tr );
+.BI "void tui_tabrow_set_numbers(tui_tabrow *" tr ", int " on );
 .BI "tui_tabrow_result tui_tabrow_handle(tui_tabrow *" tr ", const tui_event *" ev );
 .BI "void tui_tabrow_render(tui_tabrow *" tr ", tui_canvas " c );
 .BI "int  tui_tabrow_format(const tui_tabrow *" tr ", int " cols ", char *" out ", size_t " outsz );
@@ -21,7 +22,12 @@ the tab row of a screen with sub-views
 .SH DESCRIPTION
 .B tui_tabrow
 draws the tabs of a screen with sub-views on one row.
-Each tab is its label between two blanks, with one blank between tabs.
+Each tab is its digit, a blank and its label between two blanks (\(lq 1 Jobs \(rq),
+with one blank between tabs, so that the user sees which key jumps where.
+The tabs 1 to 9 have a digit; a tab beyond the ninth has none.
+The digit counts in the width, in the scrolling and in the marks, and
+.BR tui_tabrow_format ()
+writes it.
 The active tab is drawn in the role
 .B tab.active
 with bold and underline added, the others in
@@ -44,6 +50,9 @@ moves the active tab (clamped);
 and
 .BR tui_tabrow_count ()
 read it back.
+.BR tui_tabrow_set_numbers ()
+switches the digits off (\fIon\fR zero) or on again (non-zero; the default of an
+initialised row), for a row where the digits do not apply; the keys work either way.
 .PP
 When the tabs are wider than the canvas the row scrolls: the active tab is
 always whole on the row (it is cut with an ellipsis only when it alone is

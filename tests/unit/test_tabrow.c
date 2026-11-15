@@ -76,8 +76,8 @@ static void test_fits(void) {
     ASSERT_EQ_INT(tui_tabrow_set(&tr, L3, 3, 1), 0, "set");
     ASSERT_EQ_INT(tui_tabrow_count(&tr), 3, "count");
     ASSERT_EQ_INT(tui_tabrow_active(&tr), 1, "active");
-    ASSERT_EQ_STR(fmt(&tr, 40), " One   Two   Three", "a blank each side, one between");
-    ASSERT_EQ_STR(fmt(&tr, 19), " One   Two   Three", "exactly fitting: no marks");
+    ASSERT_EQ_STR(fmt(&tr, 40), " 1 One   2 Two   3 Three", "digit, label, a blank each side, one between");
+    ASSERT_EQ_STR(fmt(&tr, 25), " 1 One   2 Two   3 Three", "exactly fitting: no marks");
     ASSERT_EQ_STR(fmt(&tr, 0), "", "no columns");
 }
 
@@ -189,7 +189,7 @@ static void test_label_cleaning(void) {
     tui_tabrow tr;
     tui_tabrow_init(&tr);
     tui_tabrow_set(&tr, lab, 2, 0);
-    ASSERT_EQ_STR(fmt(&tr, 40), " a b    x", "controls are blanks");
+    ASSERT_EQ_STR(fmt(&tr, 40), " 1 a b   2  x", "controls are blanks");
     char long_label[400];
     memset(long_label, 'x', sizeof long_label - 1);
     long_label[sizeof long_label - 1] = '\0';
@@ -197,7 +197,7 @@ static void test_label_cleaning(void) {
     memcpy(long_label + 254, "\xC3\xA9", 2);
     const char *const big[] = { long_label };
     tui_tabrow_set(&tr, big, 1, 0);
-    ASSERT(tui_str_width(fmt(&tr, 600)) <= 258, "a long label is cut, at a character");
+    ASSERT(tui_str_width(fmt(&tr, 600)) <= 262, "a long label is cut, at a character");
 }
 
 static void test_keys(void) {
@@ -243,24 +243,24 @@ static void test_render_attributes(void) {
     tui_tabrow_set(&tr, L3, 3, 1);
     fx_show(&f, &tr);
     char row[128];
-    ASSERT_EQ_STR(pty_row_text(f.s, 0, row, sizeof row), " One   Two   Three", "text");
-    /* " One " 0-4, gap 5, " Two " 6-10, gap 11, " Three " 12-18 */
-    for (int c = 6; c <= 10; c++) {
+    ASSERT_EQ_STR(pty_row_text(f.s, 0, row, sizeof row), " 1 One   2 Two   3 Three", "text");
+    /* " 1 One " 0-6, gap 7, " 2 Two " 8-14, gap 15, " 3 Three " 16-24: the digit is part of the tab */
+    for (int c = 8; c <= 14; c++) {
         ASSERT_EQ_INT(pty_cell_attr(f.s, 0, c) & PTY_ATTR_BOLD, PTY_ATTR_BOLD, "active: bold");
         ASSERT_EQ_INT(pty_cell_attr(f.s, 0, c) & PTY_ATTR_UNDERLINE, PTY_ATTR_UNDERLINE, "active: underlined");
     }
-    ASSERT_EQ_INT(pty_cell_fg(f.s, 0, 7), 36, "active: the tab.active colour (cyan)");
-    for (int c = 0; c <= 4; c++)
+    ASSERT_EQ_INT(pty_cell_fg(f.s, 0, 9), 36, "active: the tab.active colour (cyan)");
+    for (int c = 0; c <= 6; c++)
         ASSERT_EQ_INT(pty_cell_attr(f.s, 0, c) & (PTY_ATTR_BOLD | PTY_ATTR_UNDERLINE), 0,
                       "inactive: neither bold nor underlined");
-    for (int c = 12; c <= 18; c++)
+    for (int c = 16; c <= 24; c++)
         ASSERT_EQ_INT(pty_cell_attr(f.s, 0, c) & (PTY_ATTR_BOLD | PTY_ATTR_UNDERLINE), 0, "the others too");
-    ASSERT_EQ_INT(pty_cell_attr(f.s, 1, 7) & PTY_ATTR_UNDERLINE, 0, "the next row is untouched");
+    ASSERT_EQ_INT(pty_cell_attr(f.s, 1, 9) & PTY_ATTR_UNDERLINE, 0, "the next row is untouched");
 
     tui_tabrow_set_active(&tr, 2);
     fx_show(&f, &tr);
-    ASSERT_EQ_INT(pty_cell_attr(f.s, 0, 14) & PTY_ATTR_UNDERLINE, PTY_ATTR_UNDERLINE, "the mark moves");
-    ASSERT_EQ_INT(pty_cell_attr(f.s, 0, 7) & PTY_ATTR_UNDERLINE, 0, "off the old one");
+    ASSERT_EQ_INT(pty_cell_attr(f.s, 0, 20) & PTY_ATTR_UNDERLINE, PTY_ATTR_UNDERLINE, "the mark moves");
+    ASSERT_EQ_INT(pty_cell_attr(f.s, 0, 9) & PTY_ATTR_UNDERLINE, 0, "off the old one");
     fx_close(&f);
 }
 
@@ -292,7 +292,7 @@ static void test_format_limits(void) {
     tui_tabrow_set(&tr, L3, 3, 0);
     char out[8];
     ASSERT_EQ_INT(tui_tabrow_format(&tr, 40, out, sizeof out), -1, "too small a buffer");
-    ASSERT_EQ_STR(out, " One", "cut and terminated");
+    ASSERT_EQ_STR(out, " 1 One", "cut and terminated");
     char out2[4];
     ASSERT_EQ_INT(tui_tabrow_format(&tr, 40, out2, sizeof out2), -1, "smaller than the first blanks and text");
     tui_tabrow_set(&tr, L9, 9, 8);
@@ -303,7 +303,76 @@ static void test_format_limits(void) {
     ASSERT_EQ_INT(tui_tabrow_format(&tr, 30, out4, sizeof out4), -1, "a one byte buffer");
 }
 
+static const char *const L12[] = { "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l" };
+
+static void test_numbers(void) {
+    tui_tabrow tr;
+    tui_tabrow_init(&tr);
+    tui_tabrow_set(&tr, L12, 12, 0);
+    ASSERT_EQ_STR(fmt(&tr, 100), " 1 a   2 b   3 c   4 d   5 e   6 f   7 g   8 h   9 i   j   k   l",
+                  "tabs 1 to 9 carry the digit, a tab beyond 9 none");
+    tui_tabrow_set_numbers(&tr, 0);
+    ASSERT_EQ_STR(fmt(&tr, 100), " a   b   c   d   e   f   g   h   i   j   k   l", "numbers off: labels alone");
+    tui_tabrow_set_numbers(&tr, 1);
+    ASSERT(strstr(fmt(&tr, 100), " 1 a ") != NULL, "numbers on again");
+    tui_tabrow_set_numbers(NULL, 0);
+
+    /* The width: the digit counts, so a row that fits without digits scrolls with them. */
+    tui_tabrow_set(&tr, L3, 3, 0);
+    tui_tabrow_set_numbers(&tr, 0);
+    ASSERT_EQ_STR(fmt(&tr, 19), " One   Two   Three", "without digits it fits 19 columns");
+    tui_tabrow_set_numbers(&tr, 1);
+    const char *t = fmt(&tr, 19);
+    ASSERT(strstr(t, "\xE2\x80\xBA") != NULL, "with digits 19 columns are too few: a mark");
+    ASSERT_EQ_INT(tui_str_width(t), 19, "the row is the full width");
+    ASSERT_EQ_STR(fmt(&tr, 25), " 1 One   2 Two   3 Three", "and 25 fit");
+
+    /* The scrolling counts the digit: every active tab whole, with and without. */
+    for (int on = 0; on <= 1; on++) {
+        tui_tabrow_set(&tr, L9, 9, 0);
+        tui_tabrow_set_numbers(&tr, on);
+        for (int cols = 16; cols <= 70; cols += 6) {
+            for (int a = 0; a < 9; a++) {
+                tui_tabrow_set_active(&tr, a);
+                char buf[1024], needle[32];
+                tui_tabrow_format(&tr, cols, buf, sizeof buf);
+                if (on) snprintf(needle, sizeof needle, " %d %s", a + 1, L9[a]);
+                else snprintf(needle, sizeof needle, " %s", L9[a]);
+                ASSERT(strstr(buf, needle) != NULL, "the active tab, digit included, is whole");
+                ASSERT(tui_str_width(buf) <= cols, "never wider than the row");
+            }
+        }
+    }
+    /* Keys work with the digits off. */
+    tui_tabrow_set(&tr, L3, 3, 0);
+    tui_tabrow_set_numbers(&tr, 0);
+    tui_event d3 = key('3');
+    ASSERT_EQ_INT(tui_tabrow_handle(&tr, &d3), TUI_TABROW_CHANGED, "digit jump with numbers off");
+    ASSERT_EQ_INT(tui_tabrow_active(&tr), 2, "to the third tab");
+}
+
+static void test_numbers_picture(void) {
+    Fx f;
+    ASSERT(fx_open(&f, 2, 40) == 0, "fixtures");
+    tui_tabrow tr;
+    tui_tabrow_init(&tr);
+    tui_tabrow_set(&tr, L3, 3, 0);
+    fx_show(&f, &tr);
+    ASSERT_EQ_STR(pty_cell_text(f.s, 0, 1), "1", "the digit is drawn");
+    ASSERT_EQ_INT(pty_cell_attr(f.s, 0, 1) & PTY_ATTR_UNDERLINE, PTY_ATTR_UNDERLINE, "the active tab's digit is underlined");
+    ASSERT_EQ_INT(pty_cell_attr(f.s, 0, 1) & PTY_ATTR_BOLD, PTY_ATTR_BOLD, "and bold");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 0, 9), "2", "the second digit");
+    ASSERT_EQ_INT(pty_cell_attr(f.s, 0, 9) & (PTY_ATTR_BOLD | PTY_ATTR_UNDERLINE), 0, "an inactive digit is plain");
+    tui_tabrow_set_numbers(&tr, 0);
+    fx_show(&f, &tr);
+    char row[128];
+    ASSERT_EQ_STR(pty_row_text(f.s, 0, row, sizeof row), " One   Two   Three", "numbers off: no digits drawn");
+    fx_close(&f);
+}
+
 static const TestCase tests[] = {
+    TEST_CASE(test_numbers),
+    TEST_CASE(test_numbers_picture),
     TEST_CASE(test_fits),
     TEST_CASE(test_set_and_clamp),
     TEST_CASE(test_scrolls_to_active),
