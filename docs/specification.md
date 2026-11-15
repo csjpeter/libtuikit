@@ -222,7 +222,7 @@ Non-goals:
 | `tuikit/listview.h` | scroll + selection, row rendering | yes | M4 |
 | `tuikit/tree.h` | the opening and closing tree over the list view | yes | |
 | `tuikit/histview.h` | the history view: recorded steps in a table, a Revert entry with a confirmation | yes | TUI-63 |
-| `tuikit/table.h` | columns, header, the selection the widget owns | yes | TUI-48 |
+| `tuikit/table.h` | columns, header, footer rows (totals), the selection the widget owns | yes | TUI-48, TUI-128 |
 | `tuikit/header.h` | the top bar: view, program name and a notice area (messages, standing warnings) | yes | TUI-109 |
 | `tuikit/statusline.h` | the one bottom line: hints that fit, position, prompt (message and wait deprecated: they no longer show) | yes | TUI-51, TUI-109 |
 | `tuikit/tabrow.h` | the tab row of a screen with sub-views, the active tab by attribute | yes | TUI-69 |
