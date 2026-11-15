@@ -91,6 +91,7 @@ typedef enum tui_role {
     TUI_ROLE_TAB_INACTIVE,
     TUI_ROLE_OK,
     TUI_ROLE_ERROR,
+    TUI_ROLE_WARNING,
     TUI_ROLE_HINT,
     TUI_ROLE_PROGRESS,
     TUI_ROLE_SCROLLBAR_TRACK,
@@ -136,6 +137,9 @@ TUI_API tui_style tui_selection_style(void);
 #define TUI_STYLE_OK        tui_scheme_style(TUI_ROLE_OK)
 /** @brief Role "error", a refusal, a failure, an invalid field: bold red. */
 #define TUI_STYLE_ERROR     tui_scheme_style(TUI_ROLE_ERROR)
+/** @brief Role "warning", something degraded or close to a limit: bold orange
+ *         (256-colour index 208; bold yellow where the terminal has fewer colours). */
+#define TUI_STYLE_WARNING   tui_scheme_style(TUI_ROLE_WARNING)
 /** @brief Role "hint", key hints and secondary columns: yellow. */
 #define TUI_STYLE_HINT      tui_scheme_style(TUI_ROLE_HINT)
 /** @brief Role "progress", what is going on while the user waits: italic yellow. */

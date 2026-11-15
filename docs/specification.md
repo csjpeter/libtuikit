@@ -108,7 +108,7 @@ libtuikit is a C11 library for full-screen terminal programs. It exists so
 that the workspace's projects stop rewriting the same terminal code; what they
 rewrite today, and what they learned doing it, is in [survey.md](survey.md).
 
-**Class: Library** — `libtuikit1` (shared library) and `libtuikit-dev`
+**Class: Library** — `libtuikit2` (shared library) and `libtuikit-dev`
 (headers, static library, pkg-config and CMake files, man pages).
 
 **License: GPL-3.0-only** (`LICENSE`; every file's SPDX tag is
@@ -519,12 +519,12 @@ questions*.
 ### 4.5a `tui_scheme` — colour schemes (TUI-64)
 
 `tuikit/scheme.h` implements the "Colour schemes" of
-`policies/tui-interface-model.md`.  Seventeen roles (`tui_role`): text,
+`policies/tui-interface-model.md`.  Eighteen roles (`tui_role`): text,
 header, status, selection, cursor, accent, frame, input, input.focus,
-tab.active, tab.inactive, ok, error, hint, progress, scrollbar.track,
+tab.active, tab.inactive, ok, error, warning, hint, progress, scrollbar.track,
 scrollbar.thumb; the key in a file is
 `tui_role_name()`.  `tui_scheme_builtin()` is the built-in style of a role
-and is what `/usr/share/libtuikit1/schemes/default.scheme` holds, key by key
+and is what `/usr/share/libtuikit2/schemes/default.scheme` holds, key by key
 (a unit test compares the two).  The widgets draw with the roles (TUI-65,
 below) and the palette macros of `screen.h` are run-time lookups of them.
 
@@ -540,7 +540,7 @@ Lines are at most 255 bytes, a file at most 65536 bytes.
 
 **Search.** `NAME.scheme` is looked up in `$XDG_CONFIG_HOME/tuikit/schemes/`
 (`$HOME/.config/tuikit/schemes/` when it is unset or not absolute), then in
-`/usr/share/libtuikit1/schemes/`.  A name is letters, digits, `_`, `-`, `.`,
+`/usr/share/libtuikit2/schemes/`.  A name is letters, digits, `_`, `-`, `.`,
 at most 63, not starting with a dot.  `scheme = NAME` in
 `~/.config/tuikit/tuikit.conf` (the same user directory), then in
 `/etc/tuikit/tuikit.conf`, selects it; with none the built-in palette is used.
@@ -593,6 +593,16 @@ compile and must be set at run time.  `TUI_STYLE_DEFAULT` stays a constant.
 `tui_selection_style()` is `TUI_STYLE_SELECTION`.  The number moved is the
 minor, 0.14.0 (no function or struct changed; abi/libtuikit0.abi (now retired, see 1.0.0) gains
 `tui_selection_style`).
+
+**Warning role (TUI-135).** The role `warning` joins `ok` and `error` as the
+third notice colour of the policy: `warning = 208 - bold` in
+`default.scheme` (and `tui_scheme_builtin(TUI_ROLE_WARNING)`), a user scheme
+file changes it like any other key, `TUI_STYLE_WARNING` is
+`tui_scheme_style(TUI_ROLE_WARNING)`, and `tui_role_from_name("warning")` finds
+it by name.  On a terminal with 8 colours the screen reduces index 208 to
+yellow and keeps bold.  `tui_scheme` grew (204 to 216 bytes), a SOVERSION
+change: **2.0.0, `libtuikit2`**, `abi/libtuikit2.abi`; consumers rebuild.
+Tests: `tests/unit/test_scheme.c` (`test_warning_role`).
 
 **Scroll bar (TUI-110).** Every scrolling widget draws, in the last column of
 its area, a scroll bar when its content is longer than the area: a track
@@ -828,11 +838,9 @@ widget the program routes events to first.
     wrap: `MOVED`), Enter is `ACTIVATED`, a digit that names an entry moves
     to it and is `ACTIVATED`.
   - *Plain text*: `tui_menu_format` lays the canvas out exactly as `render`.
-  - *Warning colour*: not a scheme role yet: a role grows `tui_scheme`, which
-    the ABI of SOVERSION 0 forbids (`check-abi`), so the library keeps it
-    internally (`tui__warning_style`, bold index 208, reduced by the screen on
-    smaller terminals) until the next SOVERSION makes it the role `warning`
-    of the policy.
+  - *Warning colour*: the scheme role `warning` (TUI-135; `TUI_STYLE_WARNING`),
+    bold orange (index 208 by default, reduced by the screen to bold yellow on
+    an 8-colour terminal); the menu's `(M)` count draws with it.
   - The status line's position text is `tui_statusline_set_position` (default
     none; `tui_statusline_set_position_index` writes `[cur/total]`), so a
     program can show e.g. `RUN 5h 12%`.
@@ -1212,7 +1220,7 @@ Per `policies/testing-model.md`:
 
 As libptytest, per `policies/packaging-and-release-model.md`: CPack from
 `CMakeLists.txt`, version `project()` + total commit count (the tag takes no part;
-`manage.sh package` never tags or pushes; `manage.sh tag-build VERSION` tags a commit `vX.Y.Z.N` locally), `XB-Git-Commit` / `XB-Build-Date`, `libtuikit1` + `libtuikit-dev`,
+`manage.sh package` never tags or pushes; `manage.sh tag-build VERSION` tags a commit `vX.Y.Z.N` locally), `XB-Git-Commit` / `XB-Build-Date`, `libtuikit2` + `libtuikit-dev`,
 pkg-config `libtuikit`, CMake `find_package(tuikit)` → `tuikit::tuikit`,
 gzipped man pages, copyright and changelog, ldconfig trigger, lintian
 clean, `umask 022`. `./manage.sh` answers to `deps build debug test pty
@@ -1243,7 +1251,7 @@ would pass, and are left to review.) The record starts at 0.2.0: 0.1.0's
 every package built against 0.1.0 depends on `libtuikit0 (= 0.1.0)`, so
 apt never pairs it with a later library.
 
-The runtime package's `shlibs` reads `libtuikit 1 libtuikit1 (>= x.y.z)`:
+The runtime package's `shlibs` reads `libtuikit 2 libtuikit2 (>= x.y.z)`:
 within one SOVERSION the ABI only grows, so a dependant needs *at least* the
 version it was built against. CPack's default, `=`, pins every dependant to
 one version and makes apt remove them to install an upgrade (TUI-6); the

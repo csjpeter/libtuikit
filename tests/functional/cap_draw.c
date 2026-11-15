@@ -187,6 +187,8 @@ static void cap_scheme(void) {
     CHECK_INT(tui_role_from_name("input.focus"), TUI_ROLE_INPUT_FOCUS, "role_from_name");
     CHECK_INT(tui_role_from_name("nope"), -1, "role_from_name of an unknown key");
     CHECK(tui_style_eq(tui_scheme_builtin(TUI_ROLE_ERROR), TUI_STYLE_ERROR), "builtin is the palette's");
+    CHECK_INT(tui_role_from_name("warning"), TUI_ROLE_WARNING, "the warning role has a key");
+    CHECK_INT(tui_scheme_builtin(TUI_ROLE_WARNING).fg, TUI_COLOR_256(208), "builtin warning is orange");
 
     tui_scheme sc;
     tui_scheme_defaults(&sc);

@@ -18,6 +18,7 @@ tab.active   = cyan - bold
 tab.inactive = - - -
 ok           = green - bold
 error        = red - bold
+warning      = 208 - bold
 hint         = yellow - -
 progress     = yellow - italic
 scrollbar.track = - - dim
