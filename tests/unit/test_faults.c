@@ -225,6 +225,35 @@ static void test_mdview_failures(void) {
     tui_mdview_free(&mv);
 }
 
+/* ── tui_sgrview ────────────────────────────────────────────────────── */
+
+static void test_sgrview_failures(void) {
+    fault_reset();
+    tui_sgrview sv;
+    tui_sgrview_init(&sv);
+    tui_sgrview_set_text(&sv, "old");
+    fault_arm(F_MALLOC, 0, 1, ENOMEM);
+    ASSERT_EQ_INT(tui_sgrview_set_text(&sv, "new"), -1, "set_text: allocation failure");
+    fault_reset();
+    ASSERT_EQ_STR(sv.text, "old", "the old text stays");
+
+    tui_screen *scr = tui_screen_new(5, 40);
+    int drew = 0;
+    for (int skip = 0; skip < 6; skip++) {
+        tui_sgrview_set_text(&sv, "\x1b[1mone two three four five six seven eight nine ten eleven twelve\x1b[0m\n\n\nxx");
+        fault_arm(F_REALLOC, skip, 1, ENOMEM);
+        tui_sgrview_render(&sv, tui_canvas_of(scr), TUI_STYLE_DEFAULT);   /* draws what it can, survives */
+        fault_reset();
+        if (tui_sgrview_lines(&sv) > 0) drew++;
+    }
+    ASSERT(drew > 0, "later allocations succeeded");
+    tui_sgrview_set_text(&sv, "a\nb\nc\nd\ne\nf\ng");
+    tui_sgrview_render(&sv, tui_canvas_of(scr), TUI_STYLE_DEFAULT);
+    ASSERT_EQ_INT(tui_sgrview_lines(&sv), 7, "works again");
+    tui_screen_free(scr);
+    tui_sgrview_free(&sv);
+}
+
 static void test_dialog_and_decoder_failures(void) {
     fault_reset();          /* a failed assertion elsewhere left nothing armed */
     tui_dialog d;
@@ -793,6 +822,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_textview_failures),
     TEST_CASE(test_mdview_failures),
     TEST_CASE(test_htmlrender_failures),
+    TEST_CASE(test_sgrview_failures),
     TEST_CASE(test_table_marks_failures),
     TEST_CASE(test_dialog_and_decoder_failures),
     TEST_CASE(test_lineedit_failures),

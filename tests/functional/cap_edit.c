@@ -389,6 +389,33 @@ static void cap_mdview(void) {
     tui_screen_free(s);
 }
 
+static void cap_sgrview(void) {
+    tui_sgrview sv;
+    tui_sgrview_init(&sv);
+    CHECK_INT(tui_sgrview_set_text(&sv, "plain \x1b[1;31mred bold\x1b[0m \x1b[38;2;1;2;3mrgb\x1b[0m end\nsecond\nthird\nfourth"), 0,
+              "set_text");
+    tui_screen *s = tui_screen_new(3, 30);
+    tui_sgrview_render(&sv, tui_canvas_of(s), TUI_STYLE_DEFAULT);
+    char *t = cap_screen_text(s, NULL);
+    CHECK_HAS(t, "red bold", "the styled text is drawn without the sequences");
+    free(t);
+    CHECK_INT(tui_sgrview_lines(&sv), 4, "lines at the render width");
+    CHECK_INT(tui_sgrview_top(&sv), 0, "at the top");
+    tui_sgrview_scroll(&sv, 1);
+    CHECK_INT(tui_sgrview_top(&sv), 1, "scroll");
+    tui_sgrview_scroll_to(&sv, 0);
+    CHECK_INT(tui_sgrview_top(&sv), 0, "scroll_to");
+    tui_sgrview_scroll_end(&sv);
+    CHECK_INT(tui_sgrview_top(&sv), 1, "scroll_end");
+    tui_event ev = cap_ev("\x1b[H");
+    CHECK_INT(tui_sgrview_handle(&sv, &ev), 1, "Home is used");
+    CHECK_INT(tui_sgrview_top(&sv), 0, "Home goes to the top");
+    ev = cap_ev("q");
+    CHECK_INT(tui_sgrview_handle(&sv, &ev), 0, "q is the program's");
+    tui_sgrview_free(&sv);
+    tui_screen_free(s);
+}
+
 static void cap_cmdline(void) {
     tui_cmdline cl;
     int calls = 0;
@@ -461,5 +488,6 @@ int main(void) {
     cap_cmdline();
     cap_mdview();
     cap_htmlrender();
+    cap_sgrview();
     return cap_finish("cap-edit");
 }

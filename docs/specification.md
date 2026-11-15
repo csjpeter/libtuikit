@@ -204,7 +204,7 @@ Non-goals:
   tui_term ──► tui_decoder ──► tui_event     tui_canvas ──► tui_screen ──► tui_buf ──► fd
    (fds, termios,  (bytes → keys)          (clipped rect)  (cells, diff)  (bytes)
     signals, size)
-                         widgets: tui_listview  tui_tree  tui_table  tui_header  tui_statusline  tui_tabrow  tui_menu  tui_textview  tui_lineedit  tui_dialog
+                         widgets: tui_listview  tui_tree  tui_table  tui_header  tui_statusline  tui_tabrow  tui_yesno  tui_menu  tui_textview  tui_lineedit  tui_dialog
                          helpers: tui_text (UTF-8, width, sanitise)  tui_rect (layout)
 ```
 
@@ -226,9 +226,11 @@ Non-goals:
 | `tuikit/header.h` | the top bar: view, program name and a notice area (messages, standing warnings) | yes | TUI-109 |
 | `tuikit/statusline.h` | the one bottom line: hints that fit, position, prompt (message and wait deprecated: they no longer show) | yes | TUI-51, TUI-109 |
 | `tuikit/tabrow.h` | the tab row of a screen with sub-views, the active tab by attribute | yes | TUI-69 |
+| `tuikit/yesno.h` | the inline one-row yes/no question `Text? (y/N)`, answered by one key | yes | TUI-123 |
 | `tuikit/menu.h` | the main menu: numbered entries, live counts, the description of the entry under the cursor | yes | TUI-108 |
 | `tuikit/textview.h` | wrapped, scrollable text | yes | M4 |
 | `tuikit/htmlrender.h` | HTML to text with SGR: the subset above, a width, no script, no remote load | yes | TUI-124 |
+| `tuikit/sgrview.h` | text carrying ANSI SGR styles (bold, italic, underline, strike, 16/256/24-bit colour): wrap, scroll | yes | TUI-122 |
 | `tuikit/mdview.h` | Markdown view: headings, lists, tables, code, reflow, scrolling, plain fallback; the renderer as text | yes | TUI-117 |
 | `tuikit/lineedit.h` | single-line editor model, history | yes | M5 |
 | `tuikit/dialog.h` | message, confirm, prompt, menu | yes | M6 |
@@ -544,6 +546,7 @@ choice and is drawn as it is; only the widgets' defaults are roles.
 | `tui_fieldset` | `text` (labels, candidates), `accent` (the focused label, a choice), `input` and `input.focus` (a text value), `selection` (the chosen candidate), `error` |
 | `tui_header` | `header` (the bar), and for the notice the colour of the role the program passes (`ok`, `progress`) or `error` (a warning) as the background of the notice, with the role's attributes; no new role |
 | `tui_statusline` | `status` (the bar) |
+| `tui_yesno` | `text` (the row), `text`+bold (the suffix `(y/N)`) |
 | `tui_tabrow` | `tab.active` (the active tab, plus bold and underline), `tab.inactive` (the others and the marks) |
 | `tui_menu` | `text` (rows, description), `selection` (the cursor row), the warning colour (the `(M)` of a row; bold orange, not yet a role, see below) |
 | `tui_actionmenu` | as the quick menu |
@@ -762,6 +765,21 @@ widget the program routes events to first.
     the digits 1 to 9 (that tab, if it exists); the result says whether the
     program has to show another view.
   - *Plain text*: `tui_tabrow_format` lays the row out exactly as `render`.
+- **`tui_yesno`** (TUI-123) — the inline one-row yes/no question of a program
+  that asks on its bottom row (`Delete R01? (y/N)`) instead of a modal
+  `tui_dialog_confirm`; a pure model, 260 bytes.
+  - *Question*: `tui_yesno_init(yn, text)`; the widget adds the suffix ` (y/N)`.
+    Controls in the text are blanks, 255 bytes at most (cut at a character).
+  - *Keys*: `tui_yesno_handle` takes one event: `y` or `Y` (no Ctrl/Alt) is
+    `TUI_YESNO_YES`; Ctrl-C and a hang-up are `TUI_YESNO_INTERRUPT`; every
+    other key, Esc included, is `TUI_YESNO_NO` (the capital of the suffix is
+    the default). A paste, a resize and the other events leave it
+    `TUI_YESNO_OPEN`; once answered the outcome stays. `tui_yesno_get` reads it.
+  - *Drawing*: `tui_yesno_render(yn, canvas, row)` fills the row in role `text`
+    and draws the question, the suffix `(y/N)` in bold, with the terminal cursor
+    after it while open. A question too wide is cut with an ellipsis so that the
+    suffix stays; a row narrower than six columns shows the front of the suffix.
+    `tui_yesno_format` lays the row out exactly as `render`.
 - **`tui_menu`** (TUI-108) — the main menu of a program with several main
   views (`policies/tui-interface-model.md`, "Navigation"), drawn on the canvas
   between the top bars and the status line.
@@ -898,6 +916,20 @@ the parts so that a program cannot invent a binding.
   commands that match (a lone match gets a blank, several are listed above
   the line), and the handler's message stays on the line, in the ok or error
   role, until the line is opened again. The editing is `tui_lineedit`.
+- **The SGR view (TUI-122).** `tui_sgrview` (`tuikit/sgrview.h`) is the
+  text view for text that carries ANSI SGR sequences (the body of a mail the
+  reader of email-tui shows): the sequences `ESC [ ... m` are zero-width
+  styles, not characters. Wrapping is that of `tui_textview` (spaces first,
+  inside a word when it must, a wide character never split, tabs to the next
+  multiple of eight); every wrapped line stores the SGR state at its start,
+  so a run keeps its style across a wrap and a scroll, and across a newline.
+  Understood: 0, 1, 2, 3, 4, 5/6, 7, 9, 22-25, 27, 29, 30-37, 90-97, 40-47,
+  100-107, 38/48 with `5;n` or `2;r;g;b` (`:` also separates), 39, 49; other
+  codes are ignored, other CSI sequences are dropped. The style is laid over
+  the base style of `tui_sgrview_render()` (a colour set by the text wins, a
+  default one keeps the base; attributes add). A separate widget, not a mode
+  of `tui_textview`: the public `tui_textview` struct may not change size
+  within SOVERSION 1. Keys and scroll bar as in `tui_mdview`.
 - **The Markdown view (TUI-117).** `tui_mdview` (`tuikit/mdview.h`) shows
   Markdown readably; the renderer of issue-manager (IM-390,
   `core/markdown.c`) moved into the library, so that a program does not

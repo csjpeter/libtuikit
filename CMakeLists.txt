@@ -4,7 +4,7 @@
 # The build, test, install and package definition of libtuikit.
 
 cmake_minimum_required(VERSION 3.20)
-project(libtuikit VERSION 1.2.0 LANGUAGES C)
+project(libtuikit VERSION 1.3.0 LANGUAGES C)
 
 # ---------------------------------------------------------------------------
 # Version
@@ -117,8 +117,10 @@ set(TUIKIT_SOURCES
     src/table.c
     src/mdview.c
     src/htmlrender.c
+    src/sgrview.c
     src/menu.c
     src/tabrow.c
+    src/yesno.c
     src/tree.c
     src/term.c
     src/text.c
@@ -333,6 +335,8 @@ set(TUIKIT_MAN3_ALIASES
     tui_tabrow_active:tui_tabrow_init tui_tabrow_count:tui_tabrow_init
     tui_tabrow_handle:tui_tabrow_init tui_tabrow_render:tui_tabrow_init
     tui_tabrow_format:tui_tabrow_init tui_tabrow_set_numbers:tui_tabrow_init
+    tui_yesno_handle:tui_yesno_init tui_yesno_get:tui_yesno_init
+    tui_yesno_render:tui_yesno_init tui_yesno_format:tui_yesno_init
     tui_menu_set:tui_menu_init tui_menu_select:tui_menu_init
     tui_menu_selected:tui_menu_init tui_menu_count:tui_menu_init
     tui_menu_handle:tui_menu_init tui_menu_render:tui_menu_init
@@ -387,7 +391,9 @@ set(TUIKIT_MAN3_ALIASES
     tui_mdview_lines:tui_mdview_init tui_mdview_top:tui_mdview_init
     tui_mdview_scroll:tui_mdview_init tui_mdview_scroll_to:tui_mdview_init
     tui_mdview_scroll_end:tui_mdview_init tui_mdview_handle:tui_mdview_init
-    tui_mdview_render:tui_mdview_init)
+    tui_mdview_render:tui_mdview_init
+    tui_sgrview_free:tui_sgrview_init tui_sgrview_set_text:tui_sgrview_init tui_sgrview_lines:tui_sgrview_init tui_sgrview_top:tui_sgrview_init
+    tui_sgrview_scroll:tui_sgrview_init tui_sgrview_scroll_to:tui_sgrview_init tui_sgrview_scroll_end:tui_sgrview_init tui_sgrview_handle:tui_sgrview_init tui_sgrview_render:tui_sgrview_init)
 set(TUIKIT_MAN3_ALIASES ${TUIKIT_MAN3_ALIASES} CACHE INTERNAL "")
 
 set(TUIKIT_MAN_OUT "${CMAKE_BINARY_DIR}/man")
@@ -466,6 +472,9 @@ function(tuikit_write_changelog _pkg)
   * new: tui_html_render() (TUI-124): a bounded HTML subset (b, i, u, s, a,
     br, p, ul, ol, li, blockquote, pre, table, entities, style colour) as
     reflowed text, plain or with SGR; no script runs, nothing is loaded.
+  * 1.3.0: new: tui_sgrview, a scrolling text view of text that carries ANSI SGR
+    styles (TUI-122): bold, dim, italic, underline, strike, blink, reverse, 16,
+    256 and 24-bit colour, kept across wrap and scroll.
   * 1.2.0: new: tui_mdview, the Markdown text view (TUI-117): headings, bold,
     italic, code, lists, quotes, tables and links, paragraphs reflowed to the
     width, scrolling, a plain fallback; tui_md_render(), tui_md_render_marked()

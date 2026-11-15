@@ -1050,6 +1050,9 @@ static void test_scheme_colours(void) {
     ASSERT_CELL_FG(s, 1, 0, PTY_FG_BLUE);           /* the focused frame: accent */
     ASSERT_CELL_ATTR(s, 1, 0, PTY_ATTR_BOLD);
     ASSERT_CELL_BG(s, 3, 1, PTY_COLOR_IDX(52));     /* the selected row */
+    /* The last row is drawn with the first frame, but the wait above only saw the
+     * header: wait for a hint to be on the screen before reading its colour. */
+    ASSERT_WAIT_FOR(s, "? help", 3000);
     ASSERT_CELL_FG(s, 23, 2, PTY_FG_GREEN);         /* the hints */
     pty_send_key(s, PTY_KEY_ESC);
     ASSERT_EXIT_STATUS(s, 0, 3000);

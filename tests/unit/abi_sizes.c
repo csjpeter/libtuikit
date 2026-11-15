@@ -43,6 +43,8 @@ int main(void) {
     SHOW(tui_rect);
     SHOW(tui_scheme);
     SHOW(tui_scheme_report);
+    SHOW(tui_sgrline);
+    SHOW(tui_sgrview);
     SHOW(tui_statusline);
     SHOW(tui_style);
     SHOW(tui_menu);
@@ -59,5 +61,6 @@ int main(void) {
     SHOW(tui_tree);
     SHOW(tui_treerow);
     SHOW(tui_treeset);
+    SHOW(tui_yesno);
     return 0;
 }
