@@ -346,7 +346,7 @@ int tui_table_handle(tui_table *t, const tui_event *ev) {
         k = TUI_KEY_DOWN;
     }
     int cur = t->lv.selected;
-    int page = t->lv.rows_visible > 1 ? t->lv.rows_visible : 1;
+    int page = tui__page(t->lv.rows_visible);
     int target, dir;
     switch (k) {
     case TUI_KEY_UP:   target = cur - 1;    dir = -1; break;

@@ -36,6 +36,14 @@ fails when
 A new capability therefore cannot be added without its row, and a row cannot
 be added without a test that calls it.
 
+## Paging rule
+
+Every paging widget moves a page of the visible rows less 2, at least 1, so that
+2 lines overlap (TUI-134): `tui_listview_page_down`/`_page_up` are checked in
+`cap_listview`, the other widgets by their unit tests (`test_widgets`,
+`test_textedit`, `test_table`, `test_mdview`, `test_sgrview`, `test_dialog`,
+`test_filechooser`).
+
 ## Rows
 
 One row per capability: the function, the test file and the phase (the

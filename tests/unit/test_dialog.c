@@ -342,6 +342,28 @@ static void test_checklist(void) {
 
 /* Long text in a small terminal: wrapped, clipped, never outside. */
 /* TUI-127: a scrollable text with a scroll bar, closed by Esc, q, Backspace or Enter. */
+static void test_text_page_overlap(void) {
+    char text[512] = "";
+    for (int i = 0; i < 40; i++) {
+        char l[16];
+        snprintf(l, sizeof l, "r%d\n", i);
+        strcat(text, l);
+    }
+    tui_dialog d;
+    ASSERT_EQ_INT(tui_dialog_text(&d, "Text", text), 0, "create");
+    Fx f;
+    ASSERT(fx_open(&f, 14, 30) == 0, "fixtures");
+    fx_draw(&f, &d);
+    int rows = d.body.rows;
+    ASSERT(rows > 3, "a view of more than 3 rows");
+    ASSERT_EQ_INT(send(&d, "\x1b[6~"), TUI_DIALOG_OPEN, "PgDn");
+    ASSERT_EQ_INT(tui_textview_top(&d.body), rows - 2, "PgDn: rows - 2");
+    ASSERT_EQ_INT(send(&d, "\x1b[5~"), TUI_DIALOG_OPEN, "PgUp");
+    ASSERT_EQ_INT(tui_textview_top(&d.body), 0, "PgUp: the same step back");
+    fx_close(&f);
+    tui_dialog_free(&d);
+}
+
 static void test_text(void) {
     tui_dialog d;
     ASSERT_EQ_INT(tui_dialog_text(&d, "Text", "a\nb\nc\nd\ne\nf"), 0, "create");
@@ -498,9 +520,9 @@ static void test_help(void) {
         { "\x1b[B", 3, "Down to the end" },   { "j", 3, "no further" },
         { "k", 2, "k" },                       { "\x1b[A", 1, "Up" },
         { "G", 3, "G: the end" },              { "g", 0, "g: the top" },
-        { "\x1b[6~", 2, "PgDn: a page less one row" },
+        { "\x1b[6~", 1, "PgDn: a page less two rows, at least one" },
         { "\x1b[5~", 0, "PgUp" },              { "\x1b[F", 3, "End" },
-        { "\x1b[H", 0, "Home" },               { "\x06", 2, "ctrl-f" },
+        { "\x1b[H", 0, "Home" },               { "\x06", 1, "ctrl-f" },
         { "\x02", 0, "ctrl-b" },               { "\x1b[A", 0, "Up at the top" },
     };
     for (size_t i = 0; i < sizeof(moves) / sizeof(moves[0]); i++) {
@@ -612,6 +634,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_checklist),
     TEST_CASE(test_help),
     TEST_CASE(test_text),
+    TEST_CASE(test_text_page_overlap),
     TEST_CASE(test_small_terminal),
 };
 

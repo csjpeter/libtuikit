@@ -54,7 +54,8 @@ sets the height of the viewport.
 .BR tui_listview_select ()
 selects an item (clamped) and scrolls the least needed to show it; the
 move, page, home and end functions do the same from the current
-selection, a page being one viewport.
+selection, a page being the viewport less two rows (at least one),
+so that two rows overlap.
 .BR tui_listview_reveal_selected ()
 only scrolls; it also keeps the viewport from showing empty rows below
 the last item while items above are hidden, e.g. after the list shrank.

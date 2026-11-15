@@ -470,7 +470,7 @@ static void test_table_navigation_skips_sections(void) {
     key(&ev, TUI_KEY_HOME);
     tui_table_handle(&t, &ev);
     ASSERT_EQ_INT(tui_table_selected(&t), 1, "Home: the first data row");
-    tui_listview_set_viewport(&t.lv, 3);
+    tui_listview_set_viewport(&t.lv, 4);   /* a page is 2 rows (rows - 2) */
     key(&ev, TUI_KEY_PGDN);
     tui_table_handle(&t, &ev);
     ASSERT_EQ_INT(tui_table_selected(&t), 5, "PgDn lands on a data row");

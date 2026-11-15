@@ -240,7 +240,7 @@ static void test_scroll_keeps_style(void) {
     ASSERT_EQ_INT(tui_sgrview_top(&sv), 0, "Up and k");
     ev = key("\x1b[6~");
     ASSERT_EQ_INT(tui_sgrview_handle(&sv, &ev), 1, "PgDn");
-    ASSERT_EQ_INT(tui_sgrview_top(&sv), 2, "a page is the rows less one");
+    ASSERT_EQ_INT(tui_sgrview_top(&sv), 1, "a page is the rows less two, at least one");
     ev = key("\x1b[5~");
     tui_sgrview_handle(&sv, &ev);
     ASSERT_EQ_INT(tui_sgrview_top(&sv), 0, "PgUp");

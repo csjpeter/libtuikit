@@ -75,7 +75,7 @@ void tui_sgrview_scroll_end(tui_sgrview *sv) {
 
 int tui_sgrview_handle(tui_sgrview *sv, const tui_event *ev) {
     if (!sv || !ev) return 0;
-    int page = sv->rows > 1 ? sv->rows - 1 : 1;
+    int page = tui__page(sv->rows);
     switch (tui__nav_key(ev)) {
     case TUI_KEY_UP:   tui_sgrview_scroll(sv, -1); return 1;
     case TUI_KEY_DOWN: tui_sgrview_scroll(sv, 1); return 1;

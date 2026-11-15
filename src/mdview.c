@@ -783,7 +783,7 @@ void tui_mdview_scroll_end(tui_mdview *mv) {
 
 int tui_mdview_handle(tui_mdview *mv, const tui_event *ev) {
     if (!mv || !ev) return 0;
-    int page = mv->rows > 1 ? mv->rows - 1 : 1;
+    int page = tui__page(mv->rows);
     switch (tui__nav_key(ev)) {
     case TUI_KEY_UP:   tui_mdview_scroll(mv, -1); return 1;
     case TUI_KEY_DOWN: tui_mdview_scroll(mv, 1); return 1;

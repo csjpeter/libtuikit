@@ -205,7 +205,7 @@ void tui_textview_scroll_end(tui_textview *tv) {
 
 int tui_textview_handle(tui_textview *tv, const tui_event *ev) {
     if (!tv || !ev) return 0;
-    int page = tv->rows > 1 ? tv->rows - 1 : 1;
+    int page = tui__page(tv->rows);
     switch (tui__nav_key(ev)) {
     case TUI_KEY_UP:   tui_textview_scroll(tv, -1); return 1;
     case TUI_KEY_DOWN: tui_textview_scroll(tv, 1); return 1;

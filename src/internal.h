@@ -117,6 +117,10 @@ static inline tui_key tui__nav_key(const tui_event *ev) {
     }
 }
 
+/* The step of PgUp/PgDn in every paging widget (TUI-134): the visible rows
+ * minus 2, so that 2 lines overlap, and at least 1. */
+static inline int tui__page(int rows) { return rows > 2 ? rows - 2 : 1; }
+
 /* tui_scheme_load() with the three directories given, for the tests. */
 #include "tuikit/scheme.h"
 int tui__scheme_load_in(const char *user_dir, const char *etc_dir, const char *share_dir,

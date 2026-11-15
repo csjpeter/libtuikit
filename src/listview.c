@@ -60,7 +60,7 @@ void tui_listview_select(tui_listview *lv, int index) {
 }
 
 static int page(const tui_listview *lv) {
-    return lv->rows_visible > 1 ? lv->rows_visible : 1;
+    return tui__page(lv->rows_visible);
 }
 
 void tui_listview_move_up(tui_listview *lv) {
