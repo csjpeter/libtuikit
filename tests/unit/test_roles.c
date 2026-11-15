@@ -461,18 +461,18 @@ static void test_header(void) {
     tui_header_set_notice(&h, "Done", TUI_STYLE_OK);
     tui_header_render(&h, all);
     fx_show(&f);
-    EXPECT_AT(&f, "Done", IDX(C_HEAD_FG), IDX(C_OK_FG), PTY_ATTR_BOLD);
+    EXPECT_AT(&f, "Done", IDX(C_OK_FG), IDX(C_HEAD_BG), PTY_ATTR_BOLD);
     EXPECT_AT(&f, "Inbox", IDX(C_HEAD_FG), IDX(C_HEAD_BG), PTY_ATTR_BOLD);
 
     tui_header_set_notice(&h, "Working", TUI_STYLE_PROGRESS);
     tui_header_render(&h, all);
     fx_show(&f);
-    EXPECT_AT(&f, "Working", IDX(C_HEAD_FG), IDX(C_PROG_FG), PTY_ATTR_ITALIC);
+    EXPECT_AT(&f, "Working", IDX(C_PROG_FG), IDX(C_HEAD_BG), PTY_ATTR_ITALIC);
 
     tui_header_set_warning(&h, "Failed");
     tui_header_render(&h, all);
     fx_show(&f);
-    EXPECT_AT(&f, "Failed", IDX(C_HEAD_FG), IDX(C_ERR_FG), PTY_ATTR_BOLD);
+    EXPECT_AT(&f, "Failed", IDX(C_ERR_FG), IDX(C_HEAD_BG), PTY_ATTR_BOLD);
     fx_close(&f);
 }
 
