@@ -313,6 +313,44 @@ static void test_label_cleaning(void) {
     ASSERT(strstr(t, "line one two") != NULL, "and in a description");
 }
 
+static const tui_menu_entry E10[] = {
+    { "One", 1, 0, "d1" },   { "Two", 2, 0, "d2" },   { "Three", 3, 0, "d3" },
+    { "Four", 4, 0, "d4" },  { "Five", 5, 0, "d5" },  { "Six", 6, 0, "d6" },
+    { "Seven", 7, 0, "d7" }, { "Eight", 8, 0, "d8" }, { "Nine", 9, 0, "d9" },
+    { "Ten", 10, 2, "The tenth." },
+};
+
+static void test_ten_entries(void) {
+    tui_menu m;
+    tui_menu_init(&m);
+    ASSERT_EQ_INT(tui_menu_set(&m, E10, 10, 0), 0, "ten entries");
+    ASSERT_EQ_INT(tui_menu_count(&m), 10, "count 10");
+    ASSERT_EQ_INT(TUI_MENU_MAX, 10, "the maximum is ten");
+    ASSERT_EQ_INT(tui_menu_set(&m, E10, 11, 0), -1, "eleven are too many");
+    tui_menu_set(&m, E10, 10, 0);
+    const char *t = fmt(&m, 20, 60);
+    ASSERT(strstr(t, "  9  Nine") != NULL, "the ninth has key 9");
+    ASSERT(strstr(t, "  0  Ten") != NULL, "the tenth has hot key 0");
+    ASSERT(strstr(t, "10 (2)") != NULL, "its count is drawn");
+    tui_event ev = key('0');
+    ASSERT_EQ_INT(tui_menu_handle(&m, &ev), TUI_MENU_ACTIVATED, "0 activates the tenth");
+    ASSERT_EQ_INT(tui_menu_selected(&m), 9, "and moves the cursor to it");
+    ASSERT(strstr(fmt(&m, 20, 60), "> 0  Ten") != NULL, "the cursor row shows 0");
+    ASSERT(strstr(fmt(&m, 20, 60), "The tenth.") != NULL, "and its description");
+    ev = key('1');
+    ASSERT_EQ_INT(tui_menu_handle(&m, &ev), TUI_MENU_ACTIVATED, "1 still the first");
+    ASSERT_EQ_INT(tui_menu_selected(&m), 0, "first");
+    /* the block keeps its rows whatever the cursor is on */
+    const char *t0 = fmt(&m, 20, 60);
+    int row0 = 0;
+    for (const char *p = t0; p < strstr(t0, "1  One"); p++) row0 += *p == '\n';
+    tui_menu_select(&m, 9);
+    const char *t9 = fmt(&m, 20, 60);
+    int row9 = 0;
+    for (const char *p = t9; p < strstr(t9, "1  One"); p++) row9 += *p == '\n';
+    ASSERT_EQ_INT(row0, row9, "the block does not move with the cursor");
+}
+
 static void test_keys(void) {
     tui_menu m;
     tui_menu_init(&m);
@@ -467,6 +505,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_long_texts_are_cut_at_a_character),
     TEST_CASE(test_label_cleaning),
     TEST_CASE(test_keys),
+    TEST_CASE(test_ten_entries),
     TEST_CASE(test_render_screen),
     TEST_CASE(test_format_limits),
     TEST_CASE(test_statusline_position_text),

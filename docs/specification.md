@@ -785,8 +785,8 @@ widget the program routes events to first.
 - **`tui_menu`** (TUI-108) — the main menu of a program with several main
   views (`policies/tui-interface-model.md`, "Navigation"), drawn on the canvas
   between the top bars and the status line.
-  - *Entries*: `{label, count, attention, description}`, at most 9, not copied
-    (`tui_menu_set`, cursor clamped). The hot keys are the digits 1 to 9, in
+  - *Entries*: `{label, count, attention, description}`, at most 10, not copied
+    (`tui_menu_set`, cursor clamped). The hot keys are the digits 1 to 9 and 0 (the tenth entry), in
     the text colour. `count` below 0 shows none; `attention` above 0 adds
     `(M)` after `N`, in the the warning colour, bold orange (256-colour index 208); no words in the row.
   - *Layout*: a row is `> 1  Label  N (M)`; the block is left-aligned inside,
