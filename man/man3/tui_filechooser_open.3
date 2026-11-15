@@ -1,0 +1,170 @@
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_FILECHOOSER_OPEN 3 2026-11-15 "libtuikit 1.2" "libtuikit Manual"
+.SH NAME
+tui_filechooser_open, tui_filechooser_set_hidden, tui_filechooser_loading,
+tui_filechooser_poll, tui_filechooser_dir, tui_filechooser_handle,
+tui_filechooser_render, tui_filechooser_free \-
+a modal dialog to open a file, choose a directory or name a file to save
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/filechooser.h>
+.PP
+.BI "int tui_filechooser_open(tui_filechooser *" fc ", const char *" title ", tui_fc_mode " mode ,
+.BI "                         const char *" start ", const char *" filter );
+.BI "void tui_filechooser_set_hidden(tui_filechooser *" fc ", int " show );
+.BI "int tui_filechooser_loading(const tui_filechooser *" fc );
+.BI "int tui_filechooser_poll(tui_filechooser *" fc );
+.BI "const char *tui_filechooser_dir(const tui_filechooser *" fc );
+.BI "tui_fc_state tui_filechooser_handle(tui_filechooser *" fc ", const tui_event *" ev );
+.BI "void tui_filechooser_render(tui_filechooser *" fc ", tui_canvas " c );
+.BI "void tui_filechooser_free(tui_filechooser *" fc );
+.fi
+.SH DESCRIPTION
+.B tui_filechooser
+is the file browser every program asks the library for.
+It is a modal dialog in the style of
+.BR tui_dialog :
+it does not block and does not read the terminal.
+The program routes events to it first while it is open, draws it last, and
+reads the outcome once
+.I state
+is no longer
+.BR TUI_FC_ACTIVE .
+.PP
+The dialog has a
+.B typing field
+with the path and, under it, a status row and the
+.B list
+of the entries of the directory: directories first, then files, each group
+by name without regard to case, with the size of a file and the date of
+change.
+A link to a directory is a directory.
+The list takes the keys of the list widgets: Up, Down, PgUp, PgDn, Home and
+End (the letters j, k, g and G are typed into the field).
+.PP
+.B The field and the list follow each other.
+A key that moves the list puts the path of the row into the field (a
+directory with a trailing slash).
+What is typed selects the first entry whose name starts with it, and a path
+with a slash in it shows that directory.
+Tab completes the name being typed from the entries shown: all of it when
+one matches (a directory with a slash), the common beginning when several do.
+.PP
+.B Enter
+acts on the path in the field: a directory is entered, a file is chosen
+(\fBTUI_FC_OPEN\fR), a name that does not exist is refused with a line in the
+status row (a new name is accepted in \fBTUI_FC_SAVE\fR).
+.B Backspace
+with nothing typed after the directory goes up one directory and stands on
+the one it came out of; the row
+.B ../
+goes up on Enter.
+.B Alt-H
+shows or hides the names that start with a dot.
+.B Esc
+and Ctrl-C cancel.
+.PP
+The modes:
+.TP
+.B TUI_FC_OPEN
+an existing file.
+.TP
+.B TUI_FC_DIR
+a directory; only directories are listed, and the first row is
+.B ./
+(the directory shown).
+Enter on a directory goes into it; Enter on the field when it shows the
+directory itself (the row
+.B ./
+selected, or the path ended with a slash) chooses it.
+.TP
+.B TUI_FC_SAVE
+the name of a file to write: the name is typed, the directory is navigated.
+A name that exists asks
+.I Replace it?
+first; only Yes (or y) chooses it.
+.PP
+.BR tui_filechooser_open ()
+starts the dialog in
+.I start
+(NULL: the current directory; a relative path is taken from it), with the
+frame title
+.I title
+(NULL: \(lqOpen file\(rq, \(lqChoose directory\(rq or \(lqSave as\(rq) and
+only the files whose names match the shell pattern
+.I filter
+(\fBfnmatch\fR(3); NULL: all), directories always.
+It returns at once: the directory is read by a background thread, so a slow
+mount does not stop the keys; the typing field works meanwhile and the status
+row says \(lqReading...\(rq.
+.I notify_fd
+(a descriptor of the dialog) becomes readable when a read has ended: a program
+that waits with
+.BR tui_term_wait (3)
+gives it as an extra descriptor and calls
+.BR tui_filechooser_poll ()
+when it is ready.
+.BR tui_filechooser_handle ()
+and
+.BR tui_filechooser_render ()
+take in a finished read themselves, so a program that does not wait on the
+descriptor sees the list with the next key or redraw.
+.BR tui_filechooser_poll ()
+returns 1 when the list changed.
+.BR tui_filechooser_loading ()
+is 1 while a read is on.
+.PP
+.BR tui_filechooser_dir ()
+is the directory shown, absolute with a trailing slash.
+.BR tui_filechooser_set_hidden ()
+sets what Alt-H toggles (default: dot names hidden).
+.BR tui_filechooser_handle ()
+gives the dialog one event and returns its state;
+.B TUI_FC_OK
+means that
+.I path
+holds the chosen absolute path, normalised (no
+.B .
+or
+.B ..
+or doubled slash, no trailing slash except for
+.BR / ),
+valid until
+.BR tui_filechooser_free ().
+.BR tui_filechooser_render ()
+draws the dialog centred in the canvas, sized to at most 76 by 20 cells, and
+puts the terminal cursor in the typing field.
+.BR tui_filechooser_free ()
+frees everything; a read still running is left to end by itself.
+It is safe after a failed open and on an already freed dialog.
+.PP
+The look is the scheme's: the frame in the
+.B frame
+role, the field in
+.BR input.focus ,
+the selected row in the table's selection (a dark blue ground and a
+\(lq>\(rq in the first column), the status row in
+.BR hint ,
+.B progress
+or
+.BR error .
+A narrow dialog drops the size and the date.
+.SH RETURN VALUES
+.BR tui_filechooser_open ()
+returns 0, or \-1 with
+.B errno
+set:
+.B EINVAL
+(a NULL dialog, a mode out of range),
+.B ENOMEM
+or what
+.BR socketpair (2)
+reports.
+A directory that cannot be read is not an error of the call: the status row
+says \(lqcannot read:\(rq and why.
+.SH SEE ALSO
+.BR libtuikit (7),
+.BR tui_dialog_message (3),
+.BR tui_term_wait (3),
+.BR tui_lineedit_init (3)

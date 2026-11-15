@@ -18,6 +18,7 @@ is.
 | Output as xterm escape sequences (CUP, SGR, ED, alternate screen, DECTCEM, no-wrap, synchronized output, bracketed paste) | `src/screen.c`, `src/term.c`, `src/decoder.c` | Pure bytes, so portable to any xterm-compatible terminal. Windows needs `ENABLE_VIRTUAL_TERMINAL_PROCESSING` and a UTF-8 output code page |
 | `clock_gettime(CLOCK_MONOTONIC)` | `src/tty.c` (`tui__now_ms`) | One function: `QueryPerformanceCounter` or `timespec_get` |
 | Compiler extensions behind `#if defined(__GNUC__)`: `visibility("default")` (`TUI_API`), `format(printf)`, `cleanup` (`TUI_RAII_RAW`) | `include/tuikit/api.h`, `buf.h`, `tty.h` | Empty expansions for another compiler; the shared library would also need an export mechanism there |
+| `pthread_create` (a detached thread per directory read), `socketpair(AF_UNIX)`, `fstatat`, `opendir`/`readdir` | `src/filechooser.c` | Windows: a worker thread and a pipe of its own, `FindFirstFile`, and a handle in place of `notify_fd`. macOS, Android: none (POSIX) |
 | ELF shared object with a SONAME and hidden visibility | `CMakeLists.txt` | Another library format and naming |
 
 The `#ifdef`s of the code are reviewed: the `_WIN32` branches that used to be in

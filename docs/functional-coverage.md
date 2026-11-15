@@ -436,6 +436,14 @@ name the ticket that closes the gap; there is none now.
 | `tui_fieldset_init` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
 | `tui_fieldset_render` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
 | `tui_fieldset_set_error` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
+| `tui_filechooser_dir` | `tests/functional/cap_widgets.c` | `cap_filechooser` |
+| `tui_filechooser_free` | `tests/functional/cap_widgets.c` | `cap_filechooser` |
+| `tui_filechooser_handle` | `tests/functional/cap_widgets.c` | `cap_filechooser` |
+| `tui_filechooser_loading` | `tests/functional/cap_widgets.c` | `cap_filechooser` |
+| `tui_filechooser_open` | `tests/functional/cap_widgets.c` | `cap_filechooser` |
+| `tui_filechooser_poll` | `tests/functional/cap_widgets.c` | `cap_filechooser` |
+| `tui_filechooser_render` | `tests/functional/cap_widgets.c` | `cap_filechooser` |
+| `tui_filechooser_set_hidden` | `tests/functional/cap_widgets.c` | `cap_filechooser` |
 | `tui_fieldset_update_completion` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
 | `tui_field_text` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
 

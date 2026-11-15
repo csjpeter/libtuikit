@@ -11,10 +11,13 @@
 
 #include "faults.h"
 
+#include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
 #include <poll.h>
+#include <pthread.h>
+#include <sys/socket.h>
 #include <signal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,6 +35,9 @@ int   __real_poll(struct pollfd *fds, nfds_t n, int timeout);
 ssize_t __real_read(int fd, void *buf, size_t n);
 ssize_t __real_write(int fd, const void *buf, size_t n);
 int   __real_raise(int sig);
+DIR  *__real_opendir(const char *path);
+int   __real_socketpair(int d, int t, int p, int sv[2]);
+int   __real_pthread_create(pthread_t *th, const pthread_attr_t *a, void *(*fn)(void *), void *arg);
 
 /* gcov's flush.  In a coverage build the reference must be a strong one:
  * a weak reference does not pull the member out of the static libgcov,
@@ -49,6 +55,7 @@ typedef struct {
 } fault;
 
 static fault g_f[F_COUNT];
+static int   g_opendir_delay_ms;
 static int   g_lie_skip = -1, g_lie_times;
 
 void fault_arm(fault_fn fn, int skip, int times, int err) {
@@ -66,6 +73,11 @@ void fault_reset(void) {
     memset(g_f, 0, sizeof(g_f));
     g_lie_skip = -1;
     g_lie_times = 0;
+    g_opendir_delay_ms = 0;
+}
+
+void fault_opendir_delay(int ms) {
+    g_opendir_delay_ms = ms;
 }
 
 int fault_calls(fault_fn fn) {
@@ -132,6 +144,21 @@ ssize_t __wrap_read(int fd, void *buf, size_t n) {
 ssize_t __real___read_chk(int fd, void *buf, size_t n, size_t buflen);
 ssize_t __wrap___read_chk(int fd, void *buf, size_t n, size_t buflen) {
     return hit(F_READ) ? -1 : __real___read_chk(fd, buf, n, buflen);
+}
+
+int __wrap_socketpair(int d, int t, int p, int sv[2]) {
+    return hit(F_SOCKETPAIR) ? -1 : __real_socketpair(d, t, p, sv);
+}
+
+/* pthread_create reports its error as the return value. */
+int __wrap_pthread_create(pthread_t *th, const pthread_attr_t *a, void *(*fn)(void *), void *arg) {
+    if (hit(F_PTHREAD_CREATE)) return errno;
+    return __real_pthread_create(th, a, fn, arg);
+}
+
+DIR *__wrap_opendir(const char *path) {
+    if (g_opendir_delay_ms > 0) usleep((useconds_t)g_opendir_delay_ms * 1000);
+    return __real_opendir(path);
 }
 
 ssize_t __wrap_write(int fd, const void *buf, size_t n) {
