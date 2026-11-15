@@ -240,6 +240,14 @@ static tui_dialog_state close_with(tui_dialog *d, tui_dialog_state s) {
     return s;
 }
 
+/* A description taller than the box scrolls under the vertical keys
+ * (TUI-139); the other keys are the dialog's own. */
+static void scroll_text(tui_dialog *d, const tui_event *ev) {
+    int k = tui__nav_key(ev);
+    if (k == TUI_KEY_UP || k == TUI_KEY_DOWN || k == TUI_KEY_PGUP || k == TUI_KEY_PGDN)
+        tui_textview_handle(&d->body, ev);
+}
+
 tui_dialog_state tui_dialog_handle(tui_dialog *d, const tui_event *ev) {
     if (!d || !ev) return d ? d->state : TUI_DIALOG_CANCELLED;
     if (d->state != TUI_DIALOG_OPEN) return d->state;
@@ -250,8 +258,10 @@ tui_dialog_state tui_dialog_handle(tui_dialog *d, const tui_event *ev) {
     case TUI_DIALOG_MESSAGE:
         if (cancel || (is_key && ev->key == TUI_KEY_ENTER) || TUI_EV_IS_CHAR(ev, ' '))
             return close_with(d, TUI_DIALOG_OK);
+        scroll_text(d, ev);
         break;
     case TUI_DIALOG_CONFIRM:
+        scroll_text(d, ev);
         if (cancel) {
             d->answer = 0;
             return close_with(d, TUI_DIALOG_CANCELLED);
@@ -357,6 +367,10 @@ tui_dialog_state tui_dialog_handle(tui_dialog *d, const tui_event *ev) {
 
 /* ── Drawing ─────────────────────────────────────────────────────────── */
 
+#define FORM_MIN_W  40      /* the narrowest a message, question or prompt gets */
+#define FORM_MAX_W  70      /* the widest */
+#define FORM_TINY_W 12      /* below this the box is not worth opening */
+
 static int text_width(const char *s) {
     int widest = 0;
     while (s && *s) {
@@ -439,6 +453,10 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     /* A margin of one cell around the dialog; on a tiny canvas the box is
      * clamped to the canvas by tui_rect_center(). */
     int avail_w = tui_canvas_cols(c) - 2, avail_h = tui_canvas_rows(c) - 2;
+    /* The message, the question and the prompts share one proportioned
+     * layout (TUI-139). */
+    int form = d->kind == TUI_DIALOG_MESSAGE || d->kind == TUI_DIALOG_CONFIRM ||
+               d->kind == TUI_DIALOG_PROMPT || d->kind == TUI_DIALOG_PASSWORD;
 
     /* Width: the widest of the text, the title, the buttons, the items. */
     int want = text_width(d->text);
@@ -467,7 +485,14 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
         }
     }
     int inner_w = want;
-    if (inner_w > avail_w - 4) inner_w = avail_w - 4;
+    if (form) {
+        /* The width follows the text, between 40 and 70 cells and never
+         * wider than the screen less 4 (the box is inner + 4). */
+        if (inner_w < FORM_MIN_W) inner_w = FORM_MIN_W;
+        if (inner_w > FORM_MAX_W) inner_w = FORM_MAX_W;
+        if (inner_w > tui_canvas_cols(c) - 8) inner_w = tui_canvas_cols(c) - 8;
+    } else if (inner_w > avail_w - 4)
+        inner_w = avail_w - 4;
     if (inner_w < 1) inner_w = 1;
 
     /* Height: the frame, the text, then what the kind adds below it. */
@@ -480,9 +505,9 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     switch (d->kind) {
     case TUI_DIALOG_TEXT:    extra = 0; break;                     /* the text only */
     case TUI_DIALOG_MESSAGE:
-    case TUI_DIALOG_CONFIRM: extra = lines > 0 ? 2 : 1; break;   /* blank + buttons */
+    case TUI_DIALOG_CONFIRM:
     case TUI_DIALOG_PASSWORD:
-    case TUI_DIALOG_PROMPT:  extra = 1; break;                     /* the input line */
+    case TUI_DIALOG_PROMPT:  extra = lines > 0 ? 2 : 1; break;   /* blank + buttons or field */
     case TUI_DIALOG_MENU:
     case TUI_DIALOG_QUICKMENU:
     case TUI_DIALOG_CHECKLIST: extra = d->nitems > 0 ? d->nitems : 1; break;
@@ -490,11 +515,31 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
                                      (help_searching(d) || help_filtered(d) ? 1 : 0);
                              break;                  /* + the search line */
     }
-    int h = 2 + (d->kind == TUI_DIALOG_HELP ? help_text : lines) + extra;
+    /* A blank row under the top border of the form kinds. */
+    int top = form ? 1 : 0;
+    int h = 2 + top + (d->kind == TUI_DIALOG_HELP ? help_text : lines) + extra;
+    if (form) {
+        /* The field and the buttons are always shown: the description
+         * keeps at least one row, or the box is not opened at all and a
+         * line at the bottom says so. */
+        int min_h = 2 + top + (lines > 0 ? 1 : 0) + extra;
+        if (inner_w < FORM_TINY_W || avail_h < min_h) {
+            tui_canvas_put_aligned(tui_canvas_sub(c, tui_rect_make(tui_canvas_rows(c) - 1, 0, 1,
+                                                                   tui_canvas_cols(c))),
+                                   0, "Terminal too small for this dialog", TUI_ALIGN_LEFT,
+                                   tui_scheme_style(TUI_ROLE_WARNING));
+            tui_screen_set_cursor(c.screen, 0, 0, 0);
+            return;
+        }
+    }
     if (h > avail_h) h = avail_h;
     int w = inner_w + 4;
 
     tui_rect box = tui_rect_center(tui_canvas_rect(c), h, w);
+    if (form) {
+        /* A little above the middle: two fifths of the free rows over it. */
+        box.row = tui_canvas_rect(c).row + (tui_canvas_rows(c) - h) * 2 / 5;
+    }
     tui_canvas_fill(c, box, d->fill);
     tui_canvas_box(c, box, d->title, d->frame);
     tui_rect content = tui_rect_make(box.row + 1, box.col + 2, box.rows - 2, box.cols - 4);
@@ -518,14 +563,14 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
     /* Short of rows, the blank line above the buttons goes first: the
      * text keeps at least one row. */
     if (!is_list && lines > 0 && rows - below < 1 && below > 1) below--;
-    int text_rows = rows - below;
+    int text_rows = rows - below - top;
     if (text_rows > 0 && lines > 0 && d->kind == TUI_DIALOG_HELP) {
         int shown = text_rows > lines ? lines : text_rows;
         tui_textview_render(&d->body, tui_canvas_sub(cc, tui_rect_make(0, 0, shown, inner_w)),
                             d->fill);
     } else if (text_rows > 0 && lines > 0)
         tui_textview_render(&d->body,
-                            tui_canvas_sub(wide, tui_rect_make(0, 0, text_rows, inner_w + 1)),
+                            tui_canvas_sub(wide, tui_rect_make(top, 0, text_rows, inner_w + 1)),
                             d->fill);
 
     tui_canvas last = tui_canvas_sub(cc, tui_rect_make(rows - 1, 0, 1, inner_w));
@@ -537,10 +582,11 @@ void tui_dialog_render(tui_dialog *d, tui_canvas c) {
         tui_canvas_put_aligned(last, 0, "[ OK ]", TUI_ALIGN_CENTER, tui__button_focus(d->focus));
         break;
     case TUI_DIALOG_CONFIRM: {
-        int start = (tui_canvas_cols(last) - 15) / 2;
+        /* Two buttons of one width, two cells apart, together in the middle. */
+        int start = (tui_canvas_cols(last) - 16) / 2;
         if (start < 0) start = 0;
         tui_canvas_put(last, 0, start, "[ Yes ]", d->answer ? tui__button_focus(d->focus) : d->fill);
-        tui_canvas_put(last, 0, start + 9, "[ No ]", d->answer ? d->fill : tui__button_focus(d->focus));
+        tui_canvas_put(last, 0, start + 9, "[ No  ]", d->answer ? d->fill : tui__button_focus(d->focus));
         break;
     }
     case TUI_DIALOG_PROMPT:

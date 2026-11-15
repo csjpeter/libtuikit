@@ -65,6 +65,15 @@ Added after the first implementation (2026-10-03):
   A `focus` style other than `TUI_STYLE_SELECTION` is the program's own
   and is used as it is, with the same layout.  The buttons ([ OK ],
   [ Yes ], [ No ]) keep `focus` as a style (bold reverse video by default).
+- Dialog layout (TUI-139): the message, the question and the two prompts
+  are laid out by one routine in `tui_dialog_render()`: text width 40 to 70
+  cells and at most the canvas less 8 (the box is text + 4); wrapped lines;
+  a blank row under the top border and one before the field or buttons; the
+  buttons together, centred, equal width, two cells apart; the box centred
+  across and at two fifths of the free rows from the top; a taller text
+  scrolls (Up/Down/PgUp/PgDn) with the field and buttons kept; when not even
+  one text row fits the box is not drawn and the bottom line says so.  The
+  menu, help and text kinds keep their own sizing.
 - `tui_dialog_checklist()` (TUI-1): a menu in which several rows are ticked
   with Space; the set is read back on OK, and `answer` is the row Enter was
   pressed on -- issue-manager's status filter.
