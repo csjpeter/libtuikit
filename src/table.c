@@ -35,6 +35,7 @@ struct tui_table_row {
     char         mark[5];
     tui_style    mark_style;
     char         text[ROW_TEXT];
+    int          span_first, span_n;   /* a spanned cell: columns first .. first+n-1; n < 2: none */
 };
 
 /* ── The model's side: cells and rows ──────────────────────────────── */
@@ -97,6 +98,35 @@ void tui_table_row_text(tui_table_row *r, const char *text) {
     size_t n = utf8_prefix(text, ROW_TEXT - 1);
     memcpy(r->text, text, n);
     r->text[n] = '\0';
+}
+
+void tui_table_row_span(tui_table_row *r, int first, int ncols) {
+    if (!r) return;
+    if (first < 0 || ncols < 2) {
+        r->span_first = 0;
+        r->span_n = 0;
+        return;
+    }
+    r->span_first = first;
+    r->span_n = ncols;
+}
+
+/* What column @p i is in the row's span: 0 outside it (or a data row without
+ * one), 1 the first shown column of it (@p *w is the width of the whole
+ * cell: the shown columns and the blanks between them), 2 another column
+ * of it (drawn as part of the first). */
+static int span_state(const tui_table_row *r, const int *widths, int i, int *w) {
+    if (r->span_n < 2 || i < r->span_first || i >= r->span_first + r->span_n) return 0;
+    int shown = 0, sum = 0;
+    for (int k = r->span_first; k < r->span_first + r->span_n && k < 64; k++) {
+        if (widths[k] == 0) continue;
+        if (shown == 0 && k != i) return 2;   /* an earlier shown column leads */
+        shown++;
+        sum += widths[k];
+    }
+    if (shown == 0) return 0;
+    *w = sum + shown - 1;
+    return 1;
 }
 
 static void row_describe(const tui_table *t, int index, tui_table_row *r) {
@@ -506,6 +536,9 @@ static int column_content(const tui_table *t, int col) {
             tui_table_row row;
             row_describe(t, r, &row);
             if (row.kind != TUI_ROW_DATA) continue;
+            /* A spanned cell takes what the columns give; it widens none. */
+            if (row.span_n >= 2 && col >= row.span_first && col < row.span_first + row.span_n)
+                continue;
         }
         cell_describe(t, r, col, &cell);
         int w = cell_width(&cell, 0);
@@ -718,10 +751,13 @@ static void draw_row(const tui_table *t, tui_canvas row, int index, int selected
     int x = GUTTER;
     for (int i = 0; i < n && x < tui_canvas_cols(row); i++) {
         if (widths[i] == 0) continue;
-        cell_describe(t, index, i, &cell);
-        tui_canvas cv = tui_canvas_sub(row, tui_rect_make(0, x, 1, widths[i]));
-        draw_cell(t, cv, &cell, widths[i], &t->cols[i], r.style, sel);
-        x += widths[i] + 1;
+        int w = widths[i];
+        int st = span_state(&r, widths, i, &w);
+        if (st == 2) continue;
+        cell_describe(t, index, st ? r.span_first : i, &cell);
+        tui_canvas cv = tui_canvas_sub(row, tui_rect_make(0, x, 1, w));
+        draw_cell(t, cv, &cell, w, &t->cols[st ? r.span_first : i], r.style, sel);
+        x += w + 1;
     }
 }
 
@@ -976,8 +1012,16 @@ static int format_cells(const tui_table *t, int cols, int index, int frow,
     tui_table_cell cell;
     for (int i = 0; i < n; i++) {
         if (cols > 0 && widths[i] == 0) continue;
+        int sw = 0, sp = (r && index >= 0) ? span_state(r, widths, i, &sw) : 0;
+        if (sp == 2) continue;
         if (!first) plain_add(&o, " ", 1);
         first = 0;
+        if (sp == 1) {
+            cell_describe(t, index, r->span_first, &cell);
+            plain_cell(&o, &cell, cols > 0 ? sw : 0, &t->cols[r->span_first],
+                       r->span_first + r->span_n - 1 >= lastcol);
+            continue;
+        }
         if (index >= 0) {
             cell_describe(t, index, i, &cell);
         } else if (frow >= 0) {

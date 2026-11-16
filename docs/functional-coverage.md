@@ -363,6 +363,7 @@ name the ticket that closes the gap; there is none now.
 | `tui_table_render_row` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_row_kind` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_row_mark` | `tests/functional/cap_widgets.c` | `cap_table` |
+| `tui_table_row_span` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_row_style` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_row_text` | `tests/functional/cap_widgets.c` | `cap_table` |
 | `tui_table_select` | `tests/functional/cap_widgets.c` | `cap_table` |

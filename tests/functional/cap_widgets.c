@@ -32,6 +32,14 @@ static void t_cell(void *ctx, int i, int col, tui_table_cell *c) {
         tui_table_cell_put(c, t, TUI_STYLE_ACCENT);
     }
 }
+static void t_span_row(void *ctx, int i, tui_table_row *r) {
+    (void)ctx;
+    if (i == 1) tui_table_row_span(r, 0, 2);
+}
+static void t_span_cell(void *ctx, int i, int col, tui_table_cell *c) {
+    (void)ctx; (void)i; (void)col;
+    tui_table_cell_put(c, "spanned over name and size", TUI_STYLE_DEFAULT);
+}
 static uint64_t t_id(void *ctx, int i) { (void)ctx; return 1000u + (uint64_t)i; }
 
 static void t_foot(void *ctx, int row, int col, tui_table_cell *c) {
@@ -185,6 +193,21 @@ static void cap_table(void) {
     free(txt);
     tui_screen_free(s);
     tui_table_free(&t);
+
+    /* A cell that spans two columns. */
+    tui_table_model sm = { t_span_row, t_span_cell, NULL };
+    tui_table st;
+    tui_table_init(&st, cols, 3, &sm);
+    tui_table_set_count(&st, 3);
+    tui_screen *ss = tui_screen_new(4, 40);
+    tui_canvas sc = tui_canvas_of(ss);
+    tui_canvas_clear(sc, TUI_STYLE_DEFAULT);
+    tui_table_render(&st, sc, TUI_STYLE_DEFAULT);
+    txt = cap_screen_text(ss, NULL);
+    CHECK_HAS(txt, "spanned over name and size", "a row spans two columns as one text");
+    free(txt);
+    tui_screen_free(ss);
+    tui_table_free(&st);
 }
 
 /* ---- tab row -------------------------------------------------------- */

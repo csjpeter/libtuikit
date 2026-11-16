@@ -725,6 +725,171 @@ static void test_table_plain_text(void) {
     ASSERT_EQ_INT(n, -1, "section: too small");
 }
 
+/* ── Spanned cells ──────────────────────────────────────────────────── */
+
+typedef struct { int first, n; const char *text; int calls[4]; } SpanCtx;
+
+static void span_row(void *ctx, int index, tui_table_row *r) {
+    SpanCtx *sc = ctx;
+    if (index >= 1) tui_table_row_span(r, sc->first, sc->n);
+    if (index == 3) tui_table_row_span(r, 1, 1);   /* fewer than two: no span */
+    if (index == 4) tui_table_row_span(r, -1, 3);  /* no such start: no span */
+}
+
+static void span_cell(void *ctx, int index, int col, tui_table_cell *c) {
+    SpanCtx *sc = ctx;
+    if (col >= 0 && col < 4 && index >= 1 && index <= 2) sc->calls[col]++;
+    if (index >= 1 && index <= 2 && col == sc->first) tui_table_cell_put(c, sc->text, TUI_STYLE_DEFAULT);
+    else tui_table_cell_put(c, "x", TUI_STYLE_DEFAULT);
+}
+
+static void test_table_span_two_columns(void) {
+    Fx f;
+    ASSERT(fx_open(&f, 6, 40) == 0, "fixtures");
+    SpanCtx sc = { 1, 2, "one text over two columns", { 0 } };
+    tui_table_model m = { span_row, span_cell, &sc };
+    tui_table t;
+    tui_table_init(&t, g_cols, 4, &m);
+    tui_table_set_colors(&t, 256);
+    tui_table_set_count(&t, 5);
+    tui_table_select(&t, 2);
+    tui_table_render(&t, tui_canvas_of(f.scr), TUI_STYLE_DEFAULT);
+    fx_show(&f);
+    /* TITLE (20) + blank + N (4) = 25 cells: the text is one piece, no gap. */
+    char exp[128];
+    want(exp, sizeof(exp), "  ", "x", "x", "x", "x");
+    ASSERT_EQ_STR(rowtext(f.s, 1), exp, "an ordinary row is as before");
+    snprintf(exp, sizeof(exp), "  %-6s %-25s %s", "x", "one text over two columns", "x");
+    ASSERT_EQ_STR(rowtext(f.s, 2), exp, "span fits: no cut, one text, then ST");
+    ASSERT_EQ_INT(sc.calls[2] , 0, "the cell callback is not called for a covered column");
+    ASSERT(sc.calls[1] > 0, "it is called for the first column");
+    /* The header is unchanged. */
+    want(exp, sizeof(exp), "  ", "KEY", "TITLE", "N", "ST");
+    ASSERT_EQ_STR(rowtext(f.s, 0), exp, "header unchanged");
+    fx_close(&f);
+}
+
+static void test_table_span_long_and_selection(void) {
+    Fx f;
+    ASSERT(fx_open(&f, 6, 40) == 0, "fixtures");
+    SpanCtx sc = { 1, 2, "a span text that is much longer than twenty five cells", { 0 } };
+    tui_table_model m = { span_row, span_cell, &sc };
+    tui_table t;
+    tui_table_init(&t, g_cols, 4, &m);
+    tui_table_set_colors(&t, 256);
+    tui_table_set_count(&t, 3);
+    tui_table_select(&t, 2);
+    tui_table_render(&t, tui_canvas_of(f.scr), TUI_STYLE_DEFAULT);
+    fx_show(&f);
+    /* Cut at the end of the span, 24 cells and the "…". */
+    ASSERT_EQ_STR(rowtext(f.s, 3), "> x      a span text that is much\xE2\x80\xA6 x",
+                  "cut by the span, the ellipsis at its end");
+    /* The cursor row: ">" and the selection background over the whole row. */
+    ASSERT_EQ_INT(pty_cell_bg(f.s, 3, 20), LEGEND_SEL_BG, "selection background across the span");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 3, 0), ">", "cursor mark");
+    /* Text too long does not widen a column: TITLE keeps its 20 cells. */
+    int w[4];
+    tui_table_widths(&t, 40, w);
+    ASSERT_EQ_INT(w[1], 20, "a spanned text widens no column");
+    ASSERT_EQ_STR(pty_cell_text(f.s, 3, 35), "x", "the column after the span is where it was");
+    fx_close(&f);
+}
+
+static void test_table_span_narrow_and_hidden(void) {
+    Fx f;
+    ASSERT(fx_open(&f, 6, 29) == 0, "fixtures");
+    /* 29 cells: ST is hidden, TITLE is 15, N 4: the span is 20 wide. */
+    SpanCtx sc = { 1, 2, "abcdefghijklmnopqrstuvwxyz", { 0 } };
+    tui_table_model m = { span_row, span_cell, &sc };
+    tui_table t;
+    tui_table_init(&t, g_cols, 4, &m);
+    tui_table_set_colors(&t, 256);
+    tui_table_set_count(&t, 3);
+    tui_table_render(&t, tui_canvas_of(f.scr), TUI_STYLE_DEFAULT);
+    fx_show(&f);
+    ASSERT_EQ_STR(rowtext(f.s, 2), "  x      abcdefghijklmnopqrs\xE2\x80\xA6",
+                  "narrow: cut to the shown columns of the span");
+    /* The span reaching over a hidden column adds nothing for it. */
+    sc.first = 2; sc.n = 2; sc.text = "n+st";
+    tui_table_render(&t, tui_canvas_of(f.scr), TUI_STYLE_DEFAULT);
+    fx_show(&f);
+    char exp[128];
+    snprintf(exp, sizeof(exp), "  %-6s %-15s %s", "x", "x", "n+st");
+    ASSERT_EQ_STR(rowtext(f.s, 2), exp, "span of N and the hidden ST");
+    /* Every column of the span hidden: nothing drawn for it. */
+    sc.first = 3; sc.n = 2;
+    tui_table_render(&t, tui_canvas_of(f.scr), TUI_STYLE_DEFAULT);
+    fx_show(&f);
+    snprintf(exp, sizeof(exp), "  %-6s %-15s %4s", "x", "x", "x");
+    ASSERT_EQ_STR(rowtext(f.s, 2), exp, "a hidden span is not drawn");
+    fx_close(&f);
+}
+
+static const tui_table_col g_hide_cols[] = {
+    { "A", 4, 0, TUI_ALIGN_LEFT, 20, 0, 0 },   /* hidden below 20 */
+    { "B", 4, 0, TUI_ALIGN_LEFT, 0,  0, 0 },
+    { "C", 6, 0, TUI_ALIGN_RIGHT, 0, 0, 0 },
+};
+
+static void test_table_span_first_column_hidden(void) {
+    SpanCtx sc = { 0, 3, "all three", { 0 } };
+    tui_table_model m = { span_row, span_cell, &sc };
+    tui_table t;
+    tui_table_init(&t, g_hide_cols, 3, &m);
+    tui_table_set_count(&t, 3);
+    char out[128];
+    /* 16 cells: A is hidden; the span starts at B, 4 + 1 + 6 = 11 wide, right aligned by A. */
+    ASSERT(tui_table_format_row(&t, 16, 2, out, sizeof(out)) > 0, "format");
+    ASSERT_EQ_STR(out, "all three", "text of the span of the shown columns, no padding at the end");
+    ASSERT(tui_table_format_row(&t, 40, 2, out, sizeof(out)) > 0, "format wide");
+    ASSERT_EQ_STR(out, "all three", "the span covers all three, last cell: no padding");
+    tui_table_free(&t);
+}
+
+static void test_table_span_plain_text(void) {
+    SpanCtx sc = { 1, 2, "one text over two columns", { 0 } };
+    tui_table_model m = { span_row, span_cell, &sc };
+    tui_table t;
+    tui_table_init(&t, g_cols, 4, &m);
+    tui_table_set_count(&t, 3);
+    char out[256], w[64];
+    ASSERT(tui_table_format_row(&t, 40, 1, out, sizeof(out)) > 0, "format");
+    snprintf(w, sizeof(w), "%-6s %-25s %s", "x", "one text over two columns", "x");
+    ASSERT_EQ_STR(out, w, "the span is one cell of 25");
+    sc.text = "a span text that is much longer than twenty five cells";
+    ASSERT(tui_table_format_row(&t, 40, 1, out, sizeof(out)) > 0, "format long");
+    snprintf(w, sizeof(w), "%-6s %s\xE2\x80\xA6 %s", "x", "a span text that is much", "x");
+    ASSERT_EQ_STR(out, w, "cut at the end of the span");
+    ASSERT(tui_table_format_row(&t, 0, 1, out, sizeof(out)) > 0, "format, no cut");
+    ASSERT_EQ_STR(out, "x a span text that is much longer than twenty five cells x", "no cut: the cells as they are");
+    tui_table_row_span(NULL, 1, 2);
+    tui_table_free(&t);
+}
+
+/* A FIT column is not widened by the spanned text. */
+static void spanfit_row(void *ctx, int index, tui_table_row *r) { (void)ctx; (void)index; tui_table_row_span(r, 0, 2); }
+static void spanfit_cell(void *ctx, int index, int col, tui_table_cell *c) {
+    (void)ctx; (void)index;
+    tui_table_cell_put(c, col == 0 ? "a long spanned text that would widen the column" : "y",
+                       TUI_STYLE_DEFAULT);
+}
+
+static void test_table_span_does_not_widen(void) {
+    static const tui_table_col cols[] = {
+        { "A", 3, 30, TUI_ALIGN_LEFT, 0, 0, TUI_COL_FIT },
+        { "B", 3, 30, TUI_ALIGN_LEFT, 0, 0, TUI_COL_FIT },
+    };
+    tui_table_model m = { spanfit_row, spanfit_cell, NULL };
+    tui_table t;
+    tui_table_init(&t, cols, 2, &m);
+    tui_table_set_count(&t, 2);
+    int w[2];
+    tui_table_widths(&t, 80, w);
+    ASSERT_EQ_INT(w[0], 3, "FIT A: only its minimum, the span asks nothing");
+    ASSERT_EQ_INT(w[1], 3, "FIT B: the same");
+    tui_table_free(&t);
+}
+
 /* ── Limits of the cell and the row ─────────────────────────────────── */
 
 static void big_cell(void *ctx, int index, int col, tui_table_cell *c) {
@@ -1147,6 +1312,12 @@ static const TestCase tests[] = {
     TEST_CASE(test_table_cuts_and_alignment),
     TEST_CASE(test_table_header_and_ruler),
     TEST_CASE(test_table_row_style_and_sections),
+    TEST_CASE(test_table_span_two_columns),
+    TEST_CASE(test_table_span_long_and_selection),
+    TEST_CASE(test_table_span_narrow_and_hidden),
+    TEST_CASE(test_table_span_first_column_hidden),
+    TEST_CASE(test_table_span_plain_text),
+    TEST_CASE(test_table_span_does_not_widen),
     TEST_CASE(test_table_navigation_skips_sections),
     TEST_CASE(test_table_counters_message_and_single_row),
     TEST_CASE(test_table_plain_text),

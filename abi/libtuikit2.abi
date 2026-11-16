@@ -302,6 +302,7 @@ symbol tui_table_render_header
 symbol tui_table_render_row
 symbol tui_table_row_kind
 symbol tui_table_row_mark
+symbol tui_table_row_span
 symbol tui_table_row_style
 symbol tui_table_row_text
 symbol tui_table_select

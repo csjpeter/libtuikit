@@ -77,6 +77,23 @@ TUI_API void tui_table_row_mark(tui_table_row *r, const char *glyph, tui_style s
  *         horizontal rule.  NULL or "" gives the rule alone. */
 TUI_API void tui_table_row_text(tui_table_row *r, const char *text);
 
+/**
+ * @brief Makes the cell of column @p first of the row span @p ncols columns
+ *        (@p ncols >= 2): one cell as wide as those columns and the blanks
+ *        between them, filled by the cell callback for column @p first
+ *        (it is not called for the other columns of the span), aligned
+ *        and cut like any cell (the "…" only at its end) by the column
+ *        @p first.  Hidden columns of the span add nothing; a span with
+ *        every column hidden is not drawn.  Columns before and after it
+ *        are drawn as usual, and the header is unchanged.  The span does
+ *        not take part in the width sharing: no column grows by its text.
+ *        Cursor, marks, paging and the row styles work as on any data
+ *        row.  Only a TUI_ROW_DATA row spans; @p first < 0 or @p ncols < 2
+ *        removes the span.  One span per row; a span past the last column
+ *        covers the columns that exist.
+ */
+TUI_API void tui_table_row_span(tui_table_row *r, int first, int ncols);
+
 /** @brief Text of the cell that is never cut: tree glyphs, an indent.  Call
  *         it before tui_table_cell_put(); the cell is cut after it. */
 TUI_API void tui_table_cell_prefix(tui_table_cell *c, const char *utf8, tui_style st);

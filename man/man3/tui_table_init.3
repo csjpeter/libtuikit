@@ -9,7 +9,7 @@ tui_table_handle, tui_table_widths, tui_table_render,
 tui_table_render_header, tui_table_render_row, tui_table_format_row,
 tui_table_format_header, tui_table_set_footer, tui_table_render_footer,
 tui_table_format_footer, tui_table_row_kind, tui_table_row_style,
-tui_table_row_mark, tui_table_row_text, tui_table_cell_prefix,
+tui_table_row_mark, tui_table_row_text, tui_table_row_span, tui_table_cell_prefix,
 tui_table_cell_put, tui_table_set_row_id, tui_table_marked,
 tui_table_marked_count, tui_table_set_marked, tui_table_toggle_mark,
 tui_table_mark_all, tui_table_invert_marks, tui_table_clear_marks,
@@ -49,6 +49,7 @@ tui_table_next_marked, tui_table_free \- a table with columns, a header and a se
 .BI "void tui_table_row_style(tui_table_row *" r ", tui_style " st );
 .BI "void tui_table_row_mark(tui_table_row *" r ", const char *" glyph ", tui_style " st );
 .BI "void tui_table_row_text(tui_table_row *" r ", const char *" text );
+.BI "void tui_table_row_span(tui_table_row *" r ", int " first ", int " ncols );
 .BI "void tui_table_cell_prefix(tui_table_cell *" c ", const char *" utf8 ", tui_style " st );
 .BI "void tui_table_cell_put(tui_table_cell *" c ", const char *" utf8 ", tui_style " st );
 .PP
@@ -125,6 +126,23 @@ or
 a section row is a heading with a rule across the whole width
 .RB ( tui_table_row_text ())
 and the selection skips it.
+.BR tui_table_row_span ()
+makes the cell of column
+.I first
+of a data row span
+.I ncols
+columns (at least 2): one cell as wide as those columns and the blanks between
+them, filled by the cell callback for column
+.I first
+(it is not called for the other columns of the span), aligned and cut like any
+cell by column
+.IR first ,
+with the ellipsis only at its end.
+Hidden columns add nothing to it.
+A spanned cell takes no part in the width sharing: no column grows by its
+text.
+The cursor, marks, paging and row styles work as on any data row, and the
+header is unchanged.
 .BR tui_table_row_style ()
 is a style under the whole row (a colour, dim); a cell's own style goes on
 top.
