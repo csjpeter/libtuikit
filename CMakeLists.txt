@@ -302,7 +302,7 @@ set(TUIKIT_MAN3_ALIASES
     tui_tree_show_counts:tui_tree_init tui_tree_marker:tui_tree_init
     tui_tree_handle:tui_tree_init tui_tree_render:tui_tree_init
     tui_table_row_kind:tui_table_init tui_table_row_style:tui_table_init
-    tui_table_row_mark:tui_table_init tui_table_row_text:tui_table_init
+    tui_table_row_mark:tui_table_init tui_table_row_text:tui_table_init tui_table_row_span:tui_table_init
     tui_table_cell_prefix:tui_table_init tui_table_cell_put:tui_table_init
     tui_table_set_colors:tui_table_init tui_table_set_count:tui_table_init
     tui_table_set_total:tui_table_init tui_table_set_message:tui_table_init
