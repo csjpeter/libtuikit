@@ -1,0 +1,93 @@
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_SETTINGDIALOG_INIT 3 2026-11-15 "libtuikit 2.0" "libtuikit Manual"
+.SH NAME
+tui_settingdialog_init, tui_settingdialog_free, tui_settingdialog_handle,
+tui_settingdialog_render \- a dialog that changes one setting
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/settingdialog.h>
+.PP
+.BI "int  tui_settingdialog_init(tui_settingdialog *" d ", const char *" title ,
+.BI "                            const char *" text ", const char *" hint ,
+.BI "                            char *" buf ", size_t " size ", const char *" initial );
+.BI "void tui_settingdialog_free(tui_settingdialog *" d );
+.BI "tui_dialog_state tui_settingdialog_handle(tui_settingdialog *" d ", const tui_event *" ev );
+.BI "void tui_settingdialog_render(tui_settingdialog *" d ", tui_canvas " c );
+.fi
+.SH DESCRIPTION
+The dialog of a configuration value: a
+.I title
+in the frame, the description
+.I text
+(plain, wrapped, may hold newlines) that says what the value is for, the input
+with the current value, a
+.I hint
+line of the allowed values (may be NULL), and the buttons OK and Cancel.
+Like every dialog it neither blocks nor reads the terminal: the program gives it
+events and draws it last, and reads
+.I state
+once it is no longer
+.BR TUI_DIALOG_OPEN .
+.PP
+.BR tui_settingdialog_init ()
+copies the texts and edits the value in the caller's
+.I buf
+(capacity
+.IR size ),
+starting from
+.IR initial .
+It returns 0, or \-1 with
+.B EINVAL
+(no dialog, no buffer) or
+.BR ENOMEM .
+Set
+.I validate
+and
+.I user
+afterwards:
+.RS
+.nf
+int (*validate)(void *user, const char *value, char *err, size_t errsz);
+.fi
+.RE
+A non-zero return refuses the value, with the reason written into
+.IR err .
+.PP
+.BR tui_settingdialog_handle ()
+returns the state.
+In the input the keys of
+.BR tui_lineedit_handle (3)
+edit and Enter presses OK.
+Tab moves the focus input, OK, Cancel and around; Shift-Tab goes the other way.
+On a button Left and Right move between the buttons, Enter presses the focused
+one, and Up, Down, PgUp and PgDn scroll a description taller than the box.
+Esc and Ctrl-C are Cancel wherever the focus is.
+OK runs
+.IR validate :
+a refusal puts the reason into
+.IR error ,
+keeps the dialog open and moves the focus back to the input; typing clears the
+reason.
+Cancel puts the initial value back into the buffer and sets
+.BR TUI_DIALOG_CANCELLED ;
+OK leaves the value there and sets
+.BR TUI_DIALOG_OK .
+.PP
+.BR tui_settingdialog_render ()
+draws the box centred in
+.IR c ,
+40 to 70 cells wide following the text, a little above the middle, at most the
+canvas less a margin of one cell.
+The refusal is drawn in the warning role of the scheme, the hint dimmed, the
+focused button in the selection role.
+On a terminal too small for the field and the buttons it writes one warning line
+at the bottom instead.
+The cursor is in the input while it has the focus.
+.PP
+.BR tui_settingdialog_free ()
+frees the dialog's copies (not the buffer).
+.SH SEE ALSO
+.BR tui_dialog_message (3),
+.BR tui_dialog_form_init (3),
+.BR tui_lineedit_init (3)

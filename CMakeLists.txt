@@ -104,6 +104,7 @@ set(TUIKIT_SOURCES
     src/decoder.c
     src/dialog.c
     src/fieldset.c
+    src/settingdialog.c
     src/filechooser.c
     src/header.c
     src/cmdline.c
@@ -384,6 +385,8 @@ set(TUIKIT_MAN3_ALIASES
     tui_fieldset_handle:tui_fieldset_init tui_fieldset_render:tui_fieldset_init
     tui_dialog_form_free:tui_dialog_form_init tui_dialog_form_handle:tui_dialog_form_init
     tui_dialog_form_render:tui_dialog_form_init tui_dialog_password:tui_dialog_message
+    tui_settingdialog_free:tui_settingdialog_init tui_settingdialog_handle:tui_settingdialog_init
+    tui_settingdialog_render:tui_settingdialog_init
     tui_tty_wait:tui_tty_is tui_lineedit_replace:tui_lineedit_init
     tui_textedit_set_text:tui_textedit_init tui_textedit_insert:tui_textedit_init
     tui_textedit_handle:tui_textedit_init tui_textedit_lines:tui_textedit_init
@@ -488,6 +491,9 @@ function(tuikit_write_changelog _pkg)
     macro TUI_STYLE_WARNING; the menu's attention count draws with it.  The
     scheme directory is /usr/share/libtuikit2/schemes.  Rebuild dependants
     against libtuikit2.
+  * new: tui_settingdialog (TUI-138): a description, one input with a hint
+    and the buttons OK and Cancel; a validation callback refuses a value
+    inside the dialog.
   * 1.4.0: new: tui_dialog_form, a tui_fieldset in a modal frame with the title
     and a key hint in the border (TUI-131), and tui_dialog_password(), a masked
     prompt that shows one star per character.

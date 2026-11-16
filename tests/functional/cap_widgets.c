@@ -607,6 +607,58 @@ static int validate(void *user, const tui_fieldset *f, char *err, size_t errsz) 
     return -1;
 }
 
+static int cap_setting_validate(void *user, const char *v, char *err, size_t errsz) {
+    (void)user;
+    if (strcmp(v, "8no") == 0) {
+        snprintf(err, errsz, "refused");
+        return 1;
+    }
+    return 0;
+}
+
+static void cap_settingdialog(void) {
+    char buf[32];
+    tui_settingdialog d;
+    CHECK_INT(tui_settingdialog_init(&d, "Port", "The port to listen on.", "1-65535", buf, sizeof buf, "80"),
+              0, "setting dialog");
+    d.validate = cap_setting_validate;
+    tui_screen *s = tui_screen_new(14, 60);
+    tui_settingdialog_render(&d, tui_canvas_of(s));
+    char *txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "Port", "title drawn");
+    CHECK_HAS(txt, "listen", "description drawn");
+    CHECK_HAS(txt, "80", "value drawn");
+    CHECK_HAS(txt, "1-65535", "hint drawn");
+    CHECK_HAS(txt, "OK", "OK button");
+    CHECK_HAS(txt, "Cancel", "Cancel button");
+    free(txt);
+    tui_event ev = cap_ev("\x7f");
+    tui_settingdialog_handle(&d, &ev);
+    CAP_TYPE(tui_settingdialog_handle, &d, "no");
+    CHECK_STR(buf, "8no", "typed into the buffer");
+    ev = cap_ev("\r");
+    CHECK_INT(tui_settingdialog_handle(&d, &ev), TUI_DIALOG_OPEN, "a refused value keeps it open");
+    CHECK_STR(d.error, "refused", "the reason");
+    tui_settingdialog_render(&d, tui_canvas_of(s));
+    txt = cap_screen_text(s, NULL);
+    CHECK_HAS(txt, "refused", "the reason drawn");
+    free(txt);
+    CAP_TYPE(tui_settingdialog_handle, &d, "x");
+    ev = cap_ev("\t");
+    tui_settingdialog_handle(&d, &ev);
+    CHECK_INT(d.focus, TUI_SETTING_OK, "Tab to OK");
+    ev = cap_ev("\r");
+    CHECK_INT(tui_settingdialog_handle(&d, &ev), TUI_DIALOG_OK, "OK accepts");
+    tui_settingdialog_free(&d);
+    tui_settingdialog_init(&d, "Port", "x", NULL, buf, sizeof buf, "80");
+    CAP_TYPE(tui_settingdialog_handle, &d, "1");
+    ev = cap_ev("\x1b");
+    CHECK_INT(tui_settingdialog_handle(&d, &ev), TUI_DIALOG_CANCELLED, "Esc cancels");
+    CHECK_STR(buf, "80", "the value is put back");
+    tui_settingdialog_free(&d);
+    tui_screen_free(s);
+}
+
 static void cap_fieldset(void) {
     char to[32], subj[32];
     const char *kinds[] = { "plain", "html" };
@@ -869,6 +921,7 @@ int main(void) {
     cap_menu();
     cap_dialog();
     cap_fieldset();
+    cap_settingdialog();
     cap_filechooser();
     cap_actions();
     return cap_finish("cap-widgets");

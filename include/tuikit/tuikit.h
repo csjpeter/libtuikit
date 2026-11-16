@@ -26,6 +26,7 @@
 #include "tuikit/lineedit.h"
 #include "tuikit/listview.h"
 #include "tuikit/mdview.h"
+#include "tuikit/settingdialog.h"
 #include "tuikit/sgrview.h"
 #include "tuikit/menu.h"
 #include "tuikit/tree.h"
