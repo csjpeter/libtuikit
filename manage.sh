@@ -794,11 +794,17 @@ qa1_gates() {
 # run_gates <names>: each gate with its log, and a summary.  Sets
 # GATES_FAILED to the number of gates that failed.
 run_gates() {
-    local logdir="$BUILD_DIR/_logs" gates="$1" g rc rf
+    local logdir="$BUILD_DIR/_logs" gates="$1" g rc rf n=0 m=0
     local -A result
     mkdir -p "$logdir"
     GATES_FAILED=0
+    # M is known before the first step: the gates this run really does.
+    for g in $gates; do m=$((m + 1)); done
     for g in $gates; do
+        # policies/manage-sh-model.md, "check and check-deep announce their
+        # steps": one line per step, on its own line of the standard output.
+        n=$((n + 1))
+        echo "step $n/$m: $g"
         printf '%-10s ' "$g"
         rc=0
         case "$g" in

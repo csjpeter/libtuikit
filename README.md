@@ -130,6 +130,7 @@ WORKSPACE_LIBS=system ./manage.sh test    # the same tests against the package
 ./manage.sh consumer    # build and run the example against the .deb content
 ./manage.sh check       # QA 1: unit, pty, functional, package checks, with a summary
 ./manage.sh check-deep  # QA 2: sanitizer tests, valgrind and coverage
+                        # (both print `step N/M: NAME` at the start of each step)
 ```
 
 One test: `build/tests/unit/bin/test-decoder test_paste` (substring filter, `-l`
