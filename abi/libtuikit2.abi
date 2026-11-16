@@ -40,6 +40,7 @@ size tui_readline_opts 32 8
 size tui_rect 16 4
 size tui_scheme 216 4
 size tui_scheme_report 196 4
+size tui_settingdialog 520 8
 size tui_sgrline 32 8
 size tui_sgrview 48 8
 size tui_statusline 920 8
@@ -241,6 +242,10 @@ symbol tui_screen_rows
 symbol tui_screen_set_cursor
 symbol tui_screen_set_sync
 symbol tui_selection_style
+symbol tui_settingdialog_free
+symbol tui_settingdialog_handle
+symbol tui_settingdialog_init
+symbol tui_settingdialog_render
 symbol tui_sgrview_free
 symbol tui_sgrview_handle
 symbol tui_sgrview_init

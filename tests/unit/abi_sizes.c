@@ -45,6 +45,7 @@ int main(void) {
     SHOW(tui_rect);
     SHOW(tui_scheme);
     SHOW(tui_scheme_report);
+    SHOW(tui_settingdialog);
     SHOW(tui_sgrline);
     SHOW(tui_sgrview);
     SHOW(tui_statusline);

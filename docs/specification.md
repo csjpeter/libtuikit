@@ -38,6 +38,18 @@ Added after the first implementation (2026-10-03):
   completion drop-down per token, validation -- email-cli's compose dialog
   and issue-manager's issue form.  (Not `tui_form_*`: issue-manager uses
   that family, §3.)
+- `tui_settingdialog` (TUI-138, `tuikit/settingdialog.h`): the dialog that
+  changes one configuration value -- a title, a wrapped description above
+  the input, the input (one text field, current value filled in), a hint
+  line of the allowed values, and the buttons `[ OK ]` and `[ Cancel ]`.
+  Tab goes input -> OK -> Cancel (Shift-Tab back), Left/Right move between
+  the buttons, Enter presses the focused one (in the input: OK), Esc and
+  Ctrl-C are Cancel and put the initial value back.  OK runs the
+  `validate` callback: a refusal writes its reason in the `warning` role
+  under the hint, keeps the dialog open and moves the focus to the input.
+  Sized like the message dialogs (width 40..70 following the text, a little
+  above the middle); too small a terminal shows one warning line instead.
+  Roles: frame, text, selection (focused button), input, warning.
 - `tui_dialog_form` (TUI-131, `tuikit/fieldset.h`): a `tui_fieldset` in a
   centred modal frame -- the title in the top border, the key hint
   (default `" Tab next  Enter OK  Esc cancel "`) in the bottom border, the

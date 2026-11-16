@@ -487,6 +487,10 @@ name the ticket that closes the gap; there is none now.
 | `tui_fieldset_init` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
 | `tui_fieldset_render` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
 | `tui_fieldset_set_error` | `tests/functional/cap_widgets.c` | `cap_fieldset` |
+| `tui_settingdialog_free` | `tests/functional/cap_widgets.c` | `cap_settingdialog` |
+| `tui_settingdialog_handle` | `tests/functional/cap_widgets.c` | `cap_settingdialog` |
+| `tui_settingdialog_init` | `tests/functional/cap_widgets.c` | `cap_settingdialog` |
+| `tui_settingdialog_render` | `tests/functional/cap_widgets.c` | `cap_settingdialog` |
 | `tui_filechooser_dir` | `tests/functional/cap_widgets.c` | `cap_filechooser` |
 | `tui_filechooser_free` | `tests/functional/cap_widgets.c` | `cap_filechooser` |
 | `tui_filechooser_handle` | `tests/functional/cap_widgets.c` | `cap_filechooser` |
