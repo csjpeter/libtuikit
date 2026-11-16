@@ -111,6 +111,7 @@ rc=0; "$M" check > "$FIX/o.log" 2>&1 || rc=$?
 [ "$rc" -eq 0 ] && pass "exit 0" || { fail "exit $rc"; cat "$FIX/o.log" >&2; }
 grep -q '^no code changed: suites skipped: unit pty functional' "$FIX/o.log" && pass "says so" || fail "no skip line"
 ! has_call "ctest run" && pass "no suite ran" || fail "a suite ran"
+! grep -q '^step ' "$FIX/o.log" && pass "no step line when nothing runs" || fail "step line for skipped run"
 ! has_call "do_package" && pass "no package build for docs" || fail "package built"
 
 echo "--- check: a man page also builds and lints the packages"
@@ -119,6 +120,8 @@ fresh
 "$M" check > "$FIX/o.log" 2>&1 && pass "exit 0" || fail "man diff failed"
 grep -q '^no code changed' "$FIX/o.log" && pass "still no suites" || fail "suites not skipped"
 has_call "do_package" && has_call "run_lintian" && pass "package and lintian ran" || fail "package checks missing"
+[ "$(grep '^step ' "$FIX/o.log")" = "step 1/2: package
+step 2/2: lintian" ] && pass "skipped suites are not counted in M" || fail "step lines: $(grep '^step ' "$FIX/o.log")"
 ! has_call "ctest run" && pass "and no suite" || fail "a suite ran"
 
 echo "--- check: a test file runs all of QA 1, no valgrind, no coverage, no sanitizer"
@@ -127,6 +130,12 @@ fresh
 rc=0; "$M" check > "$FIX/o.log" 2>&1 || rc=$?
 [ "$rc" -eq 0 ] && pass "exit 0" || { fail "exit $rc"; cat "$FIX/o.log" >&2; }
 ! grep -q '^no code changed' "$FIX/o.log" && pass "not skipped" || fail "skipped"
+[ "$(grep '^step ' "$FIX/o.log")" = "step 1/6: unit
+step 2/6: pty
+step 3/6: functional
+step 4/6: package
+step 5/6: lintian
+step 6/6: consumer" ] && pass "check: step N/M: NAME lines" || fail "step lines: $(grep '^step ' "$FIX/o.log")"
 [ "$(grep -c '^ctest run' "$FIX/calls")" -eq 3 ] && pass "unit, pty and functional ran" || fail "ctest runs: $(grep -c '^ctest run' "$FIX/calls")"
 has_call "do_package" && has_call "run_lintian" && has_call "run_consumer" && pass "package checks ran" || fail "package checks missing"
 ! has_call "TUIKIT_TEST_WRAPPER=valgrind" && pass "valgrind never started" || fail "valgrind started"
@@ -151,6 +160,11 @@ rc=0; MOCK_FAIL=1 "$M" check > "$FIX/o.log" 2>&1 || rc=$?
 echo "--- check-deep: sanitizer tests, valgrind and coverage"
 fresh
 rc=0; "$M" check-deep > "$FIX/o.log" 2>&1 || rc=$?
+[ "$(grep '^step ' "$FIX/o.log")" = "step 1/5: unit
+step 2/5: pty
+step 3/5: functional
+step 4/5: valgrind
+step 5/5: coverage" ] && pass "check-deep: step N/M: NAME lines" || fail "step lines: $(grep '^step ' "$FIX/o.log")"
 has_call "TUIKIT_TEST_WRAPPER=valgrind" && pass "valgrind started" || fail "no valgrind"
 has_call "^lcov" && pass "coverage measured" || fail "no lcov"
 has_call 'TUIKIT_ENABLE_ASAN=ON' && pass "sanitizer build" || fail "no sanitizer build"
