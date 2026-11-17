@@ -621,8 +621,6 @@ static void finish(const tui_buf *in, int ansi, tui_buf *out) {
             put(out, c);
         }
     }
-    if (ansi && depth)
-        tui_buf_puts(out, "\x1b[0m");
     while (out->len > base && out->data[out->len - 1] == '\n')
         out->len--;
     if (out->data)

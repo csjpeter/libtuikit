@@ -145,6 +145,8 @@ static void test_reflow(void) {
     /* A code block keeps its lines. */
     ASSERT_EQ_STR(plain("x\n\n```\nline one\nline two\n```\nafter", 40),
                   "x\n\n    line one\n    line two\n\nafter", "code lines are not joined");
+    ASSERT_EQ_STR(plain("abc  ", 40), "abc", "trailing blanks are dropped");
+    ASSERT_EQ_STR(plain("abc  \nxyz", 40), "abc xyz", "and blanks before a line break");
     /* Emphasis may span a source line break. */
     ASSERT_EQ_STR(plain("a **bold\nacross** b", 40), "a bold across b", "a span over a line break");
 }
@@ -171,6 +173,10 @@ static void test_tables(void) {
     ASSERT_EQ_STR(plain("x\n\n| aaaaaaaaaa | bbbbbbbbbb |\n", 20),
                   "x\n\n  aaaaaa\xE2\x80\xA6 \xE2\x94\x82 bbbbbb\xE2\x80\xA6",
                   "the widest column is cut with an ellipsis to fit");
+    ASSERT_EQ_STR(plain("x\n\n| a | b | \n|---|---|\n| 1 | 2 | ", 40),
+                  "x\n\n  a \xE2\x94\x82 b\n  \xE2\x94\x80\xE2\x94\x80\xE2\x94\xBC\xE2\x94\x80\xE2\x94\x80\n  1 \xE2\x94\x82 2",
+                  "blanks after the last bar are no cell");
+    ASSERT_EQ_STR(plain("x\n\n| a |\n  | b |", 40), "x\n\n  a\n  b", "an indented row belongs to the table");
     ASSERT_EQ_STR(plain("x\n\n| a |\ntext", 40), "x\n\n  a\n\ntext", "the table ends at the first other line");
     /* A cut inside a span does not leave the span open. */
     ASSERT_EQ_STR(ansi("x\n\n| `abcdefghijklmnopqrstuvwxyz` | k |\n", 20),
@@ -211,6 +217,11 @@ static void test_marked(void) {
     ASSERT_EQ_INT(tui_md_render_marked("S one\n\n# H\n\nx **b** `c` *i*", 40, &b), 0, "render");
     ASSERT_EQ_STR(b.data, "\x06S one\x04\n\n\x05H\x04\n=\n\nx \x01" "b\x04 \x03" "c\x04 \x02" "i\x04",
                   "markers: summary, heading, bold, code, italic");
+    tui_buf nl;
+    tui_buf_init(&nl);
+    ASSERT_EQ_INT(tui_md_strip_marks("abc\n\n", &nl), 0, "strip: a marked text ending in line breaks");
+    ASSERT_EQ_STR(nl.data, "abc", "the line breaks at the end are dropped");
+    tui_buf_free(&nl);
     ASSERT_EQ_INT(tui_md_strip_marks(b.data, &p), 0, "strip");
     ASSERT_EQ_STR(p.data, plain("S one\n\n# H\n\nx **b** `c` *i*", 40), "stripped equals the plain rendering");
     tui_buf_free(&b);

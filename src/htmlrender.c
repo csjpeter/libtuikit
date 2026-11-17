@@ -750,8 +750,6 @@ static void set_attr(char *dst, size_t cap, const char *v, size_t n, int *over) 
 
 static int safe_url(const char *u) {
     size_t n = strlen(u);
-    if (n == 0)
-        return 0;
     for (size_t i = 0; i < n; i++)
         if ((unsigned char)u[i] <= 0x20 || (unsigned char)u[i] >= 0x7f)
             return 0;
@@ -1330,8 +1328,6 @@ static void finish(const H *h, int ansi, tui_buf *out) {
         }
         put(out, s[i++]);
     }
-    if (ansi && curid)
-        tui_buf_puts(out, "\x1b[0m");
     while (out->len > base && out->data[out->len - 1] == '\n')
         out->len--;
     if (out->data)

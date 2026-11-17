@@ -236,6 +236,7 @@ static void cap_tabrow(void) {
     char *txt = cap_screen_text(scr, NULL);
     CHECK_HAS(txt, " 9 Help", "tabrow render");
     free(txt);
+    tui_screen_free(scr);
     tui_tabrow_set_numbers(&tr, 0);
     tui_tabrow_format(&tr, 80, out, sizeof out);
     CHECK_HAS(out, " Overview   Tests ", "numbers off: the labels alone");
