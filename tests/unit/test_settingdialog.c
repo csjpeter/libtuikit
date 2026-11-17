@@ -231,7 +231,7 @@ static void test_render_layout_and_colours(void) {
 static void test_render_wraps_and_small(void) {
     char buf[16];
     tui_settingdialog d;
-    char longtext[400] = "";
+    char longtext[800] = "";
     for (int i = 0; i < 20; i++) strcat(longtext, "word number which wraps and wraps. ");
     tui_settingdialog_init(&d, "A title", longtext, "", buf, sizeof buf, "v");
     Fx f;

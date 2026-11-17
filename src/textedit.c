@@ -205,6 +205,7 @@ static int wrap_rows(const tui_textedit *te, int width) {
 static void wrap_locate(const tui_textedit *te, int width, size_t pos, int *vrow, int *vcol) {
     int n = 0;
     size_t p = 0;
+    if (pos > te->len) pos = te->len;       /* the last row always holds it */
     for (;;) {
         size_t nx = row_next(te, p, width);
         size_t e = line_end(te, p);
@@ -220,9 +221,7 @@ static void wrap_locate(const tui_textedit *te, int width, size_t pos, int *vrow
             return;
         }
         n++;
-        if (nx != (size_t)-1) p = nx;
-        else if (e < te->len) p = e + 1;
-        else { *vrow = n - 1; *vcol = 0; return; }
+        p = nx != (size_t)-1 ? nx : e + 1;
     }
 }
 

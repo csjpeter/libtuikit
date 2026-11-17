@@ -174,9 +174,9 @@ static void *job_main(void *arg) {
                 cap = ncap;
             }
             struct stat st;
-            if (fstatat(dirfd(d), de->d_name, &st, 0) != 0 &&
-                fstatat(dirfd(d), de->d_name, &st, AT_SYMLINK_NOFOLLOW) != 0)
-                memset(&st, 0, sizeof st);                       /* gone meanwhile */
+            memset(&st, 0, sizeof st);                           /* gone meanwhile: no type, no size */
+            if (fstatat(dirfd(d), de->d_name, &st, 0) != 0)      /* a dangling link: the link itself */
+                (void)fstatat(dirfd(d), de->d_name, &st, AT_SYMLINK_NOFOLLOW);
             char *name = dupstr(de->d_name);
             if (!name) {
                 err = ENOMEM;

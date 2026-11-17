@@ -130,6 +130,11 @@ static void test_colours(void) {
     show(&f, &sv, "x\x1b[38;2;1my\x1b[38;5mz\x1b[99m\x1b[2Jw\x1b[1", TUI_STYLE_DEFAULT);
     const char *const expect[] = { "xyzw", "", "", NULL };
     ASSERT_SCREEN_EQ(f.s, expect);
+    /* An extended colour with a mode other than 5 or 2 sets no colour. */
+    show(&f, &sv, "p\x1b[38;7mq", TUI_STYLE_DEFAULT);
+    const char *const expect_mode[] = { "pq", "", "", NULL };
+    ASSERT_SCREEN_EQ(f.s, expect_mode);
+    ASSERT_EQ_INT(pty_cell_fg(f.s, 0, 1), PTY_FG_DEFAULT, "an unknown extended mode keeps the colour");
     tui_sgrview_free(&sv);
     fx_close(&f);
 }
@@ -167,6 +172,11 @@ static void test_wrap_inside_run(void) {
     show(&f, &sv, "aaaaaaaaaa \x1b[3mbbb ccc\x1b[0m", TUI_STYLE_DEFAULT);
     ASSERT_CELL_TEXT(f.s, 1, 0, "b");
     ASSERT_CELL_ATTR(f.s, 1, 0, PTY_ATTR_ITALIC);
+    /* Blanks after a full line are dropped with the break. */
+    show(&f, &sv, "abcdefghijkl   ", TUI_STYLE_DEFAULT);
+    const char *const expect_tail[] = { "abcdefghijkl", "", "", "", "", NULL };
+    ASSERT_SCREEN_EQ(f.s, expect_tail);
+    ASSERT_EQ_INT(tui_sgrview_lines(&sv), 1, "the trailing blanks make no line");
     /* A style carries over a newline; CRLF is one break. */
     show(&f, &sv, "\x1b[1mfirst\r\nsecond\x1b[0m\nthird", TUI_STYLE_DEFAULT);
     const char *const expect4[] = { "first", "second", "third", "", "", NULL };

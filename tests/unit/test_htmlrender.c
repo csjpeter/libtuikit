@@ -234,8 +234,9 @@ static void test_links(void) {
     ASSERT_EQ_STR(plain("<a href=\"https://x.org/&bogus;\">q</a>"), "q (https://x.org/&bogus;)", "an unknown entity in an attribute stays");
     char big[1200];
     strcpy(big, "<a href=\"https://x.org/");
-    memset(big + strlen(big), 'a', 700);
-    strcpy(big + strlen(big), "\">long</a>");
+    size_t at = strlen(big);
+    memset(big + at, 'a', 700);
+    strcpy(big + at + 700, "\">long</a>");
     ASSERT_EQ_STR(plain(big), "long", "a URL over 500 bytes is not shown");
     ASSERT_EQ_STR(plain("<a href=\"https://x.org\">a <b>b</b></a>"), "a b (https://x.org)", "styled link text");
     ASSERT_EQ_STR(sgr("<a href=\"https://x.org\">go</a>"), "\x1b[4mgo\x1b[0m (https://x.org)", "underlined, the URL not");
@@ -292,6 +293,34 @@ static void test_tables(void) {
     ASSERT_EQ_INT(lines, 128, "128 rows");
     tui_buf_free(&big);
     tui_buf_free(&out);
+}
+
+/* Edge cases of the table cells, the colours, the rules and the links (TUI-qa2: lines the suites never ran). */
+static void test_edges(void) {
+    ASSERT_EQ_STR(plain("<table><tr><br><td>a</td></tr></table>"), "  a", "a break between a row and its cells");
+    ASSERT_EQ_STR(plain("<table><p>x</p><tr><td>a</td></tr></table>"), "  a", "a block directly in a table");
+    ASSERT_EQ_STR(plain("<table><tr><td>a</td><td>b</td></tr><tr><td>long</td><td>x</td></tr></table>"),
+                  "  a    \xE2\x94\x82 b\n  long \xE2\x94\x82 x", "a short cell is padded to its column");
+    ASSERT_EQ_STR(sgr("<span style=\"color: #f00\">x</span>"), "\x1b[38;2;255;0;0mx\x1b[0m", "blank before the colour");
+    ASSERT_EQ_STR(sgr("<span style=\"color:rgb(1 , 2 , 3 )\">x</span>"), "\x1b[38;2;1;2;3mx\x1b[0m", "blanks inside rgb()");
+    ASSERT_EQ_STR(sgr("<span style=\" color : red \">x</span>"), "\x1b[38;2;255;0;0mx\x1b[0m", "blanks around the property name");
+    ASSERT_EQ_STR(render("<hr>", 100, 0),
+                  "\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80"
+                  "\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80"
+                  "\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80"
+                  "\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80"
+                  "\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80"
+                  "\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80\xE2\x94\x80",
+                  "a rule is at most 60 columns");
+    ASSERT_EQ_STR(render("<ol start=99999><li><ol start=99999><li><ol start=99999><li><hr></ol></ol></ol>", 20, 0),
+                  " 99999.  99999.  99999. \xE2\x94\x80", "a rule keeps one column when the prefix fills the line");
+    ASSERT_EQ_STR(render("<blockquote><blockquote><blockquote><blockquote><blockquote><blockquote><blockquote><blockquote>"
+                         "<li>x</li></blockquote></blockquote></blockquote></blockquote></blockquote></blockquote>"
+                         "</blockquote></blockquote>", 80, 0),
+                  "> > > > > > > > x", "an item inside as many quotes as the nesting allows");
+    ASSERT_EQ_STR(plain("x<a href=\"https://x.org\"> https://x.org</a>"), "x https://x.org", "a link text with a leading blank");
+    ASSERT_EQ_STR(plain("<a href=\"https://x.org\"> https://x.org </a>"), "https://x.org", "and with blanks around");
+    ASSERT_EQ_STR(plain("<table><tr><td><table><tr><td>a</td></tr></table></td></tr></table>"), "  a", "a nested table with its end tags");
 }
 
 static void test_dropped_content(void) {
@@ -417,6 +446,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_quotes_and_pre),
     TEST_CASE(test_links),
     TEST_CASE(test_tables),
+    TEST_CASE(test_edges),
     TEST_CASE(test_dropped_content),
     TEST_CASE(test_broken_markup),
     TEST_CASE(test_width),

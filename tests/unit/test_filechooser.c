@@ -593,6 +593,47 @@ static void test_unreadable_and_arguments(void) {
     ASSERT_EQ_INT(tui_filechooser_handle(&fc, &none), TUI_FC_ACTIVE, "after free: nothing");
 }
 
+/* A link to nothing is listed as itself; a typed path that is too long is refused. */
+static void test_dangling_link_and_long_typing(void) {
+    char dir[300], link[400];
+    snprintf(dir, sizeof dir, "%s/fc-dangling-%d", TUIKIT_TEST_TMPDIR, (int)getpid());
+    snprintf(link, sizeof link, "%s/nowhere", dir);
+    ASSERT(mkdir(dir, 0755) == 0, "the directory");
+    ASSERT(symlink("/nonexistent-target-xyz", link) == 0, "the dangling link");
+    tui_filechooser fc;
+    ASSERT_EQ_INT(tui_filechooser_open(&fc, NULL, TUI_FC_OPEN, dir, NULL), 0, "open");
+    ASSERT_EQ_INT(settle(&fc), 1, "settled");
+    Fx f;
+    ASSERT(fx_open(&f, 24, 80) == 0, "fixtures");
+    fx_draw(&f, &fc);
+    int shown = 0;
+    for (int r = 4; r < 24; r++) shown += has(row(&f, r), "nowhere");
+    ASSERT_EQ_INT(shown, 1, "the link is in the list");
+    tui_filechooser_free(&fc);
+    ASSERT_EQ_INT(unlink(link), 0, "the link is removed");
+    ASSERT_EQ_INT(rmdir(dir), 0, "the directory is removed");
+
+    /* A start directory of 3000 characters (it does not exist: the list says so), and a relative path of 3000 typed. */
+    char start[3100];
+    start[0] = '/';
+    memset(start + 1, 'a', 3000);
+    start[3001] = '\0';
+    ASSERT_EQ_INT(tui_filechooser_open(&fc, NULL, TUI_FC_OPEN, start, NULL), 0, "open at a long directory");
+    settle(&fc);
+    send(&fc, "\x15");                                   /* Ctrl-U clears the field */
+    char typed[101];
+    memset(typed, 'b', 100);
+    typed[100] = '\0';
+    for (int i = 0; i < 30; i++) send(&fc, typed);       /* the decoder takes a short run at a time */
+    ASSERT_EQ_INT(send(&fc, "\r"), TUI_FC_ACTIVE, "still open");
+    fx_draw(&f, &fc);
+    int refused = 0;
+    for (int r = 0; r < 24; r++) refused += has(row(&f, r), "path too long");
+    ASSERT(refused >= 1, "the path is refused as too long");
+    tui_filechooser_free(&fc);
+    fx_close(&f);
+}
+
 static void test_faults(void) {
     tui_filechooser fc;
     fault_arm(F_CALLOC, 0, 1, ENOMEM);
@@ -611,6 +652,10 @@ static void test_faults(void) {
     longpath[0] = '/';
     longpath[sizeof longpath - 1] = '\0';
     ASSERT_EQ_INT(tui_filechooser_open(&fc, NULL, TUI_FC_OPEN, longpath, NULL), -1, "a path too long");
+    char longrel[8300];                        /* relative: the working directory and this are over the limit together */
+    memset(longrel, 'y', sizeof longrel - 1);
+    longrel[sizeof longrel - 1] = '\0';
+    ASSERT_EQ_INT(tui_filechooser_open(&fc, NULL, TUI_FC_OPEN, longrel, NULL), -1, "a relative path too long");
 
     Fx f;
     ASSERT(fx_open(&f, 24, 80) == 0, "fixtures");
@@ -637,6 +682,29 @@ static void test_faults(void) {
     ASSERT(has(row(&f, 4), "cannot read: Too many open files"), "the reason");
     tui_filechooser_free(&fc);
     fault_reset();
+
+    /* The read itself: its list cannot grow, or an entry's name cannot be copied. */
+    fault_reset();
+    fault_opendir_delay(100);                  /* the read thread waits: the fault is armed after the open */
+    ASSERT_EQ_INT(tui_filechooser_open(&fc, NULL, TUI_FC_OPEN, g_root, NULL), 0, "open");
+    fault_arm(F_REALLOC, 0, 1, ENOMEM);
+    settle(&fc);
+    fx_draw(&f, &fc);
+    ASSERT(has(row(&f, 4), "cannot read: Cannot allocate memory"), "the list could not grow");
+    tui_filechooser_free(&fc);
+    fault_reset();
+    int name_failed = 0;
+    for (int skip = 0; skip < 4; skip++) {
+        fault_opendir_delay(100);
+        ASSERT_EQ_INT(tui_filechooser_open(&fc, NULL, TUI_FC_OPEN, g_root, NULL), 0, "open");
+        fault_arm(F_MALLOC, skip, 1, ENOMEM);
+        settle(&fc);
+        fx_draw(&f, &fc);
+        if (has(row(&f, 4), "cannot read: Cannot allocate memory")) name_failed++;
+        tui_filechooser_free(&fc);
+        fault_reset();
+    }
+    ASSERT(name_failed >= 1, "an entry's name could not be copied");
 
     /* Every allocation of an open in turn: it either fails or opens without a read. */
     fault_opendir_delay(100);                  /* the thread allocates only after the count is read */
@@ -735,6 +803,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_hidden_toggle_and_filter),
     TEST_CASE(test_slow_read_does_not_stop_the_keys),
     TEST_CASE(test_unreadable_and_arguments),
+    TEST_CASE(test_dangling_link_and_long_typing),
     TEST_CASE(test_faults),
     TEST_CASE(test_small_and_scrolling),
     TEST_CASE(test_many_entries),

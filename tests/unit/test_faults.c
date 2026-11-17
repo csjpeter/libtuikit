@@ -211,6 +211,8 @@ static void test_mdview_failures(void) {
     tui_screen *scr = tui_screen_new(5, 40);
     int drew = 0;
     for (int skip = 0; skip < 80; skip++) {
+        tui_mdview_free(&mv);                    /* a fresh view: its line index is allocated again */
+        tui_mdview_init(&mv);
         tui_mdview_set_text(&mv, MD_FAULT_DOC);
         fault_arm(F_REALLOC, skip, 1, ENOMEM);
         tui_mdview_render(&mv, tui_canvas_of(scr), TUI_STYLE_DEFAULT);   /* draws what it can, survives */
