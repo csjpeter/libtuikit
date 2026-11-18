@@ -17,6 +17,7 @@
 #include <fcntl.h>
 #include <fnmatch.h>
 #include <pthread.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -120,6 +121,45 @@ static int norm(const char *base, const char *rel, char *out, size_t cap) {
     }
     if (len == 0) strcpy(out, "/");
     return 0;
+}
+
+/* The home directory of @p user (@p ul bytes; empty: the caller's own), or -1
+ * when there is none.  $HOME wins for the caller's own, as in a shell. */
+static int home_of(const char *user, size_t ul, char *out, size_t cap) {
+    const char *h = NULL;
+    struct passwd pw, *res = NULL;
+    char tmp[1024], name[256];
+    if (ul == 0) {
+        h = getenv("HOME");
+        if (!h || h[0] != '/') {
+            if (getpwuid_r(getuid(), &pw, tmp, sizeof tmp, &res) == 0 && res) h = res->pw_dir;
+        }
+    } else if (ul < sizeof name) {
+        memcpy(name, user, ul);
+        name[ul] = '\0';
+        if (getpwnam_r(name, &pw, tmp, sizeof tmp, &res) == 0 && res) h = res->pw_dir;
+    }
+    if (!h || h[0] != '/' || strlen(h) >= cap) return -1;
+    strcpy(out, h);
+    size_t n = strlen(out);
+    while (n > 1 && out[n - 1] == '/') out[--n] = '\0';
+    return 0;
+}
+
+/* @p in with a leading "~", "~/..." or "~user/..." replaced by that home
+ * directory; the text as typed when it has no tilde or the user has no home.
+ * -1 when the result does not fit. */
+static int expand(const char *in, char *out, size_t cap) {
+    if (in[0] == '~') {
+        size_t ul = strcspn(in + 1, "/");
+        char home[FC_PATH];
+        if (home_of(in + 1, ul, home, sizeof home) == 0) {
+            const char *rest = in + 1 + ul;
+            if (strcmp(home, "/") == 0) home[0] = '\0';
+            return (size_t)snprintf(out, cap, "%s%s", home, rest) < cap ? 0 : -1;
+        }
+    }
+    return (size_t)snprintf(out, cap, "%s", in) < cap ? 0 : -1;
 }
 
 static void add_slash(char *s) {
@@ -369,10 +409,10 @@ static void sync_from_field(tui_filechooser *fc) {
     const char *leaf;
     size_t dl;
     leaf_of(p, &leaf, &dl);
-    char dirpart[FC_PATH], abs[FC_PATH];
+    char dirpart[FC_PATH], edir[FC_PATH], abs[FC_PATH];
     memcpy(dirpart, p->buf, dl);
     dirpart[dl] = '\0';
-    if (norm(p->dir, dirpart, abs, sizeof abs) != 0) return;
+    if (expand(dirpart, edir, sizeof edir) != 0 || norm(p->dir, edir, abs, sizeof abs) != 0) return;
     add_slash(abs);
     if (strcmp(abs, p->dir) != 0) {
         start_load(fc, abs);
@@ -410,10 +450,18 @@ static void complete(tui_lineedit *le) {
     const char *leaf;
     size_t dl;
     leaf_of(p, &leaf, &dl);
-    char dirpart[FC_PATH], abs[FC_PATH];
+    char home[FC_PATH];
+    if (dl == 0 && leaf[0] == '~' && home_of(leaf + 1, strlen(leaf + 1), home, sizeof home) == 0) {
+        char text[300];                                /* "~" or "~user": the name is a directory */
+        if ((size_t)snprintf(text, sizeof text, "%s/", leaf) < sizeof text)
+            tui_lineedit_replace(le, 0, le->len, text);
+        return;
+    }
+    char dirpart[FC_PATH], edir[FC_PATH], abs[FC_PATH];
     memcpy(dirpart, p->buf, dl);
     dirpart[dl] = '\0';
-    if (p->loading || norm(p->dir, dirpart, abs, sizeof abs) != 0) return;
+    if (p->loading || expand(dirpart, edir, sizeof edir) != 0 ||
+        norm(p->dir, edir, abs, sizeof abs) != 0) return;
     add_slash(abs);
     if (strcmp(abs, p->dir) != 0) return;
     size_t ll = strlen(leaf);
@@ -457,8 +505,19 @@ static void choose(tui_filechooser *fc, const char *path) {
 static void activate(tui_filechooser *fc) {
     fc_priv *p = fc->priv;
     if (p->buf[0] == '\0') return;
-    char abs[FC_PATH], parent[FC_PATH];
-    if (norm(p->dir, p->buf, abs, sizeof abs) != 0) {
+    char abs[FC_PATH], parent[FC_PATH], typed[FC_PATH];
+    if (p->buf[0] == '~' && !strchr(p->buf, '/')) {     /* "~" or "~user": open that home */
+        char home[FC_PATH];
+        if (home_of(p->buf + 1, strlen(p->buf + 1), home, sizeof home) == 0) {
+            char text[FC_PATH];
+            if ((size_t)snprintf(text, sizeof text, "%s/", p->buf) < sizeof text) {
+                set_field(p, text);
+                sync_from_field(fc);
+            }
+            return;
+        }
+    }
+    if (expand(p->buf, typed, sizeof typed) != 0 || norm(p->dir, typed, abs, sizeof abs) != 0) {
         refuse(p, "path too long", "");
         return;
     }
@@ -494,10 +553,12 @@ static void activate(tui_filechooser *fc) {
     for (int i = 0; i < p->nall && !e; i++)
         if (!strcmp(p->all[i].name, name)) e = &p->all[i];
     if (e && e->is_dir) {
-        char into[FC_PATH];
+        char into[FC_PATH], shown[FC_PATH];
         snprintf(into, sizeof into, "%s", abs);
         add_slash(into);
-        set_field(p, into);
+        snprintf(shown, sizeof shown, "%s", p->buf[0] == '~' ? p->buf : into);   /* what was typed stays */
+        add_slash(shown);
+        set_field(p, shown);
         start_load(fc, into);
         return;
     }
@@ -530,8 +591,8 @@ static int go_up(tui_filechooser *fc) {
     size_t dl;
     leaf_of(p, &leaf, &dl);
     if (*leaf || dl == 0) return 0;
-    char abs[FC_PATH], up[FC_PATH];
-    if (norm(p->dir, p->buf, abs, sizeof abs) != 0) return 0;
+    char abs[FC_PATH], up[FC_PATH], typed[FC_PATH];
+    if (expand(p->buf, typed, sizeof typed) != 0 || norm(p->dir, typed, abs, sizeof abs) != 0) return 0;
     if (!strcmp(abs, "/")) return 1;
     const char *base = strrchr(abs, '/') + 1;
     snprintf(p->sel_name, sizeof p->sel_name, "%s", base);

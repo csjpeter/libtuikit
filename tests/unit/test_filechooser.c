@@ -788,6 +788,129 @@ static void test_many_entries(void) {
     tui_filechooser_free(&fc);
 }
 
+/* The cursor of the field, in display cells (screen row 3, content starts at column 3 of a 40-column screen). */
+static void test_field_cursor_cells(void) {
+    tui_filechooser fc;
+    ASSERT_EQ_INT(open_at(&fc, TUI_FC_OPEN, NULL, NULL), 0, "open");
+    Fx f;
+    ASSERT(fx_open(&f, 24, 40) == 0, "fixtures");
+    send(&fc, "\x15");
+    send(&fc, "\xc3\xa9\xc3\xa1\xc5\x91");              /* three accented letters: one cell each */
+    fx_draw(&f, &fc);
+    ASSERT_CURSOR(f.s, 3, 3 + 3);
+    send(&fc, "\xe6\x97\xa5\xe6\x9c\xac");              /* two wide characters: two cells each */
+    fx_draw(&f, &fc);
+    ASSERT_CURSOR(f.s, 3, 3 + 3 + 4);
+    ASSERT(has(row(&f, 3), "éáő日本"), "the text is drawn");
+    send(&fc, "\x1b[D");                                 /* Left over a wide character */
+    fx_draw(&f, &fc);
+    ASSERT_CURSOR(f.s, 3, 3 + 3 + 2);
+    send(&fc, "\x1b[D\x1b[D");                           /* Left over the accented ones */
+    fx_draw(&f, &fc);
+    ASSERT_CURSOR(f.s, 3, 3 + 2);
+
+    /* A path longer than the field: it scrolls and the cursor follows, at the right edge. */
+    send(&fc, "\x15");
+    for (int i = 0; i < 30; i++) send(&fc, "\xc3\xa9\xc3\xa9");     /* 60 cells, field is 34 */
+    fx_draw(&f, &fc);
+    ASSERT_CURSOR(f.s, 3, 3 + 33);
+    ASSERT(has(row(&f, 3), "éééé"), "the end of the text is shown");
+    send(&fc, "\x01");                                   /* Ctrl-A: back to the start (Home moves the list) */
+    fx_draw(&f, &fc);
+    ASSERT_CURSOR(f.s, 3, 3);
+    send(&fc, "\x15");
+    for (int i = 0; i < 40; i++) send(&fc, "\xe6\x97\xa5");        /* 80 cells of wide characters */
+    fx_draw(&f, &fc);
+    ASSERT_CURSOR(f.s, 3, 3 + 33);
+    ASSERT(has(row(&f, 3), "日日日"), "the wide characters are drawn whole at the edge");
+    send(&fc, "\x1b[D\x1b[D\x1b[D");
+    fx_draw(&f, &fc);
+    ASSERT_CURSOR(f.s, 3, 3 + 27);          /* 3 wide characters left: 6 cells */
+    tui_filechooser_free(&fc);
+    fx_close(&f);
+}
+
+/* "~", "~/..." and "~user/..." are looked up as the home directory; the field keeps what was typed. */
+static void test_tilde(void) {
+    char sp[400], keys[400], want[400];
+    snprintf(sp, sizeof sp, "%s/with space", g_root);
+    ASSERT(mkdir(sp, 0755) == 0 || errno == EEXIST, "a directory with a space");
+    snprintf(want, sizeof want, "%s/with space/in side.txt", g_root);
+    FILE *fp = fopen(want, "w");
+    ASSERT(fp != NULL, "a file with a space");
+    if (fp) fclose(fp);
+    ASSERT_EQ_INT(setenv("HOME", g_root, 1), 0, "HOME");
+    tui_filechooser fc;
+    ASSERT_EQ_INT(open_at(&fc, TUI_FC_OPEN, "alpha", NULL), 0, "open in alpha");
+    Fx f;
+    ASSERT(fx_open(&f, 24, 80) == 0, "fixtures");
+    send(&fc, "\x15~/");                                 /* typing the slash shows the home */
+    ASSERT_EQ_INT(settle(&fc), 1, "settled");
+    snprintf(want, sizeof want, "%s/", g_root);
+    ASSERT_EQ_STR(tui_filechooser_dir(&fc), want, "~/ shows the home directory");
+    fx_draw(&f, &fc);
+    ASSERT(has(row(&f, 3), "~/") && !has(row(&f, 3), "fc-unit"), "the field keeps the tilde");
+    send(&fc, "al\t");                                  /* completes against the home's entries */
+    fx_draw(&f, &fc);
+    ASSERT(has(row(&f, 3), "~/alpha/"), "Tab completes after ~/");
+    send(&fc, "\x15~");                                  /* a bare ~ completes to ~/ */
+    send(&fc, "\t");
+    fx_draw(&f, &fc);
+    ASSERT(has(row(&f, 3), "~/"), "Tab on ~");
+    send(&fc, "\x15~\r");                                /* Enter on a bare ~ opens the home */
+    ASSERT_EQ_INT(settle(&fc), 1, "settled");
+    ASSERT_EQ_STR(tui_filechooser_dir(&fc), want, "Enter on ~ opens the home directory");
+    send(&fc, "\x15~/alpha\r");                          /* Enter on a directory keeps the typed form */
+    ASSERT_EQ_INT(settle(&fc), 1, "settled");
+    snprintf(want, sizeof want, "%s/alpha/", g_root);
+    ASSERT_EQ_STR(tui_filechooser_dir(&fc), want, "~/alpha opens");
+    fx_draw(&f, &fc);
+    ASSERT(has(row(&f, 3), "~/alpha/"), "the field shows ~/alpha/");
+    snprintf(want, sizeof want, "%s/alpha/inner.txt", g_root);
+    ASSERT_EQ_INT(send(&fc, "inner.txt\r"), TUI_FC_OK, "a file under ~ is chosen");
+    ASSERT_EQ_STR(fc.path, want, "as an absolute path");
+    tui_filechooser_free(&fc);
+
+    /* ~user: the caller's own login name resolves to the same home as ~ would from the passwd entry. */
+    ASSERT_EQ_INT(open_at(&fc, TUI_FC_OPEN, "alpha", NULL), 0, "open again");
+    send(&fc, "\x15~root/");
+    ASSERT_EQ_INT(settle(&fc), 1, "settled");
+    ASSERT(tui_filechooser_dir(&fc)[0] == '/', "~root/ is looked up");
+    ASSERT(strncmp(tui_filechooser_dir(&fc), g_root, strlen(g_root)) != 0, "and is not the HOME");
+    tui_filechooser_free(&fc);
+
+    /* A tilde with no home stays as typed: a relative name below the shown directory. */
+    ASSERT_EQ_INT(open_at(&fc, TUI_FC_OPEN, "alpha", NULL), 0, "open again");
+    send(&fc, "\x15~no-such-user-xyz/");
+    ASSERT_EQ_INT(settle(&fc), 1, "settled");
+    snprintf(want, sizeof want, "%s/alpha/~no-such-user-xyz/", g_root);
+    ASSERT_EQ_STR(tui_filechooser_dir(&fc), want, "no home: the text is taken as typed");
+    send(&fc, "\x15~no-such-user-xyz\t\r");
+    ASSERT_EQ_INT(fc.state, TUI_FC_ACTIVE, "no home: nothing chosen");
+    send(&fc, "\x15\x7f");
+    tui_filechooser_free(&fc);
+
+    /* A path with a space: typed, completed and chosen. */
+    ASSERT_EQ_INT(open_at(&fc, TUI_FC_OPEN, NULL, NULL), 0, "open");
+    snprintf(keys, sizeof keys, "wi\t");
+    send(&fc, keys);
+    ASSERT_EQ_INT(settle(&fc), 1, "settled");
+    send(&fc, "in\t");
+    fx_draw(&f, &fc);
+    ASSERT(has(row(&f, 3), "with space/in side.txt"), "Tab completes names with spaces");
+    snprintf(want, sizeof want, "%s/with space/in side.txt", g_root);
+    ASSERT_EQ_INT(send(&fc, "\r"), TUI_FC_OK, "chosen");
+    ASSERT_EQ_STR(fc.path, want, "the path with a space");
+    tui_filechooser_free(&fc);
+    ASSERT_EQ_INT(setenv("HOME", "/nonexistent-home-xyz", 1), 0, "HOME that is not there");
+    ASSERT_EQ_INT(open_at(&fc, TUI_FC_OPEN, NULL, NULL), 0, "open");
+    send(&fc, "\x15~/");
+    ASSERT_EQ_INT(settle(&fc), 1, "settled");
+    ASSERT_EQ_STR(tui_filechooser_dir(&fc), "/nonexistent-home-xyz/", "a missing home is listed as an error");
+    tui_filechooser_free(&fc);
+    fx_close(&f);
+}
+
 static const TestCase tests[] = {
     TEST_CASE(test_list_order_and_columns),
     TEST_CASE(test_selection_colours),
@@ -807,6 +930,8 @@ static const TestCase tests[] = {
     TEST_CASE(test_faults),
     TEST_CASE(test_small_and_scrolling),
     TEST_CASE(test_many_entries),
+    TEST_CASE(test_field_cursor_cells),
+    TEST_CASE(test_tilde),
 };
 
 int main(int argc, char **argv) {

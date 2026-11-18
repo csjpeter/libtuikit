@@ -911,6 +911,14 @@ widget the program routes events to first.
     the dot names (`tui_filechooser_set_hidden` sets it). Esc and Ctrl-C cancel.
     Save asks `Replace it?` (a `tui_dialog` confirm, default No) for an
     existing file.
+  - *The field* (TUI-143): a leading `~`, `~/...` or `~user/...` is expanded
+    for every lookup (completion, showing a directory, Enter, Backspace) --
+    `$HOME` for the caller's own, `getpwnam_r(3)` for `~user` -- and the field
+    keeps the text as typed; Tab on `~`/`~user` adds the slash, Enter on it
+    opens the home. A tilde with no home is taken as typed. Names with spaces
+    need no quoting. The field is measured in display cells, never bytes: the
+    cursor stands at its cell column after accented and wide characters and the
+    field scrolls to keep it in view.
   - *Modes*: `TUI_FC_OPEN`, `TUI_FC_DIR`, `TUI_FC_SAVE`; the start directory
     (NULL: the current one) and a name filter (`fnmatch(3)` on files; directories
     always show) are parameters of `tui_filechooser_open`.

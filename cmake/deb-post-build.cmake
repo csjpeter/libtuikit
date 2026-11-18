@@ -84,6 +84,15 @@ foreach(_pkg IN LISTS CPACK_PACKAGE_FILES)
         # md5sums lists only data files, so it is unaffected.
     endif()
 
+    # A build tree under a setgid directory or with a default ACL gives the
+    # unpacked tree group-writable modes and the setgid bit (dpkg-deb refuses
+    # a control directory with it; lintian flags the rest).  Group and other
+    # get what the owner has, less write.
+    execute_process(COMMAND chmod -R "go=u,go-w,g-s" "${_work}"
+                    RESULT_VARIABLE _rc)
+    if(NOT _rc EQUAL 0)
+        message(FATAL_ERROR "could not normalise the modes of ${_work}")
+    endif()
     execute_process(COMMAND "${DPKG_DEB_EXECUTABLE}" --root-owner-group
                             -b "${_work}" "${_pkg}"
                     OUTPUT_QUIET
