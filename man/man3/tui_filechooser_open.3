@@ -50,6 +50,12 @@ What is typed selects the first entry whose name starts with it, and a path
 with a slash in it shows that directory.
 Tab completes the name being typed from the entries shown: all of it when
 one matches (a directory with a slash), the common beginning when several do.
+A leading \fB~\fR, \fB~/\fR or \fB~user/\fR in the field is looked up as that home directory
+($HOME for the caller's own), like an absolute path; the field keeps the text as typed.
+A \fB~\fR with no home is taken as typed.
+Names with spaces need no quoting.
+The field is measured in display cells: it scrolls to keep the cursor in view, and the
+cursor stands after accented and wide characters at their cell column.
 .PP
 .B Enter
 acts on the path in the field: a directory is entered, a file is chosen
