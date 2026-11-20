@@ -429,6 +429,67 @@ static void test_save_mode(void) {
     tui_filechooser_free(&fc);
 }
 
+/* Save mode (TUI-144): the file name of the field survives the cursor and the directory changes. */
+static void test_save_keeps_name(void) {
+    tui_filechooser fc;
+    char want[400];
+    ASSERT_EQ_INT(open_at(&fc, TUI_FC_SAVE, NULL, NULL), 0, "open");
+    Fx f;
+    ASSERT(fx_open(&f, 24, 80) == 0, "fixtures");
+    send(&fc, "report.txt");
+    send(&fc, "\x1b[B\x1b[B\x1b[B");                 /* Down over '..', alpha/, beta/ */
+    fx_draw(&f, &fc);
+    ASSERT(has(row(&f, 3), "Save as: ") && has(row(&f, 3), "report.txt"), "the labelled field, name kept");
+    ASSERT(has(row(&f, 4), "\xe2\x94\x80\xe2\x94\x80"), "a rule under the field");
+    ASSERT(has(row(&f, 4), "entries"), "the status is set in the rule");
+    send(&fc, "\x1b[B\x1b[B\x1b[B\x1b[B");           /* onto the files, too */
+    fx_draw(&f, &fc);
+    ASSERT(has(row(&f, 3), "report.txt") && !has(row(&f, 3), "a.txt"), "a file row does not overwrite it");
+    send(&fc, "\x1b[H");                               /* Home: '..' */
+    send(&fc, "\x1b[B");                               /* alpha/ */
+    ASSERT_EQ_INT(send(&fc, "\r"), TUI_FC_ACTIVE, "Enter on a directory enters it");
+    settle(&fc);
+    snprintf(want, sizeof want, "%s/alpha/", g_root);
+    ASSERT_EQ_STR(tui_filechooser_dir(&fc), want, "alpha is shown");
+    fx_draw(&f, &fc);
+    ASSERT(has(row(&f, 3), "alpha/report.txt"), "the name came along");
+    send(&fc, "\x1b[A");                               /* '..' */
+    ASSERT_EQ_INT(send(&fc, "\r"), TUI_FC_ACTIVE, "'..' goes up");
+    settle(&fc);
+    snprintf(want, sizeof want, "%s/", g_root);
+    ASSERT_EQ_STR(tui_filechooser_dir(&fc), want, "back");
+    fx_draw(&f, &fc);
+    ASSERT(has_end(row(&f, 3), "report.txt"), "still there");
+    send(&fc, "\x7f");
+    send(&fc, "2");                                    /* edit: report.tx2 */
+    send(&fc, "\x1b[H\x1b[B");
+    send(&fc, "\r");                                   /* alpha/ again */
+    settle(&fc);
+    fx_draw(&f, &fc);
+    ASSERT(has(row(&f, 3), "alpha/report.tx2"), "an edited name is kept as typed");
+    snprintf(want, sizeof want, "%s/alpha/report.tx2", g_root);
+    ASSERT_EQ_INT(send(&fc, "\r"), TUI_FC_OK, "chosen as typed");
+    ASSERT_EQ_STR(fc.path, want, "path");
+    tui_filechooser_free(&fc);
+
+    /* Enter on a file row asks before it replaces that file. */
+    ASSERT_EQ_INT(open_at(&fc, TUI_FC_SAVE, NULL, NULL), 0, "open again");
+    send(&fc, "x.txt\x1b[F");                          /* End: the last row */
+    send(&fc, "\x1b[H\x1b[B\x1b[B\x1b[B\x1b[B");
+    fx_draw(&f, &fc);
+    ASSERT_EQ_INT(send(&fc, "\r"), TUI_FC_ACTIVE, "an existing file asks");
+    fx_draw(&f, &fc);
+    ASSERT_SCREEN_CONTAINS(f.s, "Replace file");
+    send(&fc, "n");
+    tui_filechooser_free(&fc);
+
+    ASSERT_EQ_INT(open_at(&fc, TUI_FC_OPEN, NULL, NULL), 0, "open mode");
+    fx_draw(&f, &fc);
+    ASSERT(has(row(&f, 3), "Open: "), "open mode: its own label");
+    tui_filechooser_free(&fc);
+    fx_close(&f);
+}
+
 static void test_cancel(void) {
     tui_filechooser fc;
     ASSERT_EQ_INT(open_at(&fc, TUI_FC_OPEN, NULL, NULL), 0, "open");
@@ -790,6 +851,7 @@ static void test_many_entries(void) {
 
 /* The cursor of the field, in display cells (screen row 3, content starts at column 3 of a 40-column screen). */
 static void test_field_cursor_cells(void) {
+    const int L = 3 + 6;                    /* the content column, and the label "Open: " */
     tui_filechooser fc;
     ASSERT_EQ_INT(open_at(&fc, TUI_FC_OPEN, NULL, NULL), 0, "open");
     Fx f;
@@ -797,27 +859,27 @@ static void test_field_cursor_cells(void) {
     send(&fc, "\x15");
     send(&fc, "\xc3\xa9\xc3\xa1\xc5\x91");              /* three accented letters: one cell each */
     fx_draw(&f, &fc);
-    ASSERT_CURSOR(f.s, 3, 3 + 3);
+    ASSERT_CURSOR(f.s, 3, L + 3);
     send(&fc, "\xe6\x97\xa5\xe6\x9c\xac");              /* two wide characters: two cells each */
     fx_draw(&f, &fc);
-    ASSERT_CURSOR(f.s, 3, 3 + 3 + 4);
+    ASSERT_CURSOR(f.s, 3, L + 3 + 4);
     ASSERT(has(row(&f, 3), "éáő日本"), "the text is drawn");
     send(&fc, "\x1b[D");                                 /* Left over a wide character */
     fx_draw(&f, &fc);
-    ASSERT_CURSOR(f.s, 3, 3 + 3 + 2);
+    ASSERT_CURSOR(f.s, 3, L + 3 + 2);
     send(&fc, "\x1b[D\x1b[D");                           /* Left over the accented ones */
     fx_draw(&f, &fc);
-    ASSERT_CURSOR(f.s, 3, 3 + 2);
+    ASSERT_CURSOR(f.s, 3, L + 2);
 
     /* A path longer than the field: it scrolls and the cursor follows, at the right edge. */
     send(&fc, "\x15");
-    for (int i = 0; i < 30; i++) send(&fc, "\xc3\xa9\xc3\xa9");     /* 60 cells, field is 34 */
+    for (int i = 0; i < 30; i++) send(&fc, "\xc3\xa9\xc3\xa9");     /* 60 cells, field is 28 */
     fx_draw(&f, &fc);
     ASSERT_CURSOR(f.s, 3, 3 + 33);
     ASSERT(has(row(&f, 3), "éééé"), "the end of the text is shown");
     send(&fc, "\x01");                                   /* Ctrl-A: back to the start (Home moves the list) */
     fx_draw(&f, &fc);
-    ASSERT_CURSOR(f.s, 3, 3);
+    ASSERT_CURSOR(f.s, 3, L);
     send(&fc, "\x15");
     for (int i = 0; i < 40; i++) send(&fc, "\xe6\x97\xa5");        /* 80 cells of wide characters */
     fx_draw(&f, &fc);
@@ -921,6 +983,7 @@ static const TestCase tests[] = {
     TEST_CASE(test_open_mode),
     TEST_CASE(test_dir_mode),
     TEST_CASE(test_save_mode),
+    TEST_CASE(test_save_keeps_name),
     TEST_CASE(test_cancel),
     TEST_CASE(test_tab_completion),
     TEST_CASE(test_hidden_toggle_and_filter),

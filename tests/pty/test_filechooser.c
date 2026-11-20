@@ -72,6 +72,7 @@ static void test_choose_a_directory(void) {
     pty_send_key(s, PTY_KEY_ENTER);
     char want[400];
     snprintf(want, sizeof want, "chosen: %s/beta", g_root);
+    if (strlen(want) > 78) want[78] = '\0';           /* the 80-column row cuts a deep path */
     ASSERT_WAIT_FOR(s, want, 5000);
     pty_close(s);
 }
@@ -91,6 +92,7 @@ static void test_save_and_replace(void) {
     pty_send_str(s, "y");
     char want[400];
     snprintf(want, sizeof want, "chosen: %s/a.txt", g_root);
+    if (strlen(want) > 78) want[78] = '\0';           /* the 80-column row cuts a deep path */
     ASSERT_WAIT_FOR(s, want, 5000);
     pty_close(s);
 }
@@ -106,7 +108,7 @@ static void test_tab_hidden_filter_and_cancel(void) {
     pty_send_str(s, "b.\t");                               /* completes b.eml */
     char want[400];
     snprintf(want, sizeof want, "%s/b.eml", g_root);
-    ASSERT_WAIT_FOR(s, want, 5000);
+    ASSERT_WAIT_FOR(s, strlen(want) > 50 ? want + strlen(want) - 50 : want, 5000);   /* the field scrolls to its end */
     pty_send_key(s, PTY_KEY_ESC);
     ASSERT_WAIT_FOR(s, "cancelled", 5000);
     pty_send_str(s, "o");                                 /* open again */
@@ -116,10 +118,42 @@ static void test_tab_hidden_filter_and_cancel(void) {
     pty_close(s);
 }
 
+static void test_save_keeps_the_name(void) {
+    PtySession *s = start("save", g_root, NULL);
+    ASSERT(s != NULL, "start");
+    ASSERT_WAIT_FOR(s, "6 entries", 5000);
+    ASSERT_SCREEN_CONTAINS(s, "Save as: ");                 /* the labelled field */
+    ASSERT_SCREEN_CONTAINS(s, "\xe2\x94\x80\xe2\x94\x80 6 entries");   /* the rule under it, with the status */
+    pty_send_str(s, "keep.txt");
+    pty_send_key(s, PTY_KEY_DOWN);                          /* alpha/ */
+    ASSERT_WAIT_FOR(s, "keep.txt", 5000);
+    ASSERT_SCREEN_NOT_CONTAINS(s, "alpha/keep.txt");        /* the cursor on a directory changes nothing */
+    pty_send_key(s, PTY_KEY_ENTER);                         /* into alpha, name kept */
+    ASSERT_WAIT_FOR(s, "alpha/keep.txt", 5000);
+    ASSERT_WAIT_FOR(s, "1 entry", 5000);
+    pty_send_key(s, PTY_KEY_DOWN);                          /* onto inner.txt: the name stays */
+    ASSERT_SCREEN_CONTAINS(s, "alpha/keep.txt");
+    ASSERT_SCREEN_NOT_CONTAINS(s, "alpha/inner.txt");
+    pty_send_key(s, PTY_KEY_UP);
+    pty_send_key(s, PTY_KEY_ENTER);                         /* '..': up, name kept */
+    ASSERT_WAIT_FOR(s, "6 entries", 5000);
+    ASSERT_SCREEN_NOT_CONTAINS(s, "alpha/keep.txt");
+    ASSERT_SCREEN_CONTAINS(s, "keep.txt");
+    pty_send_key(s, PTY_KEY_BACK);                     /* an edit: kept as typed */
+    pty_send_str(s, "2");
+    pty_send_key(s, PTY_KEY_ENTER);
+    char want[400];
+    snprintf(want, sizeof want, "chosen: %s/keep.tx2", g_root);
+    if (strlen(want) > 78) want[78] = '\0';
+    ASSERT_WAIT_FOR(s, want, 5000);
+    pty_close(s);
+}
+
 static const TestCase tests[] = {
     TEST_CASE(test_open_a_file),
     TEST_CASE(test_choose_a_directory),
     TEST_CASE(test_save_and_replace),
+    TEST_CASE(test_save_keeps_the_name),
     TEST_CASE(test_tab_hidden_filter_and_cancel),
 };
 
