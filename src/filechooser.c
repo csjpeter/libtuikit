@@ -458,7 +458,7 @@ static int activate_row(tui_filechooser *fc) {
     const char *leaf;
     size_t dl;
     leaf_of(p, &leaf, &dl);
-    char keep[256], path[FC_PATH], text[FC_PATH];
+    char keep[FC_PATH], path[FC_PATH], text[FC_PATH];
     snprintf(keep, sizeof keep, "%s", leaf);
     p->in_list = 0;
     if (row_path(p, i, path, sizeof path) != 0) return 0;     /* too long: the ordinary Enter refuses */
