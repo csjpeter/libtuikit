@@ -456,6 +456,17 @@ name the ticket that closes the gap; there is none now.
 | `tui_yesno_render` | `tests/functional/cap_widgets.c` | `cap_yesno` |
 | `tui_yesno_format` | `tests/functional/cap_widgets.c` | `cap_yesno` |
 
+## Help page and view description
+
+| Capability | Functional test | Phase |
+|---|---|---|
+| `tui_viewdoc_open` | `tests/functional/cap_widgets.c` | `cap_viewdoc` |
+| `tui_viewdoc_handle` | `tests/functional/cap_widgets.c` | `cap_viewdoc` |
+| `tui_viewdoc_render` | `tests/functional/cap_widgets.c` | `cap_viewdoc` |
+| `tui_viewdoc_free` | `tests/functional/cap_widgets.c` | `cap_viewdoc` |
+| `tui_viewdoc_text` | `tests/functional/cap_widgets.c` | `cap_viewdoc` |
+| `tui_viewdoc_check` | `tests/functional/cap_widgets.c` | `cap_viewdoc` |
+
 ## Dialogs
 
 | Capability | Functional test | Phase |

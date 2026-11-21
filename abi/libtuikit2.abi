@@ -55,6 +55,9 @@ size tui_textview 64 8
 size tui_tree 104 8
 size tui_treerow 16 8
 size tui_treeset 24 8
+size tui_viewdoc 48 8
+size tui_viewdoc_col 16 8
+size tui_viewdoc_page 608 8
 size tui_yesno 260 4
 symbol tui_actionmenu_free
 symbol tui_actionmenu_handle
@@ -387,6 +390,12 @@ symbol tui_utf8_decode
 symbol tui_utf8_encode
 symbol tui_utf8_seq_len
 symbol tui_version
+symbol tui_viewdoc_check
+symbol tui_viewdoc_free
+symbol tui_viewdoc_handle
+symbol tui_viewdoc_open
+symbol tui_viewdoc_render
+symbol tui_viewdoc_text
 symbol tui_yesno_format
 symbol tui_yesno_get
 symbol tui_yesno_handle

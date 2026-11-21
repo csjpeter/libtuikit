@@ -64,6 +64,9 @@ int main(void) {
     SHOW(tui_tree);
     SHOW(tui_treerow);
     SHOW(tui_treeset);
+    SHOW(tui_viewdoc);
+    SHOW(tui_viewdoc_col);
+    SHOW(tui_viewdoc_page);
     SHOW(tui_yesno);
     return 0;
 }

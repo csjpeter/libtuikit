@@ -1,0 +1,104 @@
+.\" SPDX-License-Identifier: GPL-3.0-only
+.\" Copyright (c) 2026 Peter Csaszar (Császár Péter)
+.TH TUI_VIEWDOC_OPEN 3 2026-11-21 "libtuikit 2.0" "libtuikit Manual"
+.SH NAME
+tui_viewdoc_open, tui_viewdoc_handle, tui_viewdoc_render, tui_viewdoc_free, tui_viewdoc_text,
+tui_viewdoc_check \- the help page and the view description
+.SH SYNOPSIS
+.nf
+.B #include <tuikit/viewdoc.h>
+.PP
+.BI "int  tui_viewdoc_open(tui_viewdoc_page *" p ", const tui_viewdoc *" view ,
+.BI "                      const char *const *" common ", int " ncommon );
+.BI "tui_dialog_state tui_viewdoc_handle(tui_viewdoc_page *" p ", const tui_event *" ev );
+.BI "void tui_viewdoc_render(tui_viewdoc_page *" p ", tui_canvas " c );
+.BI "void tui_viewdoc_free(tui_viewdoc_page *" p );
+.BI "int  tui_viewdoc_text(const tui_viewdoc *" view ", char *" out ", size_t " size );
+.BI "int  tui_viewdoc_check(const tui_viewdoc *" view ", const tui_table_col *" cols ,
+.BI "                       int " ncols ", char *" msg ", size_t " size );
+.fi
+.SH DESCRIPTION
+One rule for every program: the key
+.B ?
+opens the help page of the view, and
+.B d
+on the page opens the description of the view in a dialog of its own.
+A view registers once, in a
+.BR tui_viewdoc :
+its
+.I name
+(\(lqQueue\(rq: the description is titled \(lqQueue view\(rq), its
+.I statement
+(what the view is for; a view that is no table says what it shows and what each
+part means), one
+.B tui_viewdoc_col
+(\fItitle\fR and a one-line \fItext\fR) for each column of its table in the
+order of the table, and its
+.I keys
+(key and description in pairs,
+.I nkeys
+pairs).
+Nothing is copied: the registration outlives the page.
+.PP
+.BR tui_viewdoc_open ()
+makes the page: its first line is \(lqPress d: what this view is and what each
+column means.\(rq, then the heading \(lqThis view\(rq with the keys of the view,
+then \(lqEvery view\(rq with the
+.I ncommon
+pairs of
+.IR common .
+It returns \-1 with
+.B EINVAL
+or
+.BR ENOMEM .
+.PP
+.BR tui_viewdoc_handle ()
+gives it one event and returns the state:
+.B TUI_DIALOG_OPEN
+until it is closed,
+.B TUI_DIALOG_OK
+after.
+.B d
+(outside the search of the page, where it is text) opens the description:
+the statement, a blank line, then one line \(lqTITLE  text\(rq for each column.
+Esc, q or Backspace close the page, or the description and the page with it.
+The other keys are those of
+.BR tui_dialog_help (3):
+scrolling and the search with
+.BR / .
+.BR tui_viewdoc_render ()
+draws the page, or the description over it, centred in the canvas;
+.BR tui_viewdoc_free ()
+frees the page (safe twice, and after a failed open).
+.PP
+.BR tui_viewdoc_text ()
+writes the text of the description as
+.BR snprintf (3)
+does and returns the length it needs.
+.PP
+.BR tui_viewdoc_check ()
+is for the tests of the programs: it compares the titles of the columns of a
+table with the registered ones, in order; a column without a title (a mark
+column) is left out.
+It returns 0 when they agree, \-1 when a column is not described or a
+description names a column that is gone, and writes the first difference into
+.IR msg .
+.SH EXAMPLE
+.nf
+static const tui_viewdoc_col cols[] = {
+    { "KEY", "the ticket" }, { "TITLE", "its title" } };
+static const char *const keys[] = { "Enter", "open the row" };
+static const char *const all[] = { "?", "this page", "Esc", "back" };
+static const tui_viewdoc view = { "Queue", "The tickets in order.", cols, 2, keys, 1 };
+
+/* in a test: */  assert(tui_viewdoc_check(&view, table_cols, n, msg, sizeof msg) == 0);
+/* on ? */        tui_viewdoc_open(&page, &view, all, 2);
+/* each event */  if (tui_viewdoc_handle(&page, &ev) != TUI_DIALOG_OPEN) tui_viewdoc_free(&page);
+/* each frame */  tui_viewdoc_render(&page, canvas);
+.fi
+.SH SEE ALSO
+.BR tui_dialog_message (3),
+.BR tui_table_init (3),
+.BR libtuikit (7)
+.PP
+policies/tui-interface-model.md, \(lqThe help page and the view description\(rq.
