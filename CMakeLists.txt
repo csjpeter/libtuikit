@@ -122,6 +122,7 @@ set(TUIKIT_SOURCES
     src/sgrview.c
     src/menu.c
     src/tabrow.c
+    src/viewdoc.c
     src/yesno.c
     src/tree.c
     src/term.c
@@ -339,6 +340,9 @@ set(TUIKIT_MAN3_ALIASES
     tui_tabrow_active:tui_tabrow_init tui_tabrow_count:tui_tabrow_init
     tui_tabrow_handle:tui_tabrow_init tui_tabrow_render:tui_tabrow_init
     tui_tabrow_format:tui_tabrow_init tui_tabrow_set_numbers:tui_tabrow_init
+    tui_viewdoc_handle:tui_viewdoc_open tui_viewdoc_render:tui_viewdoc_open
+    tui_viewdoc_free:tui_viewdoc_open tui_viewdoc_text:tui_viewdoc_open
+    tui_viewdoc_check:tui_viewdoc_open
     tui_yesno_handle:tui_yesno_init tui_yesno_get:tui_yesno_init
     tui_yesno_render:tui_yesno_init tui_yesno_format:tui_yesno_init
     tui_menu_set:tui_menu_init tui_menu_select:tui_menu_init

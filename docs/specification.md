@@ -268,6 +268,7 @@ Non-goals:
 | `tuikit/statusline.h` | the one bottom line: hints that fit, position, prompt (message and wait deprecated: they no longer show) | yes | TUI-51, TUI-109 |
 | `tuikit/tabrow.h` | the tab row of a screen with sub-views, the active tab by attribute | yes | TUI-69 |
 | `tuikit/yesno.h` | the inline one-row yes/no question `Text? (y/N)`, answered by one key | yes | TUI-123 |
+| `tuikit/viewdoc.h` | the help page (`?`) and the view description (`d`), registered once per view; the check of a table's columns | yes | TUI-147 |
 | `tuikit/menu.h` | the main menu: numbered entries, live counts, the description of the entry under the cursor | yes | TUI-108 |
 | `tuikit/textview.h` | wrapped, scrollable text | yes | M4 |
 | `tuikit/htmlrender.h` | HTML to text with SGR: the subset above, a width, no script, no remote load | yes | TUI-124 |
@@ -825,6 +826,22 @@ widget the program routes events to first.
     the digits 1 to 9 (that tab, if it exists); the result says whether the
     program has to show another view.
   - *Plain text*: `tui_tabrow_format` lays the row out exactly as `render`.
+- **`tui_viewdoc`** (TUI-147) — the help page and the view description of
+  policies/tui-interface-model.md, one rule for every program.
+  - *Registration*: a `tui_viewdoc` (name, statement, `tui_viewdoc_col` title and
+    one-line text for each column, keys as pairs); nothing is copied.
+  - *Page*: `tui_viewdoc_open(page, view, common, ncommon)`: a `tui_dialog_help`
+    titled "NAME help", its first line "Press d: what this view is and what each
+    column means.", then "This view" and the keys of the view, then "Every view"
+    and the common keys.
+  - *Description*: `d` outside the page's search opens a `tui_dialog_text` titled
+    "NAME view": the statement, a blank line, one line "TITLE  text" per column
+    (titles padded to the widest). Esc, q, Backspace close it and the page with it.
+  - *Check*: `tui_viewdoc_check(view, cols, ncols, msg, size)` compares the titles of
+    a table (a column without a title is left out) with the registered columns,
+    in order; -1 names the first difference.
+  - Man page `tui_viewdoc_open(3)`; demo and PTY test: `tests/pty/viewdoc_fixture.c`,
+    `tests/pty/test_viewdoc.c`.
 - **`tui_yesno`** (TUI-123) — the inline one-row yes/no question of a program
   that asks on its bottom row (`Delete R01? (y/N)`) instead of a modal
   `tui_dialog_confirm`; a pure model, 260 bytes.

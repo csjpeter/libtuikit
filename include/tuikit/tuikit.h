@@ -35,6 +35,7 @@
 #include "tuikit/statusline.h"
 #include "tuikit/tabrow.h"
 #include "tuikit/yesno.h"
+#include "tuikit/viewdoc.h"
 #include "tuikit/table.h"
 #include "tuikit/term.h"
 #include "tuikit/text.h"

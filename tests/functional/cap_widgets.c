@@ -936,12 +936,49 @@ static void cap_yesno(void) {
     CHECK_INT(tui_yesno_get(&yn), TUI_YESNO_INTERRUPT, "yesno get");
 }
 
+static void cap_viewdoc(void) {
+    static const tui_table_col tcols[] = {
+        { "KEY", 8, 0, TUI_ALIGN_LEFT, 0, 0, 0 }, { "TITLE", 20, 1, TUI_ALIGN_LEFT, 0, 0, 0 } };
+    static const tui_viewdoc_col dcols[] = { { "KEY", "the ticket" }, { "TITLE", "its title" } };
+    static const char *const keys[] = { "Enter", "open the row" };
+    static const char *const all[] = { "?", "this page" };
+    static const tui_viewdoc view = { "Queue", "The tickets in order.", dcols, 2, keys, 1 };
+    char msg[120];
+    CHECK_INT(tui_viewdoc_check(&view, tcols, 2, msg, sizeof msg), 0, "the columns are described");
+    CHECK_INT(tui_viewdoc_check(&view, tcols, 1, msg, sizeof msg), -1, "a description without a column");
+    char text[200];
+    CHECK(tui_viewdoc_text(&view, text, sizeof text) > 0, "the text of the description");
+    CHECK_HAS(text, "TITLE  its title", "a line for a column");
+
+    tui_viewdoc_page p;
+    CHECK_INT(tui_viewdoc_open(&p, &view, all, 1), 0, "the page opens");
+    tui_screen *scr = tui_screen_new(20, 70);
+    tui_viewdoc_render(&p, tui_canvas_of(scr));
+    char *txt = cap_screen_text(scr, NULL);
+    CHECK_HAS(txt, "Press|d:", "the first line reminds of d");
+    CHECK_HAS(txt, "open|the|row", "the keys of the view");
+    CHECK_HAS(txt, "this|page", "the keys of every view");
+    free(txt);
+    tui_event d = cap_ev("d"), esc = cap_ev("\x1b");
+    CHECK_INT(tui_viewdoc_handle(&p, &d), TUI_DIALOG_OPEN, "d opens the description");
+    tui_canvas_clear(tui_canvas_of(scr), TUI_STYLE_DEFAULT);
+    tui_viewdoc_render(&p, tui_canvas_of(scr));
+    txt = cap_screen_text(scr, NULL);
+    CHECK_HAS(txt, "Queue view", "the dialog");
+    CHECK_HAS(txt, "KEY|the|ticket", "a line for each column");
+    free(txt);
+    CHECK_INT(tui_viewdoc_handle(&p, &esc), TUI_DIALOG_OK, "Esc closes it and the page");
+    tui_viewdoc_free(&p);
+    tui_screen_free(scr);
+}
+
 int main(void) {
     cap_table();
     cap_header();
     cap_statusline();
     cap_tabrow();
     cap_yesno();
+    cap_viewdoc();
     cap_menu();
     cap_dialog();
     cap_fieldset();
