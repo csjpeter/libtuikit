@@ -77,6 +77,7 @@ typedef struct {
     int          nrows;
     tui_dialog   confirm;
     int          confirming;
+    int          in_list;          /* save mode: the cursor was moved in the list since the field was edited */
 } fc_priv;
 
 /* dupstr() through the library's own malloc call. */
@@ -439,8 +440,36 @@ static void set_field(fc_priv *p, const char *text) {
 
 static void follow_row(fc_priv *p) {
     char path[FC_PATH];
+    if (p->mode == TUI_FC_SAVE) {                  /* the name in the field stays as it is */
+        p->in_list = 1;
+        return;
+    }
     if (p->list.selected < 0 || p->list.selected >= p->nrows) return;
     if (row_path(p, p->list.selected, path, sizeof path) == 0) set_field(p, path);
+}
+
+/* Save mode: Enter on the row under the cursor.  A directory (or "..") is
+ * entered with the file name of the field kept; a file's name goes into the
+ * field and is chosen (the replace question follows).  0: nothing to do. */
+static int activate_row(tui_filechooser *fc) {
+    fc_priv *p = fc->priv;
+    int i = p->list.selected;
+    if (i < 0 || i >= p->nrows) return 0;
+    const char *leaf;
+    size_t dl;
+    leaf_of(p, &leaf, &dl);
+    char keep[FC_PATH], path[FC_PATH], text[FC_PATH];
+    snprintf(keep, sizeof keep, "%s", leaf);
+    p->in_list = 0;
+    if (row_path(p, i, path, sizeof path) != 0) return 0;     /* too long: the ordinary Enter refuses */
+    if (!row_is_dir(p, i)) {
+        set_field(p, path);
+        return 0;                                   /* the field names the file: the ordinary Enter */
+    }
+    if ((size_t)snprintf(text, sizeof text, "%s%s", path, keep) >= sizeof text) return 0;
+    set_field(p, text);
+    start_load(fc, path);
+    return 1;
 }
 
 /* Tab: completes the name being typed from the entries of the shown directory. */
@@ -626,7 +655,7 @@ tui_fc_state tui_filechooser_handle(tui_filechooser *fc, const tui_event *ev) {
         return fc->state;
     }
     if (ev->type == TUI_EV_KEY && ev->key == TUI_KEY_ENTER) {
-        activate(fc);
+        if (!(fc->mode == TUI_FC_SAVE && p->in_list && activate_row(fc))) activate(fc);
         return fc->state;
     }
     if (key && ev->key == TUI_KEY_BACKSPACE && go_up(fc)) return fc->state;
@@ -650,7 +679,10 @@ tui_fc_state tui_filechooser_handle(tui_filechooser *fc, const tui_event *ev) {
     char before[FC_PATH];
     snprintf(before, sizeof before, "%s", p->buf);
     tui_lineedit_handle(&p->edit, ev);
-    if (strcmp(before, p->buf) != 0) sync_from_field(fc);
+    if (strcmp(before, p->buf) != 0) {
+        p->in_list = 0;
+        sync_from_field(fc);
+    }
     return fc->state;
 }
 
@@ -825,9 +857,14 @@ void tui_filechooser_render(tui_filechooser *fc, tui_canvas c) {
                  p->show_hidden ? ", hidden shown" : "", p->filter ? ", filter " : "",
                  p->filter ? p->filter : "");
     }
-    if (rows > 1)
-        tui_canvas_put_aligned(tui_canvas_sub(cc, tui_rect_make(1, 0, 1, cols)), 0, line,
-                               TUI_ALIGN_LEFT, sst);
+    if (rows > 1) {                                /* a rule under the field, the status set in it */
+        tui_canvas rule = tui_canvas_sub(cc, tui_rect_make(1, 0, 1, cols));
+        tui_canvas_hline(rule, 0, 0, cols, tui_scheme_style(TUI_ROLE_FRAME));
+        char shown[404];
+        snprintf(shown, sizeof shown, " %s ", line);
+        tui_canvas_put_aligned(tui_canvas_sub(rule, tui_rect_make(0, 2, 1, cols > 4 ? cols - 4 : 1)),
+                               0, shown, TUI_ALIGN_LEFT, sst);
+    }
     int lrows = rows - 2;
     if (lrows > 0) {
         int bar = tui__scrollbar_needed(p->nrows, lrows);
@@ -837,8 +874,10 @@ void tui_filechooser_render(tui_filechooser *fc, tui_canvas c) {
                                          tui_rect_make(2, 0, lrows, bar ? cols + 1 : cols));
         tui_listview_render(&p->list, list, fill, draw_row, p);
     }
-    tui_lineedit_render(&p->edit, tui_canvas_sub(cc, tui_rect_make(0, 0, 1, cols)), NULL,
-                        tui__input_style(tui_scheme_style(TUI_ROLE_INPUT), 1));
+    static const char *const labels[] = { "Open: ", "Directory: ", "Save as: " };
+    tui_lineedit_render(&p->edit, tui_canvas_sub(cc, tui_rect_make(0, 0, 1, cols)),
+                        labels[p->mode],
+                        tui__input_style(tui_scheme_style(TUI_ROLE_INPUT), !p->in_list));
     if (p->confirming) {
         tui_screen_set_cursor(c.screen, 0, 0, 0);
         tui_dialog_render(&p->confirm, c);

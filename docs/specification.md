@@ -889,9 +889,10 @@ widget the program routes events to first.
   dialog of the same shape (`handle`, `render`, the outcome in `state` and
   `path`), for every TUI that attaches or saves a file
   (`policies/tui-interface-model.md`, "The toolbox first").
-  - *Layout*: the frame, a typing field (a `tui_lineedit`), a status row
-    (`Reading...`, a refusal, `N entries`, `, hidden shown`, `, filter PATTERN`),
-    then the list: directories first, then files, each by name without regard
+  - *Layout*: the frame, a labelled typing field (a `tui_lineedit`; the label is
+    `Open: `, `Directory: ` or `Save as: `), a rule (`tui_canvas_hline`, frame
+    role) under it with the status set in it (`Reading...`, a refusal,
+    `N entries`, `, hidden shown`, `, filter PATTERN`), then the list: directories first, then files, each by name without regard
     to case; the size (`3B`, `2.0K`, `5.0M`, right-aligned in six columns) and
     the date of change (`YYYY-MM-DD HH:MM`, local time) of a file, the date of
     a directory; a `../` row (not at `/`); in directory mode a `./` row first
@@ -911,6 +912,14 @@ widget the program routes events to first.
     the dot names (`tui_filechooser_set_hidden` sets it). Esc and Ctrl-C cancel.
     Save asks `Replace it?` (a `tui_dialog` confirm, default No) for an
     existing file.
+  - *Save mode* (TUI-144): the file name of the field is never replaced by the
+    list. Moving the cursor leaves the field as it is (the field then shows
+    the unfocused input style, the list has the focus, until the next edit);
+    Enter on a directory row (or `../`) enters it and keeps the name, only the
+    directory part of the field changes; Enter on a file row puts its path in
+    the field and asks before replacing it. A name that was edited is kept as
+    typed; the suggested one stays until it is changed. Open and directory
+    mode are unchanged (the field follows the rows).
   - *The field* (TUI-143): a leading `~`, `~/...` or `~user/...` is expanded
     for every lookup (completion, showing a directory, Enter, Backspace) --
     `$HOME` for the caller's own, `getpwnam_r(3)` for `~user` -- and the field

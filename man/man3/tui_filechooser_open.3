@@ -34,7 +34,8 @@ is no longer
 .PP
 The dialog has a
 .B typing field
-with the path and, under it, a status row and the
+with the path, labelled \(lqOpen:\(rq, \(lqDirectory:\(rq or \(lqSave as:\(rq, under it a rule
+with the status set in it, and the
 .B list
 of the entries of the directory: directories first, then files, each group
 by name without regard to case, with the size of a file and the date of
@@ -45,7 +46,9 @@ End (a page is the rows less two, at least one; the letters j, k, g and G are ty
 .PP
 .B The field and the list follow each other.
 A key that moves the list puts the path of the row into the field (a
-directory with a trailing slash).
+directory with a trailing slash); in \fBTUI_FC_SAVE\fR it leaves the field alone, so the file
+name stays, and Enter on a directory row enters it with the name kept (only the directory
+part of the field changes); Enter on a file row chooses that file (after the replace question).
 What is typed selects the first entry whose name starts with it, and a path
 with a slash in it shows that directory.
 Tab completes the name being typed from the entries shown: all of it when
