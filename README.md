@@ -133,6 +133,11 @@ WORKSPACE_LIBS=system ./manage.sh test    # the same tests against the package
                         # (both print `step N/M: NAME` at the start of each step)
 ```
 
+The package version is `MAJOR.MINOR.PATCH.N`, `N` being the commit count of the
+built head, and the release tag `vMAJOR.MINOR.PATCH.N` names that same version.
+A consumer that needs a newer header than the dev suite serves asks for a
+packaging ticket: the packages are built from the merged head, never by hand.
+
 One test: `build/tests/unit/bin/test-decoder test_paste` (substring filter, `-l`
 lists the tests). The tests use `libptytest` as their terminal emulator; the
 library itself shares no code with it.
