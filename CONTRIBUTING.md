@@ -33,3 +33,14 @@ licence is not GPL-3.0-only compatible.
 ```
 
 A change that is not covered by a test which can fail is not finished.
+
+## How the tests run
+
+`manage.sh` runs the suites of every test step through one work queue with
+`TUIKIT_TEST_WORKERS` workers (default `nproc`; `1` is the serial run).  One
+suite is one item; its output goes to its own file and is shown whole, so
+output of two suites never mixes.  A suite therefore shares nothing with
+another: fixtures live in a directory named with its pid under the build
+tree, no suite binds a fixed port (none uses the network), and none depends
+on the order or on the wall clock.  A new suite that cannot meet this needs a
+resource mark in the queue before it is added.

@@ -97,6 +97,12 @@ libptytest, the test instrument, comes as the submodule deps/libptytest
 and check that its pin is a release tag) or as the installed libptytest-dev
 (WORKSPACE_LIBS=system); WORKSPACE_LIBS=auto takes the package when present.
 
+Every test step (test, pty, functional, and the suites of valgrind and coverage) runs
+its suites through one work queue: TUIKIT_TEST_WORKERS workers (default nproc) each
+take one suite, write its output into their own file and append it, whole, to
+build/_logs/collect-*.log under a lock; the result is the one of a serial run
+(TUIKIT_TEST_WORKERS=1).  Nothing here needs the devboard.
+
 One suite, or one test of a suite:
   ./manage.sh test -R test-decoder
   build/tests/unit/bin/test-decoder test_paste    (substring filter; -l lists)
@@ -331,12 +337,49 @@ parse_counts() {
     fi
 }
 
+# Workers of the test queue: one per core unless the caller says otherwise
+# (policies/testing-model.md, "Tests run through a work queue").  Nothing
+# here needs the devboard; it may only lower the number.
+TEST_WORKERS="${TUIKIT_TEST_WORKERS:-$JOBS}"
+export BUILD_DIR
+case "$TEST_WORKERS" in
+    ''|*[!0-9]*|0) echo "TUIKIT_TEST_WORKERS is '$TEST_WORKERS'; it is a positive number" >&2; exit 1 ;;
+esac
+
+# Items that take the longest are queued first, so that a slow one does not
+# start last and hold the end of the run.  The rest keep ctest's order.
+QUEUE_FIRST="package-output workspace-libs qa-levels test-base result timing"
+
+# suite_log <prefix> <test name>: the own file of the suite's output.
+suite_log() {
+    local log="$BUILD_DIR/_logs/suite-$1$2.log"
+    echo "${log//\/\//\/}"
+}
+
+# run_item <item dir> <build dir> <prefix> <test name>
+# One item of the queue, run by a worker: ctest on the one test, its whole
+# output in the worker's own file <log>, then the file is appended to the
+# collecting log and shown, as one piece, under a lock.  The exit status of
+# ctest and the seconds go to <log>.rec; the verdict is read from there.
+run_item() {
+    local idir="$1" dir="$2" prefix="$3" name="$4" log t0 crc=0
+    log="$(suite_log "$prefix" "$name")"
+    t0="$(date +%s)"
+    mkdir -p "$(dirname "$log")"
+    ctest --test-dir "$dir" -R "^${name//./\\.}\$" -V --no-tests=error > "$log" 2>&1 || crc=$?
+    echo "$crc $(( $(date +%s) - t0 ))" > "$log.rec"
+    flock "$idir/lock" sh -c 'cat "$1" >> "$2"; cat "$1"' _ "$log" "$idir/collect.log"
+}
+export -f run_item suite_log
+
 # run_suites <prefix> <build dir> <label regex> [ctest args]
-# Runs every suite of the label, one ctest call each, and records it in the
-# result.  A failed suite does not stop the others; the status is non-zero
-# when any failed.  The suite's own output is shown.
+# Runs every suite of the label through one queue with TEST_WORKERS workers
+# (an item is one suite), and records it in the result in the order of
+# ctest's list, so that the result is the one of a serial run.  A failed
+# suite does not stop the others; the status is non-zero when any failed.
+# The suite's own output is shown, whole, when its item has ended.
 run_suites() {
-    local prefix="$1" dir="$2" label="$3" names name log t0 st rc=0 crc
+    local prefix="$1" dir="$2" label="$3" names ordered="" first="" rest="" name log st rc=0 crc secs idir
     shift 3
     names="$(ctest --test-dir "$dir" -N -L "$label" "$@" | sed -n 's/^ *Test *#[0-9]*: //p')" || return 1
     if [ -z "$names" ]; then
@@ -344,13 +387,32 @@ run_suites() {
         return 1
     fi
     mkdir -p "$BUILD_DIR/_logs"
+    idir="$(mktemp -d "$BUILD_DIR/_logs/queue-XXXXXX")"
+    : > "$idir/lock"
+    : > "$idir/collect.log"
     for name in $names; do
-        log="$BUILD_DIR/_logs/suite-$prefix${name}.log"
-        log="${log//\/\//\/}"
-        mkdir -p "$(dirname "$log")"
-        t0="$(date +%s)"
-        crc=0
-        ctest --test-dir "$dir" -R "^${name//./\\.}\$" -V --no-tests=error 2>&1 | tee "$log" || crc=$?
+        case " $QUEUE_FIRST " in
+            *" ${name#*.} "*) first="$first$name"$'\n' ;;
+            *) rest="$rest$name"$'\n' ;;
+        esac
+    done
+    ordered="$first$rest"
+    for name in $names; do rm -f "$(suite_log "$prefix" "$name").rec"; done
+    # The queue: the workers take one name each, until the list is empty.
+    printf '%s' "$ordered" | xargs -r -d '\n' -P "$TEST_WORKERS" -I{} \
+        bash -c 'run_item "$@"' _ "$idir" "$dir" "$prefix" {} || {
+        echo "the test queue itself failed" >&2
+        rc=1
+    }
+    for name in $names; do
+        log="$(suite_log "$prefix" "$name")"
+        if [ ! -f "$log.rec" ]; then
+            echo "no result of item $name" >&2
+            RES_SUITES+=("$prefix${name#*.} fail 0 1 0")
+            rc=1
+            continue
+        fi
+        read -r crc secs < "$log.rec"
         parse_counts "$log" "$crc"
         if [ "$crc" -eq 0 ] && [ "$P_F" -eq 0 ]; then
             st=pass
@@ -363,8 +425,11 @@ run_suites() {
                 [ "$P_F" -gt 0 ] || P_F=1
             fi
         fi
-        RES_SUITES+=("$prefix${name#*.} $st $P_A $P_F $(( $(date +%s) - t0 ))")
+        RES_SUITES+=("$prefix${name#*.} $st $P_A $P_F $secs")
     done
+    # The collecting log: every item whole, in the order the workers ended.
+    cp "$idir/collect.log" "$BUILD_DIR/_logs/collect-${prefix//\//-}${label//[^a-z]/}.log"
+    ( cd "$idir" && rm -f lock collect.log ) && rmdir "$idir"
     return "$rc"
 }
 

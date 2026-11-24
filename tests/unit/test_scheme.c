@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 int g_tests_run = 0;
 int g_tests_failed = 0;
@@ -56,7 +57,7 @@ static const char *at(const char *rel) {
 }
 
 static void setup(void) {
-    snprintf(g_root, sizeof g_root, "%s/scheme", TUIKIT_TEST_TMPDIR);
+    snprintf(g_root, sizeof g_root, "%s/scheme-%d", TUIKIT_TEST_TMPDIR, (int)getpid());
     mkdir_p(g_root);
 }
 
