@@ -17,6 +17,7 @@
 #include "tuikit/filechooser.h"
 
 #include <errno.h>
+#include <pwd.h>
 #include <poll.h>
 
 int g_tests_run = 0;
@@ -969,6 +970,18 @@ static void test_tilde(void) {
     send(&fc, "\x15~/");
     ASSERT_EQ_INT(settle(&fc), 1, "settled");
     ASSERT_EQ_STR(tui_filechooser_dir(&fc), "/nonexistent-home-xyz/", "a missing home is listed as an error");
+    tui_filechooser_free(&fc);
+    /* No $HOME at all: the passwd entry of the caller gives the home, as in a shell. */
+    struct passwd pw, *res = NULL;
+    char pwbuf[1024];
+    ASSERT_EQ_INT(getpwuid_r(getuid(), &pw, pwbuf, sizeof pwbuf, &res), 0, "passwd entry");
+    ASSERT(res != NULL && res->pw_dir[0] == '/', "the caller has a home in passwd");
+    ASSERT_EQ_INT(unsetenv("HOME"), 0, "no HOME");
+    ASSERT_EQ_INT(open_at(&fc, TUI_FC_OPEN, NULL, NULL), 0, "open");
+    send(&fc, "\x15~/");
+    ASSERT_EQ_INT(settle(&fc), 1, "settled");
+    snprintf(want, sizeof want, "%s%s", res->pw_dir, strcmp(res->pw_dir, "/") == 0 ? "" : "/");
+    ASSERT_EQ_STR(tui_filechooser_dir(&fc), want, "~/ without HOME is the passwd home");
     tui_filechooser_free(&fc);
     fx_close(&f);
 }
