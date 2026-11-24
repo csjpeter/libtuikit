@@ -207,12 +207,21 @@ static void test_wait_keys_and_timeout(void) {
     ASSERT_EQ_INT(ev.key, TUI_KEY_ESC, "Esc decoded");
     ASSERT(dt >= 95 && dt < 1000, "Esc reported after the 100 ms ESC delay");
 
-    /* The rest of a sequence arriving within the delay completes it. */
+    /* The rest of a sequence arriving within the delay completes it.  A
+     * session of its own with a delay far above any scheduling pause, so
+     * that a loaded machine cannot let the delay run out in between
+     * (the queue runs suites in parallel). */
+    tui_term_close(t);
+    t = open_on(&p, 0, 5000);
+    ASSERT(t != NULL, "open with a long ESC delay");
     tpair_type(&p, "\x1b[");
     ASSERT_EQ_INT(tui_term_wait(t, 20, NULL, 0, &ev), 0, "half a sequence is no event yet");
     tpair_type(&p, "B");
     ASSERT_EQ_INT(tui_term_wait(t, 1000, NULL, 0, &ev), 1, "completed");
     ASSERT_EQ_INT(ev.key, TUI_KEY_DOWN, "Down, not Esc");
+    tui_term_close(t);
+    t = open_on(&p, 0, 0);
+    ASSERT(t != NULL, "reopen with the default ESC delay");
 
     /* An unfinished sequence that never completes is dropped after the
      * delay, and the wait goes on to its own timeout. */
